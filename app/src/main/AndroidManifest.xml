@@ -103,6 +103,17 @@
                 android:value="保護者から子どものタブレットへの呼びかけ（「そろそろ終わりだよ」）を待ち受けて表示する" />
         </service>
 
+        <!-- 設定の書き出し（.xlsx）を共有する -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
         <receiver
             android:name=".update.InstallResultReceiver"
             android:exported="false" />

@@ -87,6 +87,7 @@ class MainActivity : ComponentActivity() {
         if (Store.config.autoUpdate) SelfUpdate.check(this)
         Weather.refresh(this)
         Remote.sync(this)
+        com.theta.kidshome.data.SheetSync.sync(this)
     }
 
     override fun onStart() {

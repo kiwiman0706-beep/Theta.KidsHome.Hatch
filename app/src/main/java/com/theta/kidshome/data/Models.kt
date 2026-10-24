@@ -53,7 +53,16 @@ data class AppConfig(
     /** おうちのひとからの呼びかけ（ntfy のトピック名） */
     val remoteTopic: String? = null,
     val remoteOn: Boolean = false,
+    /** アプリの仕分け先 */
+    val categories: List<AppCategory> = emptyList(),
+    /** パッケージ名 → カテゴリーの id（または Categories.HIDDEN）。無いものは未分類（出さない） */
+    val appCategory: Map<String, String> = emptyMap(),
+    /** 親のスマホから設定するスプレッドシート（リンクを知っている全員が閲覧可） */
+    val sheetUrl: String? = null,
 ) {
+    fun categoryOf(packageName: String): AppCategory? =
+        appCategory[packageName]?.let { id -> categories.firstOrNull { it.id == id } }
+
     val currentProfile: Profile
         get() = profiles.firstOrNull { it.id == currentProfileId } ?: profiles.first()
 
@@ -125,6 +134,12 @@ fun AppConfig.toJson(): JSONObject = JSONObject().apply {
     putOpt("musicPackage", musicPackage)
     putOpt("remoteTopic", remoteTopic)
     put("remoteOn", remoteOn)
+    put("categories", JSONArray(categories.map { c ->
+        JSONObject().put("id", c.id).put("name", c.name).put("emoji", c.emoji)
+            .put("visibleTo", JSONArray(c.visibleTo.toList())).put("isVideo", c.isVideo)
+    }))
+    put("appCategory", JSONObject(appCategory))
+    putOpt("sheetUrl", sheetUrl)
 }
 
 fun appConfigFromJson(o: JSONObject): AppConfig {
@@ -147,5 +162,17 @@ fun appConfigFromJson(o: JSONObject): AppConfig {
         musicPackage = o.str("musicPackage"),
         remoteTopic = o.str("remoteTopic"),
         remoteOn = o.optBoolean("remoteOn"),
+        categories = o.optJSONArray("categories")?.let { a ->
+            (0 until a.length()).map { a.getJSONObject(it) }.map { c ->
+                val v = c.optJSONArray("visibleTo")
+                AppCategory(
+                    id = c.getString("id"), name = c.optString("name"), emoji = c.optString("emoji", "⭐"),
+                    visibleTo = v?.let { (0 until it.length()).map { i -> it.getString(i) }.toSet() } ?: emptySet(),
+                    isVideo = c.optBoolean("isVideo"),
+                )
+            }
+        } ?: emptyList(),
+        appCategory = o.optJSONObject("appCategory")?.let { m -> m.keys().asSequence().associateWith { m.getString(it) } } ?: emptyMap(),
+        sheetUrl = o.str("sheetUrl"),
     )
 }

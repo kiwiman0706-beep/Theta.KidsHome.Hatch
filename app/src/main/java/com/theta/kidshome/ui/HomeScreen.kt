@@ -124,7 +124,18 @@ fun HomeScreen(onOpenDrawing: () -> Unit, onOpenParent: () -> Unit) {
         if (playful) bursts += Burst(System.nanoTime(), at, emojis)
     }
 
-    val tabs = remember(profile.tiles, config.widgetIds) { kidTabs(profile.tiles, config.widgetIds.isNotEmpty()) }
+    val installed = remember(config.appCategory, config.categories) { Launcher.listApps(context) }
+    val tabs = remember(profile, config.widgetIds, config.appCategory, config.categories, installed) {
+        kidTabs(profile.tiles, config.widgetIds.isNotEmpty(), categoryTabs(config, profile.id, installed))
+    }
+    // ホームを開いたままでも、ときどき シート と てんき を取り直す（どちらも間隔は中で決める）
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(60_000)
+            com.theta.kidshome.data.SheetSync.sync(context)
+            com.theta.kidshome.data.Weather.refresh(context)
+        }
+    }
     var tabKey by remember { mutableStateOf("home") }
     val tab = tabs.firstOrNull { it.key == tabKey } ?: tabs.first()
 
@@ -160,7 +171,7 @@ fun HomeScreen(onOpenDrawing: () -> Unit, onOpenParent: () -> Unit) {
                         when (t.kind) {
                             TabKind.HOME -> HomePage(config, theme, locked, now, wide, stars, playful, ::burst, onTile)
                             TabKind.CLOCK -> ClockPage(theme, now, wide)
-                            TabKind.VIDEO -> VideoPage(t, theme, locked, onTile) { showLockedDialog = true }
+                            TabKind.VIDEO, TabKind.CATEGORY -> VideoPage(t, theme, locked, onTile) { showLockedDialog = true }
                             TabKind.WIDGETS -> WidgetPage(theme)
                         }
                     }
@@ -228,7 +239,7 @@ private fun VideoPage(tab: KidTab, theme: KidTheme, locked: Boolean, onTile: (Ti
             Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 val icon = remember(pkg) { pkg?.let { Launcher.icon(context, it) } }
                 if (icon != null) Image(icon, null, Modifier.size(44.dp)) else Text(tab.emoji, fontSize = 36.sp)
-                DotText("${tab.label} の おきにいり", theme, 20, modifier = Modifier.padding(start = 12.dp).weight(1f))
+                DotText(if (tab.kind == TabKind.CATEGORY) tab.label else "${tab.label} の おきにいり", theme, 20, modifier = Modifier.padding(start = 12.dp).weight(1f))
                 if (pkg != null) {
                     RetroButton(if (locked) "🔒 アプリ" else "アプリを ひらく", theme, theme.titleBars[1], fontSize = 16) {
                         if (locked) onLocked() else Launcher.launchPackage(context, pkg)
@@ -243,7 +254,7 @@ private fun VideoPage(tab: KidTab, theme: KidTheme, locked: Boolean, onTile: (Ti
 
 // ---------------------------------------------------------------- タブ
 
-private enum class TabKind { HOME, CLOCK, VIDEO, WIDGETS }
+private enum class TabKind { HOME, CLOCK, CATEGORY, VIDEO, WIDGETS }
 
 private data class KidTab(
     val key: String,
@@ -255,7 +266,19 @@ private data class KidTab(
 )
 
 /** ホーム・とけい・動画サービスごと（ピン留めした作品があるものだけ）・ウィジェット */
-private fun kidTabs(tiles: List<Tile>, hasWidgets: Boolean): List<KidTab> {
+/** 仕分けたカテゴリーのうち、この子に見せるもの（アプリが入っているものだけ） */
+private fun categoryTabs(config: AppConfig, profileId: String, installed: List<com.theta.kidshome.data.InstalledApp>): List<KidTab> =
+    config.categories.filter { profileId in it.visibleTo }.mapNotNull { cat ->
+        val tiles = installed.filter { config.appCategory[it.packageName] == cat.id }.map { app ->
+            Tile(
+                id = "cat:${app.packageName}", type = TileType.APP, label = app.label, packageName = app.packageName,
+                isVideo = cat.isVideo || app.packageName in Launcher.videoPackages,
+            )
+        }
+        if (tiles.isEmpty()) null else KidTab("cat:${cat.id}", TabKind.CATEGORY, cat.emoji, cat.name, tiles = tiles)
+    }
+
+private fun kidTabs(tiles: List<Tile>, hasWidgets: Boolean, categories: List<KidTab> = emptyList()): List<KidTab> {
     val videos = LinkedHashMap<String, MutableList<Tile>>()
     val services = HashMap<String, com.theta.kidshome.data.VideoService?>()
     tiles.filter { it.type == TileType.VIDEO }.forEach { t ->
@@ -267,6 +290,7 @@ private fun kidTabs(tiles: List<Tile>, hasWidgets: Boolean): List<KidTab> {
     return buildList {
         add(KidTab("home", TabKind.HOME, "🏠", "ホーム"))
         add(KidTab("clock", TabKind.CLOCK, "🕐", "とけい"))
+        addAll(categories)
         videos.forEach { (name, list) ->
             val s = services[name]
             add(KidTab("video:$name", TabKind.VIDEO, s?.emoji ?: "🎬", name, s?.packageName, list))
@@ -302,7 +326,7 @@ private fun TabRail(tabs: List<KidTab>, selected: String, theme: KidTheme, locke
                     val icon = remember(t.packageName) { t.packageName?.let { Launcher.icon(context, it) } }
                     Box(contentAlignment = Alignment.Center) {
                         if (icon != null) Image(icon, null, Modifier.size(36.dp)) else Text(t.emoji, fontSize = 28.sp)
-                        if (locked && t.kind == TabKind.VIDEO) Text("🔒", fontSize = 18.sp, modifier = Modifier.offset(x = 14.dp, y = 12.dp))
+                        if (locked && (t.kind == TabKind.VIDEO || t.kind == TabKind.CATEGORY && t.tiles.all { it.isVideo })) Text("🔒", fontSize = 18.sp, modifier = Modifier.offset(x = 14.dp, y = 12.dp))
                     }
                     Text(
                         t.label, fontFamily = DotFont, fontSize = 11.sp, color = theme.outline,

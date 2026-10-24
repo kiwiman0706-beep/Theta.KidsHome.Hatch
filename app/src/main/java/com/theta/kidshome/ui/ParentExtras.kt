@@ -53,6 +53,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.core.graphics.drawable.toBitmap
 import com.theta.kidshome.data.AppConfig
 import com.theta.kidshome.data.Launcher
+import com.theta.kidshome.data.SheetSync
 import com.theta.kidshome.data.Store
 import com.theta.kidshome.data.Weather
 import com.theta.kidshome.data.WeatherPlace
@@ -314,4 +315,85 @@ private fun WidgetPickerDialog(onDismiss: () -> Unit, onPick: (AppWidgetProvider
             }
         }
     }
+}
+
+// ---------------------------------------------------------------- スプレッドシート
+
+@Composable
+fun SheetSection(config: AppConfig) {
+    val context = LocalContext.current
+    val st = SheetSync.state
+    var url by remember(config.sheetUrl) { mutableStateOf(config.sheetUrl.orEmpty()) }
+    Section("📝 親のスマホから設定（Google スプレッドシート）") {
+        Text(
+            "スプレッドシートに書いた こども・ボタン・カテゴリー・アプリの仕分け・せってい を、このタブレットが読み込みます（15分ごと と ホームに戻ったとき）。" +
+                "シートは「リンクを知っている全員」が閲覧できるように共有してください。書き換えられるのは持ち主だけです。",
+            fontSize = 14.sp,
+        )
+        Spacer(Modifier.height(8.dp))
+        Text("はじめかた", fontWeight = FontWeight.Bold)
+        Text(
+            "1. 下の「いまの設定を書き出す」→ Google ドライブに保存\n" +
+                "2. ドライブで開いて「Google スプレッドシートとして保存」\n" +
+                "3. 共有 →「リンクを知っている全員」（閲覧者）→ リンクをコピー\n" +
+                "4. そのリンクをここに貼る",
+            fontSize = 13.sp, color = Color.Gray,
+        )
+        Spacer(Modifier.height(8.dp))
+        FlowRow8 {
+            OutlinedButton(onClick = { exportSheet(context, config) }) { Text("いまの設定を書き出す（.xlsx）") }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
+            OutlinedTextField(
+                value = url, onValueChange = { url = it }, singleLine = true,
+                label = { Text("スプレッドシートのリンク") }, modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = {
+                val v = url.trim().ifEmpty { null }
+                if (v != null && SheetSync.sheetId(v) == null) {
+                    Toast.makeText(context, "スプレッドシートのリンクではありません", Toast.LENGTH_LONG).show()
+                } else {
+                    Store.update { it.copy(sheetUrl = v) }
+                    SheetSync.sync(context, force = true)
+                }
+            }) { Text(if (url.isBlank()) "同期をやめる" else "保存して同期") }
+        }
+        if (config.sheetUrl != null) {
+            Text(
+                when {
+                    st.syncing -> "読み込み中…"
+                    st.error != null -> "⚠️ ${st.error}"
+                    st.syncedAt > 0 -> "✅ ${java.text.SimpleDateFormat("H:mm", java.util.Locale.JAPAN).format(java.util.Date(st.syncedAt))} に読み込みました"
+                    else -> " "
+                },
+                fontSize = 14.sp, modifier = Modifier.padding(top = 6.dp),
+            )
+            st.note?.let { Text(it, fontSize = 12.sp, color = Color.Gray) }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = { SheetSync.sync(context, force = true) }) { Text("今すぐ読み込む") }
+                TextButton(onClick = {
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(config.sheetUrl)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                }) { Text("シートを開く ↗") }
+            }
+            Text(
+                "同期中は、タブレットで変えたボタン・仕分けは次の読み込みでシートの内容に戻ります。変えるときはシートで。" +
+                    "ウィジェット・おんがく・呼びかけ・どうがロックはタブレットだけの設定です。",
+                fontSize = 12.sp, color = Color.Gray,
+            )
+        }
+    }
+}
+
+private fun exportSheet(context: android.content.Context, config: AppConfig) {
+    runCatching {
+        val dir = java.io.File(context.cacheDir, "export").apply { mkdirs() }
+        val file = java.io.File(dir, "キッズホームの設定.xlsx")
+        SheetSync.writeXlsx(SheetSync.tables(context, config), file)
+        val uri = androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.files", file)
+        val send = Intent(Intent.ACTION_SEND)
+            .setType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            .putExtra(Intent.EXTRA_STREAM, uri)
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        context.startActivity(Intent.createChooser(send, "ドライブに保存").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    }.onFailure { Toast.makeText(context, "書き出せませんでした（${it.message}）", Toast.LENGTH_LONG).show() }
 }

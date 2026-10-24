@@ -13,6 +13,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import com.theta.kidshome.data.Categories
+import com.theta.kidshome.data.InstalledApp
 import androidx.compose.material3.Switch
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.text.style.TextAlign
@@ -104,33 +107,55 @@ fun ParentScreen(onClose: () -> Unit) {
     }
 }
 
-/** 端末に入っているアプリをぜんぶ出す（おうちのひと用） */
+/** 端末に入っているアプリをぜんぶ出す（おうちのひと用）。カテゴリーごとに並べ、押すと ひらく・仕分け */
 @Composable
 private fun AllApps(modifier: Modifier) {
     val context = LocalContext.current
+    val config = Store.config
     val apps = remember { Launcher.listApps(context) }
     var query by remember { mutableStateOf("") }
+    var selected by remember { mutableStateOf<InstalledApp?>(null) }
+    var guide by remember { mutableStateOf(false) }
+    val shown = apps.filter { query.isBlank() || it.label.contains(query, ignoreCase = true) }
+    val groups: List<Pair<String, List<InstalledApp>>> = buildList {
+        config.categories.forEach { cat ->
+            add("${cat.emoji} ${cat.name}　${visibleText(config, cat)}" to shown.filter { config.appCategory[it.packageName] == cat.id })
+        }
+        add("🙈 かくす" to shown.filter { config.appCategory[it.packageName] == Categories.HIDDEN })
+        add("❓ 未分類（子どもには出ません）" to shown.filter { it.packageName !in config.appCategory || config.categoryOf(it.packageName) == null && config.appCategory[it.packageName] != Categories.HIDDEN })
+    }.filter { it.second.isNotEmpty() }
+    val unsorted = apps.count { it.packageName !in config.appCategory }
+
     Column(modifier) {
-        OutlinedTextField(
-            value = query, onValueChange = { query = it }, singleLine = true,
-            label = { Text("さがす") }, modifier = Modifier.fillMaxWidth().widthIn(max = 600.dp),
-        )
-        Spacer(Modifier.height(12.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(
+                value = query, onValueChange = { query = it }, singleLine = true,
+                label = { Text("さがす") }, modifier = Modifier.widthIn(max = 480.dp).weight(1f, fill = false),
+            )
+            Spacer(Modifier.width(12.dp))
+            Button(onClick = { guide = true }) { Text(if (unsorted > 0) "仕分け $unsorted" else "仕分け") }
+        }
+        Text("アプリを押すと「ひらく」か「カテゴリーを変える」を選べます。", fontSize = 13.sp, color = Color.Gray, modifier = Modifier.padding(vertical = 8.dp))
         LazyVerticalGrid(GridCells.Adaptive(104.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(apps.filter { query.isBlank() || it.label.contains(query, ignoreCase = true) }, key = { it.packageName }) { app ->
-                val icon = remember(app.packageName) { Launcher.icon(context, app.packageName) }
-                Column(
-                    Modifier.clip(RoundedCornerShape(16.dp))
-                        .clickable { Launcher.launch(context, Tile(type = TileType.APP, label = app.label, packageName = app.packageName)) }
-                        .padding(8.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    if (icon != null) Image(icon, null, Modifier.size(56.dp)) else Spacer(Modifier.size(56.dp))
-                    Text(app.label, fontSize = 12.sp, maxLines = 2, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 4.dp))
+            groups.forEach { (title, list) ->
+                item(span = { GridItemSpan(maxLineSpan) }, key = "h:$title") {
+                    Text(title, fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
+                }
+                items(list, key = { title + it.packageName }) { app ->
+                    val icon = remember(app.packageName) { Launcher.icon(context, app.packageName) }
+                    Column(
+                        Modifier.clip(RoundedCornerShape(16.dp)).clickable { selected = app }.padding(8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        if (icon != null) Image(icon, null, Modifier.size(56.dp)) else Spacer(Modifier.size(56.dp))
+                        Text(app.label, fontSize = 12.sp, maxLines = 2, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 4.dp))
+                    }
                 }
             }
         }
     }
+    selected?.let { AppCategoryDialog(it) { selected = null } }
+    if (guide) SortGuideDialog { guide = false }
 }
 
 @Composable
@@ -142,6 +167,10 @@ private fun SettingsTab(modifier: Modifier) {
 
     Column(modifier.verticalScroll(rememberScrollState()).widthIn(max = 900.dp)) {
         UpdateSection(config)
+
+        SheetSection(config)
+
+        CategorySection(config)
 
         VideoLockSection(config)
 
