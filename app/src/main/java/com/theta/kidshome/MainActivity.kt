@@ -16,6 +16,11 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.theta.kidshome.data.Store
+import com.theta.kidshome.data.Weather
+import com.theta.kidshome.data.Widgets
+import com.theta.kidshome.remote.Remote
+import com.theta.kidshome.ui.RemoteDialog
+import com.theta.kidshome.ui.themeById
 import com.theta.kidshome.rescue.Rescue
 import com.theta.kidshome.rescue.RescueActivity
 import com.theta.kidshome.ui.DrawingScreen
@@ -62,13 +67,15 @@ class MainActivity : ComponentActivity() {
                     Screen.PARENT -> ParentScreen(onClose = { screen = Screen.HOME })
                 }
             }
+            // おうちのひとからの呼びかけは、どの画面の上にも出す
+            RemoteDialog(themeById(Store.config.currentProfile.themeId))
         }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         // ホームボタンでいつでもホームに戻る
-        if (intent.hasCategory(Intent.CATEGORY_HOME)) screen = Screen.HOME
+        if (intent.hasCategory(Intent.CATEGORY_HOME) || intent.getBooleanExtra(EXTRA_REMOTE, false)) screen = Screen.HOME
     }
 
     override fun onResume() {
@@ -78,6 +85,13 @@ class MainActivity : ComponentActivity() {
         healthy.removeCallbacks(markHealthy)
         healthy.postDelayed(markHealthy, 8000)
         if (Store.config.autoUpdate) SelfUpdate.check(this)
+        Weather.refresh(this)
+        Remote.sync(this)
+    }
+
+    override fun onStart() {
+        super.onStart()
+        if (!rescued && !Store.safeMode) Widgets.start()
     }
 
     override fun onStop() {
@@ -87,6 +101,7 @@ class MainActivity : ComponentActivity() {
             Rescue.onHomeHealthy(this)
             // おうちのひとメニューを開いたまま離れたら、次はまたかけ算を聞く
             if (screen == Screen.PARENT) screen = Screen.HOME
+            Widgets.stop()
         }
         super.onStop()
     }
@@ -94,6 +109,10 @@ class MainActivity : ComponentActivity() {
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
         if (hasFocus && !rescued) hideSystemBars()
+    }
+
+    companion object {
+        const val EXTRA_REMOTE = "remote"
     }
 
     private fun hideSystemBars() {

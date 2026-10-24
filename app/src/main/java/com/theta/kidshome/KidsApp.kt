@@ -12,6 +12,7 @@ class KidsApp : Application() {
         // レスキューのプロセス（":rescue"）では本体の準備をしない（本体が壊れていても開けるように）
         if (getProcessName().endsWith(":rescue")) return
         Store.init(this)
+        com.theta.kidshome.data.Widgets.init(this)
         Rescue.watchMainThread(this)
     }
 }

@@ -3,6 +3,7 @@ package com.theta.kidshome.ui
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.BatteryManager
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -123,6 +124,18 @@ fun HomeScreen(onOpenDrawing: () -> Unit, onOpenParent: () -> Unit) {
         if (playful) bursts += Burst(System.nanoTime(), at, emojis)
     }
 
+    val tabs = remember(profile.tiles, config.widgetIds) { kidTabs(profile.tiles, config.widgetIds.isNotEmpty()) }
+    var tabKey by remember { mutableStateOf("home") }
+    val tab = tabs.firstOrNull { it.key == tabKey } ?: tabs.first()
+
+    val onTile: (Tile) -> Unit = { tile ->
+        when {
+            tile.isVideo && locked -> showLockedDialog = true
+            tile.type == TileType.DRAWING -> onOpenDrawing()
+            else -> Launcher.launch(context, tile)
+        }
+    }
+
     BoxWithConstraints(
         Modifier.fillMaxSize().pointerInput(theme.id) {
             // 背景のどこをさわっても、キラキラがはじける
@@ -136,44 +149,23 @@ fun HomeScreen(onOpenDrawing: () -> Unit, onOpenParent: () -> Unit) {
         Column(
             Modifier.fillMaxSize()
                 .windowInsetsPadding(WindowInsets.safeDrawing)
-                .padding(horizontal = 20.dp, vertical = 12.dp)
+                .padding(start = 20.dp, top = 12.dp, bottom = 12.dp)
         ) {
-            Header(config, theme, updateBadge = SelfUpdate.state.newer, onGate = { showGate = true })
+            Header(config, theme, now, updateBadge = SelfUpdate.state.newer, onGate = { showGate = true })
             VSpace(14)
-            val onTile: (Tile) -> Unit = { tile ->
-                when {
-                    tile.isVideo && locked -> showLockedDialog = true
-                    tile.type == TileType.DRAWING -> onOpenDrawing()
-                    else -> Launcher.launch(context, tile)
-                }
-            }
-            if (wide) {
-                Row(Modifier.weight(1f)) {
-                    Column(
-                        Modifier.width(290.dp).fillMaxHeight().verticalScroll(rememberScrollState())
-                            .padding(end = 6.dp, bottom = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(18.dp),
-                    ) {
-                        MascotWindow(config, theme, stars, playful, ::burst)
-                        ClockWindow(theme, now)
-                        BatteryWindow(theme)
-                        if (locked) LockWindow(config, theme, now)
+            Row(Modifier.weight(1f)) {
+                Box(Modifier.weight(1f).fillMaxHeight()) {
+                    Crossfade(tab.key, label = "tab") { key ->
+                        val t = tabs.firstOrNull { it.key == key } ?: tabs.first()
+                        when (t.kind) {
+                            TabKind.HOME -> HomePage(config, theme, locked, now, wide, stars, playful, ::burst, onTile)
+                            TabKind.CLOCK -> ClockPage(theme, now, wide)
+                            TabKind.VIDEO -> VideoPage(t, theme, locked, onTile) { showLockedDialog = true }
+                            TabKind.WIDGETS -> WidgetPage(theme)
+                        }
                     }
-                    HSpace(22)
-                    TileGrid(config, theme, locked, Modifier.weight(1f), onTile)
                 }
-            } else {
-                Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    MascotWindow(config, theme, stars, playful, ::burst, Modifier.weight(1.2f).fillMaxHeight())
-                    ClockWindow(theme, now, Modifier.weight(1f).fillMaxHeight())
-                    BatteryWindow(theme, Modifier.weight(0.8f).fillMaxHeight())
-                }
-                if (locked) {
-                    VSpace(16)
-                    LockWindow(config, theme, now)
-                }
-                VSpace(18)
-                TileGrid(config, theme, locked, Modifier.weight(1f), onTile)
+                TabRail(tabs, tab.key, theme, locked) { tabKey = it }
             }
         }
 
@@ -191,13 +183,147 @@ fun HomeScreen(onOpenDrawing: () -> Unit, onOpenParent: () -> Unit) {
 }
 
 @Composable
+private fun HomePage(
+    config: AppConfig, theme: KidTheme, locked: Boolean, now: Long, wide: Boolean, stars: Int, playful: Boolean,
+    burst: (Offset, List<String>) -> Unit, onTile: (Tile) -> Unit,
+) {
+    val tiles = config.currentProfile.tiles.filter { it.type != TileType.VIDEO }
+    if (wide) {
+        Row(Modifier.fillMaxSize()) {
+            Column(
+                Modifier.width(290.dp).fillMaxHeight().verticalScroll(rememberScrollState())
+                    .padding(end = 6.dp, bottom = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(18.dp),
+            ) {
+                MascotWindow(config, theme, stars, playful, burst)
+                MusicWindow(theme)
+                if (locked) LockWindow(config, theme, now)
+            }
+            HSpace(22)
+            TileGrid(tiles, theme, locked, Modifier.weight(1f), onTile)
+        }
+    } else {
+        Column(Modifier.fillMaxSize()) {
+            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min).padding(end = 6.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                MascotWindow(config, theme, stars, playful, burst, Modifier.weight(1f).fillMaxHeight())
+                MusicWindow(theme, Modifier.weight(1f).fillMaxHeight())
+            }
+            if (locked) {
+                VSpace(16)
+                Box(Modifier.padding(end = 6.dp)) { LockWindow(config, theme, now) }
+            }
+            VSpace(18)
+            TileGrid(tiles, theme, locked, Modifier.weight(1f), onTile)
+        }
+    }
+}
+
+/** 動画サービスごとのタブ：そのサービスにピン留めした作品と、アプリを開くボタン */
+@Composable
+private fun VideoPage(tab: KidTab, theme: KidTheme, locked: Boolean, onTile: (Tile) -> Unit, onLocked: () -> Unit) {
+    val context = LocalContext.current
+    Column(Modifier.fillMaxSize()) {
+        val pkg = tab.packageName?.takeIf { Launcher.isInstalled(context, it) }
+        RetroWindow(theme, Modifier.fillMaxWidth().padding(end = 6.dp), title = tab.label, titleColor = theme.titleBars[0]) {
+            Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                val icon = remember(pkg) { pkg?.let { Launcher.icon(context, it) } }
+                if (icon != null) Image(icon, null, Modifier.size(44.dp)) else Text(tab.emoji, fontSize = 36.sp)
+                DotText("${tab.label} の おきにいり", theme, 20, modifier = Modifier.padding(start = 12.dp).weight(1f))
+                if (pkg != null) {
+                    RetroButton(if (locked) "🔒 アプリ" else "アプリを ひらく", theme, theme.titleBars[1], fontSize = 16) {
+                        if (locked) onLocked() else Launcher.launchPackage(context, pkg)
+                    }
+                }
+            }
+        }
+        VSpace(18)
+        TileGrid(tab.tiles, theme, locked, Modifier.weight(1f), onTile)
+    }
+}
+
+// ---------------------------------------------------------------- タブ
+
+private enum class TabKind { HOME, CLOCK, VIDEO, WIDGETS }
+
+private data class KidTab(
+    val key: String,
+    val kind: TabKind,
+    val emoji: String,
+    val label: String,
+    val packageName: String? = null,
+    val tiles: List<Tile> = emptyList(),
+)
+
+/** ホーム・とけい・動画サービスごと（ピン留めした作品があるものだけ）・ウィジェット */
+private fun kidTabs(tiles: List<Tile>, hasWidgets: Boolean): List<KidTab> {
+    val videos = LinkedHashMap<String, MutableList<Tile>>()
+    val services = HashMap<String, com.theta.kidshome.data.VideoService?>()
+    tiles.filter { it.type == TileType.VIDEO }.forEach { t ->
+        val s = t.url?.let { Launcher.detectService(it) }
+        val name = s?.name ?: "どうが"
+        services[name] = s
+        videos.getOrPut(name) { mutableListOf() } += t
+    }
+    return buildList {
+        add(KidTab("home", TabKind.HOME, "🏠", "ホーム"))
+        add(KidTab("clock", TabKind.CLOCK, "🕐", "とけい"))
+        videos.forEach { (name, list) ->
+            val s = services[name]
+            add(KidTab("video:$name", TabKind.VIDEO, s?.emoji ?: "🎬", name, s?.packageName, list))
+        }
+        if (hasWidgets) add(KidTab("widgets", TabKind.WIDGETS, "🧩", "ウィジェット"))
+    }
+}
+
+/** 画面の右はしの、フォルダのみみ のようなタブ */
+@Composable
+private fun TabRail(tabs: List<KidTab>, selected: String, theme: KidTheme, locked: Boolean, onSelect: (String) -> Unit) {
+    val context = LocalContext.current
+    Column(
+        Modifier.fillMaxHeight().verticalScroll(rememberScrollState()).padding(start = 10.dp, top = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        tabs.forEachIndexed { i, t ->
+            val isSel = t.key == selected
+            val shape = RoundedCornerShape(topStart = 18.dp, bottomStart = 18.dp)
+            Box(
+                Modifier
+                    .offset(x = if (isSel) 0.dp else 10.dp)
+                    .stickerShadow(theme.outline, if (isSel) 4.dp else 2.dp, 18.dp)
+                    .width(84.dp)
+                    .clip(shape)
+                    .background(if (isSel) Color.White else theme.titleBars[i % theme.titleBars.size])
+                    .border(3.dp, theme.outline, shape)
+                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onSelect(t.key) }
+                    .padding(vertical = 8.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    val icon = remember(t.packageName) { t.packageName?.let { Launcher.icon(context, it) } }
+                    Box(contentAlignment = Alignment.Center) {
+                        if (icon != null) Image(icon, null, Modifier.size(36.dp)) else Text(t.emoji, fontSize = 28.sp)
+                        if (locked && t.kind == TabKind.VIDEO) Text("🔒", fontSize = 18.sp, modifier = Modifier.offset(x = 14.dp, y = 12.dp))
+                    }
+                    Text(
+                        t.label, fontFamily = DotFont, fontSize = 11.sp, color = theme.outline,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = 4.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun key(id: Long, content: @Composable () -> Unit) = androidx.compose.runtime.key(id) { content() }
 
 // ---------------------------------------------------------------- 上のバー
 
 @Composable
-private fun Header(config: AppConfig, theme: KidTheme, updateBadge: Boolean, onGate: () -> Unit) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+private fun Header(config: AppConfig, theme: KidTheme, now: Long, updateBadge: Boolean, onGate: () -> Unit) {
+    val cal = Calendar.getInstance().apply { timeInMillis = now }
+    val (battery, charging) = rememberBattery()
+    Row(Modifier.fillMaxWidth().padding(end = 20.dp), verticalAlignment = Alignment.CenterVertically) {
         DotText(
             "${config.currentProfile.name}の ホーム", theme, 28, theme.text,
             modifier = Modifier.weight(1f, fill = false),
@@ -209,6 +335,9 @@ private fun Header(config: AppConfig, theme: KidTheme, updateBadge: Boolean, onG
             )
         }
         Spacer(Modifier.weight(1f))
+        Chip(theme, "%d:%02d".format(cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE)))
+        if (battery >= 0) Chip(theme, "${if (charging) "⚡" else "🔋"}$battery%")
+        HSpace(8)
         if (config.profiles.size > 1) {
             config.profiles.forEach { p ->
                 ProfileAvatar(
@@ -222,6 +351,15 @@ private fun Header(config: AppConfig, theme: KidTheme, updateBadge: Boolean, onG
         HSpace(8)
         HoldButton(theme, updateBadge, onGate)
     }
+}
+
+@Composable
+private fun Chip(theme: KidTheme, text: String) {
+    val shape = RoundedCornerShape(50)
+    Box(
+        Modifier.padding(horizontal = 4.dp).clip(shape).background(Color.White.copy(alpha = 0.85f))
+            .border(2.5.dp, theme.outline, shape).padding(horizontal = 12.dp, vertical = 4.dp)
+    ) { DotText(text, theme, 18) }
 }
 
 @Composable
@@ -345,78 +483,6 @@ private fun MascotWindow(
     }
 }
 
-@Composable
-private fun ClockWindow(theme: KidTheme, now: Long, modifier: Modifier = Modifier) {
-    val cal = Calendar.getInstance().apply { timeInMillis = now }
-    val week = listOf("にち", "げつ", "か", "すい", "もく", "きん", "ど")[cal.get(Calendar.DAY_OF_WEEK) - 1]
-    val colon = if (cal.get(Calendar.SECOND) % 2 == 0) ":" else " "
-    RetroWindow(theme, modifier, title = "とけい", titleColor = theme.titleBars[1]) {
-        Column(
-            Modifier.fillMaxSize().padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
-            DotText("%d%s%02d".format(cal.get(Calendar.HOUR_OF_DAY), colon, cal.get(Calendar.MINUTE)), theme, 52)
-            DotText("${cal.get(Calendar.MONTH) + 1}がつ${cal.get(Calendar.DAY_OF_MONTH)}にち（$week）", theme, 16)
-        }
-    }
-}
-
-@Composable
-private fun BatteryWindow(theme: KidTheme, modifier: Modifier = Modifier) {
-    val context = LocalContext.current
-    val battery by produceState(-1 to false) {
-        while (true) {
-            value = runCatching {
-                val i = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-                val level = i?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
-                val scale = i?.getIntExtra(BatteryManager.EXTRA_SCALE, 100) ?: 100
-                val status = i?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
-                (if (level >= 0) level * 100 / scale else -1) to
-                    (status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL)
-            }.getOrDefault(-1 to false)
-            delay(30_000)
-        }
-    }
-    val (pct, charging) = battery
-    val fill = when {
-        pct < 0 -> Color(0xFFCCCCCC)
-        pct <= 20 -> Color(0xFFFF7FA8)
-        pct <= 50 -> Color(0xFFFFD25A)
-        else -> Color(0xFF7DD87D)
-    }
-    RetroWindow(theme, modifier, title = "でんち", titleColor = theme.titleBars[2]) {
-        Column(
-            Modifier.fillMaxSize().padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Row(
-                    Modifier.clip(RoundedCornerShape(6.dp)).border(3.dp, theme.outline, RoundedCornerShape(6.dp)).padding(4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(3.dp),
-                ) {
-                    val filled = if (pct < 0) 0 else (pct + 9) / 20
-                    repeat(5) { i ->
-                        Box(Modifier.size(width = 12.dp, height = 24.dp).background(if (i < filled) fill else Color(0xFFF2EEF0)))
-                    }
-                }
-                Box(Modifier.size(width = 5.dp, height = 12.dp).background(theme.outline))
-            }
-            VSpace(6)
-            DotText(if (pct < 0) "--%" else "$pct%", theme, 24)
-            DotText(
-                when {
-                    charging -> "⚡じゅうでんちゅう"
-                    pct in 0..20 -> "じゅうでん してね"
-                    else -> " "
-                },
-                theme, 13,
-            )
-        }
-    }
-}
-
 private fun remainingText(until: Long, now: Long): String {
     val min = ((until - now + 59_999) / 60_000).toInt()
     return if (min >= 60) "${min / 60}じかん${if (min % 60 > 0) " ${min % 60}ふん" else ""}" else "${min}ふん"
@@ -460,8 +526,7 @@ private fun LockedDialog(config: AppConfig, theme: KidTheme, now: Long, onDismis
 // ---------------------------------------------------------------- ボタン
 
 @Composable
-private fun TileGrid(config: AppConfig, theme: KidTheme, locked: Boolean, modifier: Modifier, onTile: (Tile) -> Unit) {
-    val tiles = config.currentProfile.tiles
+private fun TileGrid(tiles: List<Tile>, theme: KidTheme, locked: Boolean, modifier: Modifier, onTile: (Tile) -> Unit) {
     if (tiles.isEmpty()) {
         Box(modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             RetroWindow(theme, title = "おしらせ", titleColor = theme.titleBars[3]) {
@@ -496,6 +561,7 @@ private fun TileWindow(tile: Tile, theme: KidTheme, index: Int, locked: Boolean,
         locked -> "ロックちゅう"
         tile.type == TileType.VIDEO -> tile.url?.let { Launcher.detectService(it)?.name } ?: "どうが"
         tile.type == TileType.DRAWING -> "おえかき"
+        tile.type == TileType.CALL -> "でんわ"
         tile.isVideo -> "どうが"
         else -> "アプリ"
     }

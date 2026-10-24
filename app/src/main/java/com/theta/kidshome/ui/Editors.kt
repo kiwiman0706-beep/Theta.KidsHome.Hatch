@@ -51,6 +51,7 @@ import com.theta.kidshome.data.Tile
 import com.theta.kidshome.data.TileType
 
 val TileEmojis = listOf(
+    "📞", "👨", "👩", "👴", "👵",
     "🎬", "📺", "▶️", "🐷", "🚂", "🚒", "🚓", "👸", "🧚", "🦸", "🐶", "🐱",
     "🐻", "🐼", "🐰", "🦁", "🐸", "🦖", "🐠", "🐣", "🦄", "🌈", "🎵", "🚀",
     "🍭", "🎈", "🧸", "🏰", "⭐", "💗", "📚", "✏️", "🔢", "🔤", "🧩", "🎨",
@@ -128,24 +129,32 @@ fun DialogFrame(title: String, onDismiss: () -> Unit, actions: @Composable () ->
     }
 }
 
-/** 動画の追加・タイルの編集 */
+/** 動画・でんわの追加と、タイルの編集 */
 @Composable
-fun TileEditDialog(initial: Tile?, onDismiss: () -> Unit, onSave: (Tile) -> Unit) {
-    val isVideoTile = initial == null || initial.type == TileType.VIDEO
+fun TileEditDialog(initial: Tile?, onDismiss: () -> Unit, newType: TileType = TileType.VIDEO, onSave: (Tile) -> Unit) {
+    val type = initial?.type ?: newType
+    val isCall = type == TileType.CALL
+    val isVideoTile = type == TileType.VIDEO || isCall
     var url by remember { mutableStateOf(initial?.url ?: "") }
-    var label by remember { mutableStateOf(initial?.label ?: "") }
-    var emoji by remember { mutableStateOf(initial?.emoji ?: "🎬") }
+    var label by remember { mutableStateOf(initial?.label ?: if (isCall) "パパに でんわ" else "") }
+    var emoji by remember { mutableStateOf(initial?.emoji ?: if (isCall) "📞" else "🎬") }
     var isVideo by remember { mutableStateOf(initial?.isVideo ?: true) }
 
     DialogFrame(
-        title = if (initial == null) "どうがを追加" else "ボタンを編集",
+        title = when {
+            initial != null -> "ボタンを編集"
+            isCall -> "でんわボタンを追加"
+            else -> "どうがを追加"
+        },
         onDismiss = onDismiss,
         actions = {
             TextButton(onClick = onDismiss) { Text("キャンセル") }
             TextButton(
                 enabled = !isVideoTile || url.isNotBlank(),
                 onClick = {
-                    val tile = if (isVideoTile) {
+                    val tile = if (isCall) {
+                        Tile(id = initial?.id ?: java.util.UUID.randomUUID().toString(), type = TileType.CALL, label = label.ifBlank { "でんわ" }, url = url.trim(), emoji = emoji)
+                    } else if (isVideoTile) {
                         newVideoTile(url, label, emoji).let { if (initial != null) it.copy(id = initial.id) else it }
                     } else {
                         initial!!.copy(label = label.ifBlank { initial.label }, emoji = emoji, isVideo = isVideo)
@@ -155,7 +164,24 @@ fun TileEditDialog(initial: Tile?, onDismiss: () -> Unit, onSave: (Tile) -> Unit
             ) { Text("保存") }
         },
     ) {
-        if (isVideoTile) {
+        if (isCall) {
+            OutlinedTextField(
+                value = url, onValueChange = { url = it }, singleLine = true,
+                label = { Text("通話のリンク（例：Google Meet の https://meet.google.com/xxx-yyyy-zzz）") },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Text(
+                "Google Meet で「後で開催するミーティングを作成」したリンクは、ずっと同じものを使えます。子どもが押すと、そのミーティングに入ります。",
+                fontSize = 13.sp, color = Color.Gray, modifier = Modifier.padding(top = 4.dp, bottom = 8.dp),
+            )
+            OutlinedTextField(
+                value = label, onValueChange = { label = it }, singleLine = true,
+                label = { Text("ボタンの名前") }, modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(8.dp))
+            Text("えもじ", fontSize = 13.sp, color = Color.Gray)
+            EmojiPicker(emoji) { emoji = it }
+        } else if (isVideoTile) {
             VideoFields(url, { url = it }, label, { label = it }, emoji, { emoji = it })
         } else {
             OutlinedTextField(

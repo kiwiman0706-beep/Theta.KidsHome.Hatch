@@ -1,6 +1,7 @@
 package com.theta.kidshome
 
 import com.theta.kidshome.data.Launcher
+import com.theta.kidshome.remote.Remote
 import com.theta.kidshome.ui.GateQuestion
 import com.theta.kidshome.update.isNewer
 import org.junit.Assert.assertEquals
@@ -40,5 +41,18 @@ class LogicTest {
             "https://www.netflix.com/title/81",
             Launcher.extractUrl("「ティンピン」をNetflixで見よう https://www.netflix.com/title/81"),
         )
+    }
+
+    @Test
+    fun remoteCommands() {
+        assertEquals("そろそろ おわりだよ", Remote.parse(" そろそろ おわりだよ ").message)
+        val lock = Remote.parse("/lock 45 ごはんだよ")
+        assertEquals(45, lock.lockMinutes)
+        assertEquals("ごはんだよ", lock.message)
+        assertEquals(30, Remote.parse("/LOCK").lockMinutes)
+        assertEquals(30, Remote.parse("/ロック").lockMinutes)
+        assertTrue(Remote.parse("/unlock").unlock)
+        assertNull(Remote.parse("こんにちは").lockMinutes)
+        assertTrue(Remote.newTopic().matches(Regex("kidshome-[a-z0-9]{16}")))
     }
 }

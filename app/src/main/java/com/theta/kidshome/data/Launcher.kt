@@ -52,6 +52,11 @@ object Launcher {
             .sortedBy { it.label }
     }
 
+    fun appLabel(context: Context, packageName: String): String = runCatching {
+        val pm = context.packageManager
+        pm.getApplicationLabel(pm.getApplicationInfo(packageName, 0)).toString()
+    }.getOrDefault(packageName)
+
     fun isInstalled(context: Context, packageName: String) =
         context.packageManager.getLaunchIntentForPackage(packageName) != null
 
@@ -67,9 +72,14 @@ object Launcher {
         val ok = when (tile.type) {
             TileType.APP -> launchApp(context, tile.packageName ?: return)
             TileType.VIDEO -> openVideo(context, tile.url ?: return, tile.packageName)
+            TileType.CALL -> openVideo(context, tile.url ?: return, null)
             TileType.DRAWING -> true
         }
         if (!ok) Toast.makeText(context, "ひらけなかったよ…\nおうちのひとに きいてね", Toast.LENGTH_LONG).show()
+    }
+
+    fun launchPackage(context: Context, packageName: String) {
+        if (!launchApp(context, packageName)) Toast.makeText(context, "ひらけなかったよ…", Toast.LENGTH_SHORT).show()
     }
 
     private fun launchApp(context: Context, packageName: String): Boolean {

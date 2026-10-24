@@ -160,6 +160,14 @@ private fun SettingsTab(modifier: Modifier) {
             }
         }
 
+        RemoteSection(config)
+
+        WeatherSection(config)
+
+        MusicSection(config)
+
+        WidgetSection(config)
+
         Section("🔑 おうちのひと かくにん") {
             Text("⚙️ を2秒ながおし → かけ算 に答えると、このメニューに入れます。", fontSize = 14.sp)
             Spacer(Modifier.height(8.dp))
@@ -245,7 +253,7 @@ private fun UpdateSection(config: AppConfig) {
 }
 
 @Composable
-private fun Section(title: String, content: @Composable () -> Unit) {
+internal fun Section(title: String, content: @Composable () -> Unit) {
     Card(
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -262,7 +270,7 @@ private fun Section(title: String, content: @Composable () -> Unit) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun FlowRow8(content: @Composable () -> Unit) {
+internal fun FlowRow8(content: @Composable () -> Unit) {
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         content()
     }
@@ -362,6 +370,7 @@ private fun ProfileEditor(profile: Profile, canDelete: Boolean, onDelete: () -> 
     var showAppPicker by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<Tile?>(null) }
     var addingVideo by remember { mutableStateOf(false) }
+    var addingCall by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
 
     // 名前は入力中に毎回保存すると重いので、ローカルに持って確定時に保存
@@ -381,7 +390,7 @@ private fun ProfileEditor(profile: Profile, canDelete: Boolean, onDelete: () -> 
     ThemePicker(profile.themeId) { id -> Store.updateProfile(profile.id) { it.copy(themeId = id) } }
 
     Spacer(Modifier.height(16.dp))
-    Text("ホームのボタン（上から順に並びます）", fontSize = 13.sp, color = Color.Gray)
+    Text("ボタン（上から順に並びます。どうがリンクはサービスごとのタブに入ります）", fontSize = 13.sp, color = Color.Gray)
     if (profile.tiles.isEmpty()) {
         Text("まだありません", color = Color.Gray, modifier = Modifier.padding(8.dp))
     }
@@ -398,6 +407,7 @@ private fun ProfileEditor(profile: Profile, canDelete: Boolean, onDelete: () -> 
     FlowRow8 {
         Button(onClick = { addingVideo = true }) { Text("🎬 どうがリンクを追加") }
         Button(onClick = { showAppPicker = true }) { Text("📱 アプリを追加") }
+        OutlinedButton(onClick = { addingCall = true }) { Text("📞 でんわボタンを追加") }
         if (profile.tiles.none { it.type == TileType.DRAWING }) {
             OutlinedButton(onClick = { Store.addTiles(profile.id, listOf(AppConfig.drawingTile())) }) { Text("🎨 おえかきを追加") }
         }
@@ -420,6 +430,12 @@ private fun ProfileEditor(profile: Profile, canDelete: Boolean, onDelete: () -> 
         TileEditDialog(null, onDismiss = { addingVideo = false }) { tile ->
             Store.addTiles(profile.id, listOf(tile))
             addingVideo = false
+        }
+    }
+    if (addingCall) {
+        TileEditDialog(null, onDismiss = { addingCall = false }, newType = TileType.CALL) { tile ->
+            Store.addTiles(profile.id, listOf(tile))
+            addingCall = false
         }
     }
     editing?.let { t ->
@@ -469,6 +485,7 @@ private fun TileRow(tile: Tile, onUp: (() -> Unit)?, onDown: (() -> Unit)?, onEd
                     TileType.APP -> add("アプリ")
                     TileType.VIDEO -> add(tile.url?.let { Launcher.detectService(it)?.name } ?: "どうがリンク")
                     TileType.DRAWING -> add("おえかき（内蔵）")
+                    TileType.CALL -> add("でんわ（ロック中も使える）")
                 }
                 if (tile.isVideo) add("🔒ロック対象")
                 if (missing) add("⚠️ アプリが見つかりません")

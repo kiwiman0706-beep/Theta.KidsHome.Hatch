@@ -4,7 +4,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
 
-enum class TileType { APP, VIDEO, DRAWING }
+/** CALL：Google Meet などの通話リンク（どうがロック中も押せる） */
+enum class TileType { APP, VIDEO, DRAWING, CALL }
 
 /** ホーム画面に並ぶ1つのボタン */
 data class Tile(
@@ -43,6 +44,15 @@ data class AppConfig(
     val videoLockUntil: Long = 0L,
     val lockReason: LockReason = LockReason.STUDY,
     val autoUpdate: Boolean = true,
+    /** 天気を出す場所（null なら天気を出さない） */
+    val weather: WeatherPlace? = null,
+    /** 「ウィジェット」タブに置いた Android のウィジェット */
+    val widgetIds: List<Int> = emptyList(),
+    /** おんがくの「ひらく」で起動するアプリ */
+    val musicPackage: String? = null,
+    /** おうちのひとからの呼びかけ（ntfy のトピック名） */
+    val remoteTopic: String? = null,
+    val remoteOn: Boolean = false,
 ) {
     val currentProfile: Profile
         get() = profiles.firstOrNull { it.id == currentProfileId } ?: profiles.first()
@@ -110,6 +120,11 @@ fun AppConfig.toJson(): JSONObject = JSONObject().apply {
     put("videoLockUntil", videoLockUntil)
     put("autoUpdate", autoUpdate)
     put("lockReason", lockReason.name)
+    weather?.let { put("weather", JSONObject().put("name", it.name).put("lat", it.lat).put("lon", it.lon).put("loc", it.useLocation)) }
+    put("widgetIds", JSONArray(widgetIds))
+    putOpt("musicPackage", musicPackage)
+    putOpt("remoteTopic", remoteTopic)
+    put("remoteOn", remoteOn)
 }
 
 fun appConfigFromJson(o: JSONObject): AppConfig {
@@ -125,5 +140,12 @@ fun appConfigFromJson(o: JSONObject): AppConfig {
         autoUpdate = o.optBoolean("autoUpdate", true),
         lockReason = runCatching { LockReason.valueOf(o.getString("lockReason")) }
             .getOrDefault(LockReason.STUDY),
+        weather = o.optJSONObject("weather")?.let {
+            WeatherPlace(it.optString("name"), it.optDouble("lat"), it.optDouble("lon"), it.optBoolean("loc"))
+        },
+        widgetIds = o.optJSONArray("widgetIds")?.let { a -> (0 until a.length()).map { a.getInt(it) } } ?: emptyList(),
+        musicPackage = o.str("musicPackage"),
+        remoteTopic = o.str("remoteTopic"),
+        remoteOn = o.optBoolean("remoteOn"),
     )
 }
