@@ -15,6 +15,9 @@ object Store {
     var config by mutableStateOf(AppConfig.default())
         private set
 
+    /** レスキュー画面から「セーフモード」で開いたとき：アニメーションや遊びを止める（保存しない） */
+    var safeMode by mutableStateOf(false)
+
     fun init(context: Context) {
         if (::prefs.isInitialized) return
         prefs = context.applicationContext.getSharedPreferences("kidshome", Context.MODE_PRIVATE)

@@ -39,7 +39,7 @@ import androidx.compose.ui.unit.sp
 import com.theta.kidshome.data.Launcher
 import com.theta.kidshome.data.Store
 import com.theta.kidshome.ui.ParentTheme
-import com.theta.kidshome.ui.PinGate
+import com.theta.kidshome.ui.ParentGate
 import com.theta.kidshome.ui.VideoFields
 import com.theta.kidshome.ui.newVideoTile
 import com.theta.kidshome.ui.themeById
@@ -59,7 +59,7 @@ class AddFavoriteActivity : ComponentActivity() {
                 var unlocked by remember { mutableStateOf(false) }
                 if (!unlocked) {
                     Box(Modifier.fillMaxSize())
-                    PinGate(onSuccess = { unlocked = true }, onDismiss = { finish() })
+                    ParentGate(onSuccess = { unlocked = true }, onDismiss = { finish() })
                     return@ParentTheme
                 }
                 val config = Store.config

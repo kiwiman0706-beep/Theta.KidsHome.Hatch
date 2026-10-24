@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- 自動更新：GitHub Releases の確認と取得、自分自身のインストール -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
     <!-- Android 11以降: ランチャー表示できるアプリと、動画リンクを開けるアプリを見えるようにする -->
     <queries>
         <intent>
@@ -14,6 +18,7 @@
     </queries>
 
     <application
+        android:name=".KidsApp"
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher"
@@ -56,5 +61,31 @@
                 <data android:mimeType="text/plain" />
             </intent-filter>
         </activity>
+
+        <!-- レスキュー：ホームが落ち続ける・固まったときの画面とクイック設定のタイル。本体と別のプロセス -->
+        <activity
+            android:name=".rescue.RescueActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:label="キッズホームのレスキュー"
+            android:process=":rescue"
+            android:taskAffinity="com.theta.kidshome.rescue"
+            android:theme="@android:style/Theme.Material.Light.NoActionBar" />
+
+        <service
+            android:name=".rescue.RescueTile"
+            android:exported="true"
+            android:icon="@drawable/ic_rescue"
+            android:label="キッズホームのレスキュー"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
+            android:process=":rescue">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+        <receiver
+            android:name=".update.InstallResultReceiver"
+            android:exported="false" />
     </application>
 </manifest>

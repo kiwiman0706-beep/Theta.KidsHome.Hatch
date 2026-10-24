@@ -2,6 +2,8 @@ package com.theta.kidshome
 
 import android.content.Intent
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -14,18 +16,35 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.theta.kidshome.data.Store
+import com.theta.kidshome.rescue.Rescue
+import com.theta.kidshome.rescue.RescueActivity
 import com.theta.kidshome.ui.DrawingScreen
 import com.theta.kidshome.ui.HomeScreen
 import com.theta.kidshome.ui.ParentScreen
+import com.theta.kidshome.update.SelfUpdate
 
 private enum class Screen { HOME, DRAWING, PARENT }
 
 class MainActivity : ComponentActivity() {
     private var screen by mutableStateOf(Screen.HOME)
 
+    /** レスキュー画面へ回したとき（このアクティビティは何もしないで閉じる） */
+    private var rescued = false
+    private val healthy = Handler(Looper.getMainLooper())
+    private val markHealthy = Runnable { Rescue.onHomeHealthy(this) }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // 落ちる・固まるのが続いていたら、ホームの代わりにレスキュー画面
+        val safe = intent?.getBooleanExtra(Rescue.EXTRA_SAFE, false) == true
+        if (Rescue.onHomeStart(this) && !safe) {
+            rescued = true
+            startActivity(Intent(this, RescueActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            finish()
+            return
+        }
         Store.init(this)
+        if (safe) Store.safeMode = true
         enableEdgeToEdge()
         hideSystemBars()
         setContent {
@@ -52,15 +71,29 @@ class MainActivity : ComponentActivity() {
         if (intent.hasCategory(Intent.CATEGORY_HOME)) screen = Screen.HOME
     }
 
+    override fun onResume() {
+        super.onResume()
+        if (rescued) return
+        // 8 秒動けば「無事に起動した」
+        healthy.removeCallbacks(markHealthy)
+        healthy.postDelayed(markHealthy, 8000)
+        if (Store.config.autoUpdate) SelfUpdate.check(this)
+    }
+
     override fun onStop() {
+        if (!rescued) {
+            healthy.removeCallbacks(markHealthy)
+            // 普通に裏へ回った（落ちた・固まったのではない）
+            Rescue.onHomeHealthy(this)
+            // おうちのひとメニューを開いたまま離れたら、次はまたかけ算を聞く
+            if (screen == Screen.PARENT) screen = Screen.HOME
+        }
         super.onStop()
-        // おうちのひとメニューを開いたまま離れたら、次は暗証番号を聞く
-        if (screen == Screen.PARENT) screen = Screen.HOME
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
-        if (hasFocus) hideSystemBars()
+        if (hasFocus && !rescued) hideSystemBars()
     }
 
     private fun hideSystemBars() {

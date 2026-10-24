@@ -3,7 +3,24 @@ package com.theta.kidshome.ui
 import android.content.Intent
 import android.provider.Settings
 import androidx.activity.compose.BackHandler
+import android.app.StatusBarManager
+import android.content.ComponentName
+import android.net.Uri
+import android.os.Build
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.material3.Switch
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.text.style.TextAlign
+import com.theta.kidshome.R
+import com.theta.kidshome.rescue.Rescue
+import com.theta.kidshome.rescue.RescueActivity
+import com.theta.kidshome.rescue.RescueTile
+import com.theta.kidshome.update.SelfUpdate
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -66,63 +83,164 @@ import java.util.Locale
 @Composable
 fun ParentScreen(onClose: () -> Unit) {
     BackHandler(onBack = onClose)
-    val config = Store.config
-    var editingProfileId by remember { mutableStateOf(config.currentProfileId) }
-    val profile = config.profiles.firstOrNull { it.id == editingProfileId } ?: config.profiles.first()
-    var changePin by remember { mutableStateOf(false) }
-    val context = LocalContext.current
+    var tab by remember { mutableIntStateOf(0) }
 
     ParentTheme {
         Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-            Column(
-                Modifier.fillMaxSize()
-                    .windowInsetsPadding(WindowInsets.safeDrawing)
-                    .verticalScroll(rememberScrollState())
-                    .padding(20.dp)
-                    .widthIn(max = 900.dp),
-            ) {
+            Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).padding(20.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("🔧 おうちのひと メニュー", fontSize = 26.sp, fontWeight = FontWeight.Bold)
+                    Text("🔧 おうちのひと", fontSize = 26.sp, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.width(20.dp))
+                    FilterChip(selected = tab == 0, onClick = { tab = 0 }, label = { Text("📱 すべてのアプリ", fontSize = 16.sp) })
+                    Spacer(Modifier.width(8.dp))
+                    FilterChip(selected = tab == 1, onClick = { tab = 1 }, label = { Text("⚙️ せってい", fontSize = 16.sp) })
                     Spacer(Modifier.weight(1f))
                     Button(onClick = onClose) { Text("ホームにもどる") }
                 }
                 Spacer(Modifier.height(16.dp))
+                if (tab == 0) AllApps(Modifier.weight(1f)) else SettingsTab(Modifier.weight(1f))
+            }
+        }
+    }
+}
 
-                VideoLockSection(config)
-
-                Section("👧 こどもごとの設定") {
-                    ProfileTabs(config, profile.id) { editingProfileId = it }
-                    Spacer(Modifier.height(12.dp))
-                    ProfileEditor(profile, canDelete = config.profiles.size > 1) {
-                        Store.update { c ->
-                            val rest = c.profiles.filter { it.id != profile.id }
-                            c.copy(
-                                profiles = rest,
-                                currentProfileId = if (c.currentProfileId == profile.id) rest.first().id else c.currentProfileId,
-                            )
-                        }
-                        editingProfileId = Store.config.profiles.first().id
-                    }
-                }
-
-                Section("⚙️ そのほか") {
-                    FlowRow8 {
-                        OutlinedButton(onClick = { changePin = true }) { Text("暗証番号を変える") }
-                        OutlinedButton(onClick = {
-                            context.startActivity(Intent(Settings.ACTION_HOME_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                        }) { Text("ホームアプリを切り替える") }
-                        OutlinedButton(onClick = {
-                            context.startActivity(Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                        }) { Text("Android の設定を開く") }
-                    }
-                    Text(
-                        "ヒント: Netflix や Prime Video で作品を開き「共有」→「キッズホームに登録」を選ぶと、そのままお気に入り登録できます。",
-                        fontSize = 13.sp, color = Color.Gray, modifier = Modifier.padding(top = 12.dp),
-                    )
+/** 端末に入っているアプリをぜんぶ出す（おうちのひと用） */
+@Composable
+private fun AllApps(modifier: Modifier) {
+    val context = LocalContext.current
+    val apps = remember { Launcher.listApps(context) }
+    var query by remember { mutableStateOf("") }
+    Column(modifier) {
+        OutlinedTextField(
+            value = query, onValueChange = { query = it }, singleLine = true,
+            label = { Text("さがす") }, modifier = Modifier.fillMaxWidth().widthIn(max = 600.dp),
+        )
+        Spacer(Modifier.height(12.dp))
+        LazyVerticalGrid(GridCells.Adaptive(104.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(apps.filter { query.isBlank() || it.label.contains(query, ignoreCase = true) }, key = { it.packageName }) { app ->
+                val icon = remember(app.packageName) { Launcher.icon(context, app.packageName) }
+                Column(
+                    Modifier.clip(RoundedCornerShape(16.dp))
+                        .clickable { Launcher.launch(context, Tile(type = TileType.APP, label = app.label, packageName = app.packageName)) }
+                        .padding(8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    if (icon != null) Image(icon, null, Modifier.size(56.dp)) else Spacer(Modifier.size(56.dp))
+                    Text(app.label, fontSize = 12.sp, maxLines = 2, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 4.dp))
                 }
             }
         }
-        if (changePin) PinGate(PinMode.CHANGE, onSuccess = { changePin = false }, onDismiss = { changePin = false })
+    }
+}
+
+@Composable
+private fun SettingsTab(modifier: Modifier) {
+    val config = Store.config
+    var editingProfileId by remember { mutableStateOf(config.currentProfileId) }
+    val profile = config.profiles.firstOrNull { it.id == editingProfileId } ?: config.profiles.first()
+    val context = LocalContext.current
+
+    Column(modifier.verticalScroll(rememberScrollState()).widthIn(max = 900.dp)) {
+        UpdateSection(config)
+
+        VideoLockSection(config)
+
+        Section("👧 こどもごとの設定") {
+            ProfileTabs(config, profile.id) { editingProfileId = it }
+            Spacer(Modifier.height(12.dp))
+            ProfileEditor(profile, canDelete = config.profiles.size > 1) {
+                Store.update { c ->
+                    val rest = c.profiles.filter { it.id != profile.id }
+                    c.copy(
+                        profiles = rest,
+                        currentProfileId = if (c.currentProfileId == profile.id) rest.first().id else c.currentProfileId,
+                    )
+                }
+                editingProfileId = Store.config.profiles.first().id
+            }
+        }
+
+        Section("🔑 おうちのひと かくにん") {
+            Text("⚙️ を2秒ながおし → かけ算 に答えると、このメニューに入れます。", fontSize = 14.sp)
+            Spacer(Modifier.height(8.dp))
+            FlowRow8 {
+                FilterChip(selected = !config.hardGate, onClick = { Store.update { it.copy(hardGate = false) } }, label = { Text("ふつう（23 × 7）") })
+                FilterChip(selected = config.hardGate, onClick = { Store.update { it.copy(hardGate = true) } }, label = { Text("むずかしい（23 × 47）") })
+            }
+            Text("お子さんが九九を覚えたら「むずかしい」に。", fontSize = 13.sp, color = Color.Gray, modifier = Modifier.padding(top = 8.dp))
+        }
+
+        Section("🛟 もしものとき（レスキュー）") {
+            Text(
+                "キッズホームが続けて落ちる・固まると、自動でレスキュー画面になります（別のホームを選ぶ／セーフモード／最新版を入れる）。" +
+                    "通知パネルのクイック設定にタイルを足しておくと、いつでも開けます（開くときもかけ算を聞きます）。",
+                fontSize = 14.sp,
+            )
+            Spacer(Modifier.height(8.dp))
+            FlowRow8 {
+                if (Build.VERSION.SDK_INT >= 33) {
+                    OutlinedButton(onClick = { addRescueTile(context) }) { Text("クイック設定にタイルを足す") }
+                }
+                OutlinedButton(onClick = {
+                    context.startActivity(Intent(context, RescueActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                }) { Text("レスキュー画面を開く") }
+                OutlinedButton(onClick = { Rescue.chooseHome(context) }) { Text("ホームアプリを切り替える") }
+                OutlinedButton(onClick = {
+                    context.startActivity(Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                }) { Text("Android の設定を開く") }
+            }
+            Text(
+                "ヒント: Netflix や Prime Video で作品を開き「共有」→「キッズホームに登録」を選ぶと、そのままお気に入り登録できます。",
+                fontSize = 13.sp, color = Color.Gray, modifier = Modifier.padding(top = 12.dp),
+            )
+        }
+    }
+}
+
+private fun addRescueTile(context: android.content.Context) {
+    if (Build.VERSION.SDK_INT < 33) return
+    val sbm = context.getSystemService(StatusBarManager::class.java) ?: return
+    sbm.requestAddTileService(
+        ComponentName(context, RescueTile::class.java),
+        "キッズホームのレスキュー",
+        android.graphics.drawable.Icon.createWithResource(context, R.drawable.ic_rescue),
+        context.mainExecutor,
+    ) { }
+}
+
+@Composable
+private fun UpdateSection(config: AppConfig) {
+    val context = LocalContext.current
+    val st = SelfUpdate.state
+    val current = remember { SelfUpdate.currentVersion(context) }
+    Section("🆕 アップデート") {
+        Text("いまの版：$current", fontSize = 14.sp)
+        Text(
+            when {
+                st.checking -> "確かめています…"
+                st.progress != null -> "ダウンロード中 ${(st.progress * 100).toInt()}%"
+                st.newer && st.latest != null -> "新しい版 ${st.latest.version} があります"
+                st.error != null -> "確かめられませんでした（${st.error}）"
+                st.checkedAt > 0 -> "最新です"
+                else -> " "
+            },
+            fontSize = 16.sp, fontWeight = FontWeight.Bold,
+            color = if (st.newer) MaterialTheme.colorScheme.primary else Color.Gray,
+            modifier = Modifier.padding(vertical = 6.dp),
+        )
+        FlowRow8 {
+            if (st.newer) {
+                Button(onClick = { SelfUpdate.downloadAndInstall(context) }, enabled = st.progress == null) { Text("アップデートする") }
+            }
+            OutlinedButton(onClick = { SelfUpdate.check(context, force = true) }) { Text("今すぐ確かめる") }
+            OutlinedButton(onClick = {
+                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(SelfUpdate.RELEASES_URL)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            }) { Text("更新履歴 ↗") }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
+            Text("自動で確かめる（1時間に1回まで）", modifier = Modifier.weight(1f))
+            Switch(checked = config.autoUpdate, onCheckedChange = { v -> Store.update { it.copy(autoUpdate = v) } })
+        }
     }
 }
 
@@ -165,8 +283,9 @@ private fun VideoLockSection(config: AppConfig) {
 
     fun lockFor(minutes: Int) = Store.update {
         // ロック中に押したら延長、そうでなければ今から
-        val base = if (it.isVideoLocked()) it.videoLockUntil else System.currentTimeMillis()
-        it.copy(videoLockUntil = base + minutes * 60_000L)
+        val now = System.currentTimeMillis()
+        if (it.isVideoLocked()) it.copy(videoLockUntil = it.videoLockUntil + minutes * 60_000L)
+        else it.copy(videoLockFrom = now, videoLockUntil = now + minutes * 60_000L)
     }
 
     Section("🔒 どうがロック") {
@@ -203,7 +322,7 @@ private fun VideoLockSection(config: AppConfig) {
                     add(Calendar.DAY_OF_MONTH, 1)
                     set(Calendar.HOUR_OF_DAY, 6); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0)
                 }.timeInMillis
-                Store.update { it.copy(videoLockUntil = morning) }
+                Store.update { it.copy(videoLockFrom = System.currentTimeMillis(), videoLockUntil = morning) }
             }) { Text("あしたの朝まで") }
             if (locked) {
                 OutlinedButton(onClick = { Store.update { it.copy(videoLockUntil = 0L) } }) { Text("ロック解除") }

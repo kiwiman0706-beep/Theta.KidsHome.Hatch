@@ -1,0 +1,51 @@
+name: Release APK
+
+# アプリの自動更新は、ここで作る GitHub Release を見に行く。
+# 使い方：app/build.gradle.kts の versionName を上げてから、
+#   Actions → Release APK → Run workflow で版（例 v0.2.0）を入れて実行する
+#   （または v0.2.0 のようなタグをプッシュする）
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版（例：v0.2.0）'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - name: 版を決める
+        id: v
+        run: |
+          tag="${{ github.event.inputs.version || github.ref_name }}"
+          case "$tag" in v*) ;; *) tag="v$tag";; esac
+          ver="${tag#v}"
+          grep -q "versionName = \"$ver\"" app/build.gradle.kts || { echo "::error::app/build.gradle.kts の versionName が $ver ではありません"; exit 1; }
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "ver=$ver" >> "$GITHUB_OUTPUT"
+      - run: ./gradlew testDebugUnitTest assembleRelease
+      - name: APK とハッシュ
+        run: |
+          mkdir -p out
+          cp app/build/outputs/apk/release/app-release.apk "out/KidsHome-${{ steps.v.outputs.ver }}.apk"
+          (cd out && sha256sum *.apk > SHA256SUMS.txt && cat SHA256SUMS.txt)
+      - name: Release を作る
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pre=""
+          case "${{ steps.v.outputs.tag }}" in *-*) pre="--prerelease";; esac
+          gh release create "${{ steps.v.outputs.tag }}" out/*.apk out/SHA256SUMS.txt --target "$GITHUB_SHA" \
+            --title "キッズホーム ${{ steps.v.outputs.ver }}" --generate-notes $pre

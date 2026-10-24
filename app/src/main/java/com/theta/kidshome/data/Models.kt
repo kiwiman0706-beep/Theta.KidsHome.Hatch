@@ -37,9 +37,12 @@ enum class LockReason(val emoji: String, val title: String) {
 data class AppConfig(
     val profiles: List<Profile>,
     val currentProfileId: String,
-    val pin: String? = null,
+    /** おうちのひとゲートのかけ算：false = 2けた×1けた、true = 2けた×2けた */
+    val hardGate: Boolean = false,
+    val videoLockFrom: Long = 0L,
     val videoLockUntil: Long = 0L,
     val lockReason: LockReason = LockReason.STUDY,
+    val autoUpdate: Boolean = true,
 ) {
     val currentProfile: Profile
         get() = profiles.firstOrNull { it.id == currentProfileId } ?: profiles.first()
@@ -102,8 +105,10 @@ fun profileFromJson(o: JSONObject): Profile {
 fun AppConfig.toJson(): JSONObject = JSONObject().apply {
     put("profiles", JSONArray(profiles.map { it.toJson() }))
     put("currentProfileId", currentProfileId)
-    putOpt("pin", pin)
+    put("hardGate", hardGate)
+    put("videoLockFrom", videoLockFrom)
     put("videoLockUntil", videoLockUntil)
+    put("autoUpdate", autoUpdate)
     put("lockReason", lockReason.name)
 }
 
@@ -114,8 +119,10 @@ fun appConfigFromJson(o: JSONObject): AppConfig {
     return AppConfig(
         profiles = profiles,
         currentProfileId = o.optString("currentProfileId", profiles.first().id),
-        pin = o.str("pin"),
+        hardGate = o.optBoolean("hardGate"),
+        videoLockFrom = o.optLong("videoLockFrom"),
         videoLockUntil = o.optLong("videoLockUntil"),
+        autoUpdate = o.optBoolean("autoUpdate", true),
         lockReason = runCatching { LockReason.valueOf(o.getString("lockReason")) }
             .getOrDefault(LockReason.STUDY),
     )

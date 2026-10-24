@@ -24,6 +24,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -110,111 +113,115 @@ fun DrawingScreen(onBack: () -> Unit) {
         rainbow = tool == Tool.RAINBOW,
     )
 
-    Column(
-        Modifier.fillMaxSize()
-            .background(Brush.verticalGradient(listOf(theme.bgTop, theme.bgBottom)))
-            .windowInsetsPadding(WindowInsets.safeDrawing)
-            .padding(12.dp)
-    ) {
-        // 上のボタン
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            ToolButton("🏠", false, theme, onClick = onBack)
-            Text(
-                "おえかき", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = theme.text,
-                modifier = Modifier.padding(start = 12.dp),
-            )
-            Spacer(Modifier.weight(1f))
-            ToolButton("↩️", false, theme) { Drawing.marks.removeLastOrNull() }
-            ToolButton("🗑️", false, theme) { if (Drawing.marks.isNotEmpty()) askClear = true }
-            ToolButton("💾", false, theme) {
-                val ok = canvasSize.width > 0 && saveDrawing(context, canvasSize, Drawing.marks.toList())
-                Toast.makeText(context, if (ok) "ほぞん したよ！" else "ほぞん できなかったよ", Toast.LENGTH_SHORT).show()
+    Box(Modifier.fillMaxSize()) {
+        RetroBackground(theme)
+        Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).padding(16.dp)) {
+            // 上のボタン
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                RetroIconButton("🏠", theme, onClick = onBack)
+                DotText("おえかき", theme, 28, theme.text, modifier = Modifier.padding(start = 12.dp))
+                Spacer(Modifier.weight(1f))
+                RetroIconButton("↩️", theme) { Drawing.marks.removeLastOrNull() }
+                RetroIconButton("🗑️", theme) { if (Drawing.marks.isNotEmpty()) askClear = true }
+                RetroIconButton("💾", theme) {
+                    val ok = canvasSize.width > 0 && saveDrawing(context, canvasSize, Drawing.marks.toList())
+                    Toast.makeText(context, if (ok) "ほぞん したよ！" else "ほぞん できなかったよ", Toast.LENGTH_SHORT).show()
+                }
             }
-        }
-        Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(12.dp))
 
-        // キャンバス
-        Box(
-            Modifier.weight(1f).fillMaxWidth()
-                .shadow(6.dp, RoundedCornerShape(28.dp))
-                .clip(RoundedCornerShape(28.dp))
-                .background(Color.White)
-                .onSizeChanged { canvasSize = it }
-                .pointerInput(Unit) {
-                    detectTapGestures { pos ->
-                        Drawing.marks += if (tool == Tool.STAMP) {
-                            StampMark(pos.x, pos.y, stamp, stampSize)
-                        } else {
-                            currentLine(listOf(pos))
+            RetroWindow(
+                theme, Modifier.weight(1f).fillMaxWidth().padding(end = 6.dp, bottom = 6.dp),
+                title = "おえかき", titleColor = theme.titleBars[2],
+            ) {
+                Row(Modifier.weight(1f)) {
+                    // 道具（左のたて列）
+                    Column(
+                        Modifier.fillMaxHeight().background(theme.bubbles[0]).verticalScroll(rememberScrollState()).padding(6.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        RetroIconButton("✏️", theme, tool == Tool.PEN, 52.dp) { tool = Tool.PEN }
+                        RetroIconButton("🌈", theme, tool == Tool.RAINBOW, 52.dp) { tool = Tool.RAINBOW }
+                        RetroIconButton("🧽", theme, tool == Tool.ERASER, 52.dp) { tool = Tool.ERASER }
+                        RetroIconButton("🌟", theme, tool == Tool.STAMP, 52.dp) { tool = Tool.STAMP }
+                        Spacer(Modifier.height(8.dp))
+                        widths.forEachIndexed { i, w ->
+                            val selected = widthIndex == i
+                            Box(
+                                Modifier.padding(5.dp).size(52.dp).clip(RoundedCornerShape(14.dp))
+                                    .background(if (selected) theme.titleBars[0] else Color.White)
+                                    .border(3.dp, theme.outline, RoundedCornerShape(14.dp))
+                                    .clickable { widthIndex = i },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Box(Modifier.size(with(density) { w.toDp() }.coerceAtMost(36.dp)).clip(CircleShape).background(theme.outline))
+                            }
+                        }
+                    }
+                    Box(Modifier.fillMaxHeight().width(3.dp).background(theme.outline))
+                    // キャンバス
+                    Box(
+                        Modifier.weight(1f).fillMaxHeight()
+                            .background(Color.White)
+                            .onSizeChanged { canvasSize = it }
+                            .pointerInput(Unit) {
+                                detectTapGestures { pos ->
+                                    Drawing.marks += if (tool == Tool.STAMP) {
+                                        StampMark(pos.x, pos.y, stamp, stampSize)
+                                    } else {
+                                        currentLine(listOf(pos))
+                                    }
+                                }
+                            }
+                            .pointerInput(Unit) {
+                                detectDragGestures(
+                                    onDragStart = { pos ->
+                                        if (tool == Tool.STAMP) {
+                                            Drawing.marks += StampMark(pos.x, pos.y, stamp, stampSize)
+                                        } else {
+                                            current.clear()
+                                            current += pos
+                                        }
+                                    },
+                                    onDrag = { change, _ ->
+                                        if (tool != Tool.STAMP) current += change.position
+                                    },
+                                    onDragEnd = {
+                                        if (current.isNotEmpty()) Drawing.marks += currentLine(current.toList())
+                                        current.clear()
+                                    },
+                                    onDragCancel = { current.clear() },
+                                )
+                            }
+                    ) {
+                        Canvas(Modifier.fillMaxSize()) {
+                            drawIntoCanvas { c ->
+                                renderMarks(c.nativeCanvas, Drawing.marks)
+                                if (current.isNotEmpty()) renderMarks(c.nativeCanvas, listOf(currentLine(current.toList())))
+                            }
                         }
                     }
                 }
-                .pointerInput(Unit) {
-                    detectDragGestures(
-                        onDragStart = { pos ->
-                            if (tool == Tool.STAMP) {
-                                Drawing.marks += StampMark(pos.x, pos.y, stamp, stampSize)
-                            } else {
-                                current.clear()
-                                current += pos
-                            }
-                        },
-                        onDrag = { change, _ ->
-                            if (tool != Tool.STAMP) current += change.position
-                        },
-                        onDragEnd = {
-                            if (current.isNotEmpty()) Drawing.marks += currentLine(current.toList())
-                            current.clear()
-                        },
-                        onDragCancel = { current.clear() },
-                    )
-                }
-        ) {
-            Canvas(Modifier.fillMaxSize()) {
-                drawIntoCanvas { c ->
-                    renderMarks(c.nativeCanvas, Drawing.marks)
-                    if (current.isNotEmpty()) renderMarks(c.nativeCanvas, listOf(currentLine(current.toList())))
-                }
-            }
-        }
-        Spacer(Modifier.height(10.dp))
-
-        // 道具
-        Row(
-            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            ToolButton("✏️", tool == Tool.PEN, theme) { tool = Tool.PEN }
-            ToolButton("🌈", tool == Tool.RAINBOW, theme) { tool = Tool.RAINBOW }
-            ToolButton("🧽", tool == Tool.ERASER, theme) { tool = Tool.ERASER }
-            ToolButton("🌟", tool == Tool.STAMP, theme) { tool = Tool.STAMP }
-            Spacer(Modifier.width(16.dp))
-            if (tool == Tool.STAMP) {
-                stamps.forEach { s -> ToolButton(s, stamp == s, theme) { stamp = s } }
-            } else {
-                widths.forEachIndexed { i, w ->
-                    val selected = widthIndex == i
-                    Box(
-                        Modifier.padding(4.dp).size(56.dp).clip(CircleShape)
-                            .background(if (selected) theme.accent.copy(alpha = 0.3f) else Color.White)
-                            .clickable { widthIndex = i },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Box(
-                            Modifier.size(with(density) { w.toDp() }.coerceAtMost(40.dp))
-                                .clip(CircleShape).background(Color(0xFF555555))
-                        )
+                Box(Modifier.fillMaxWidth().height(3.dp).background(theme.outline))
+                // いろ・スタンプ（下の列）
+                Row(
+                    Modifier.fillMaxWidth().background(theme.bubbles[0]).horizontalScroll(rememberScrollState()).padding(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (tool == Tool.STAMP) {
+                        stamps.forEach { s -> RetroIconButton(s, theme, stamp == s, 52.dp) { stamp = s } }
+                    } else {
+                        palette.forEach { c ->
+                            val selected = color == c && tool == Tool.PEN
+                            Box(
+                                Modifier.padding(5.dp)
+                                    .offset(y = if (selected) (-4).dp else 0.dp)
+                                    .size(48.dp).clip(RoundedCornerShape(10.dp)).background(c)
+                                    .border(if (selected) 5.dp else 3.dp, theme.outline, RoundedCornerShape(10.dp))
+                                    .clickable { color = c; tool = Tool.PEN }
+                            )
+                        }
                     }
-                }
-                Spacer(Modifier.width(16.dp))
-                palette.forEach { c ->
-                    val selected = color == c && tool == Tool.PEN
-                    Box(
-                        Modifier.padding(4.dp).size(if (selected) 56.dp else 48.dp)
-                            .clip(CircleShape).background(c)
-                            .border(if (selected) 5.dp else 2.dp, if (selected) theme.accent else Color(0x22000000), CircleShape)
-                            .clickable { color = c; tool = Tool.PEN }
-                    )
                 }
             }
         }
@@ -222,28 +229,19 @@ fun DrawingScreen(onBack: () -> Unit) {
 
     if (askClear) {
         Dialog(onDismissRequest = { askClear = false }) {
-            Surface(shape = RoundedCornerShape(32.dp), color = Color.White) {
-                Column(Modifier.padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("ぜんぶ けす？", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = Color(0xFF555555))
+            RetroWindow(theme, Modifier.width(340.dp), title = "かくにん", titleColor = Color(0xFFFFB3CF)) {
+                Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    DotText("ぜんぶ けして", theme, 22)
+                    DotText("さいしょから かく？", theme, 22)
                     Spacer(Modifier.height(20.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-                        ToolButton("⭕", false, theme) { Drawing.marks.clear(); askClear = false }
-                        ToolButton("❌", false, theme) { askClear = false }
+                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        RetroButton("けす", theme, theme.titleBars[0]) { Drawing.marks.clear(); askClear = false }
+                        RetroButton("やめる", theme, Color.White) { askClear = false }
                     }
                 }
             }
         }
     }
-}
-
-@Composable
-private fun ToolButton(emoji: String, selected: Boolean, theme: KidTheme, onClick: () -> Unit) {
-    Box(
-        Modifier.padding(4.dp).size(60.dp).clip(CircleShape)
-            .background(if (selected) theme.accent else Color.White)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) { Text(emoji, fontSize = 28.sp) }
 }
 
 // ---------------------------------------------------------------- 描画と保存
