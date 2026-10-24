@@ -1,0 +1,18 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- おうち -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,30 L80,52 Q82,54 79,55 L76,55 L76,78 Q76,81 73,81 L35,81 Q32,81 32,78 L32,55 L29,55 Q26,54 28,52 Z" />
+    <!-- ハート -->
+    <path
+        android:fillColor="#FF7FA8"
+        android:pathData="M54,73 C54,73 42,65.5 42,58 C42,54 45,51 48.5,51 C51,51 53,52.5 54,54.5 C55,52.5 57,51 59.5,51 C63,51 66,54 66,58 C66,65.5 54,73 54,73 Z" />
+    <!-- えんとつの星 -->
+    <path
+        android:fillColor="#FFD95A"
+        android:pathData="M72,26 L73.8,30.2 L78.3,30.6 L74.9,33.5 L75.9,38 L72,35.6 L68.1,38 L69.1,33.5 L65.7,30.6 L70.2,30.2 Z" />
+</vector>
