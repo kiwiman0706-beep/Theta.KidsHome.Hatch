@@ -74,7 +74,6 @@ fun MojiScreen(onBack: () -> Unit) {
     val ch = chars.getOrElse(index) { chars.first() }
     val strokes = remember(ch) { mutableStateListOf<MojiStroke>().apply { written[ch]?.let { addAll(it) } } }
     val current = remember { mutableStateListOf<FloatArray>() }
-    var guide by remember { mutableStateOf(true) }
     var penMode by remember { mutableStateOf(context.getSharedPreferences("drawing", 0).getBoolean("pen", false)) }
     var cheer by remember { mutableStateOf<String?>(null) }
 
@@ -128,8 +127,34 @@ fun MojiScreen(onBack: () -> Unit) {
             Spacer(Modifier.width(16.dp))
             // かく ところ
             Column(Modifier.weight(1f).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally) {
+                Row(Modifier.weight(1f), verticalAlignment = Alignment.Top) {
+                // おてほん（よこに 小さく）
+                Column(Modifier.padding(end = 14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    DotText("おてほん", theme, 16, theme.text)
+                    Box(
+                        Modifier.padding(top = 4.dp).width(150.dp).aspectRatio(1f).clip(RoundedCornerShape(12.dp)).background(Color.White)
+                            .border(3.dp, theme.outline, RoundedCornerShape(12.dp))
+                    ) {
+                        Canvas(Modifier.fillMaxSize()) {
+                            val dash = PathEffect.dashPathEffect(floatArrayOf(8f, 7f))
+                            val lc = theme.outline.copy(alpha = 0.25f)
+                            drawLine(lc, Offset(size.width / 2, 0f), Offset(size.width / 2, size.height), 2f, pathEffect = dash)
+                            drawLine(lc, Offset(0f, size.height / 2), Offset(size.width, size.height / 2), 2f, pathEffect = dash)
+                            drawIntoCanvas { cv ->
+                                val p = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+                                    color = android.graphics.Color.rgb(40, 40, 50)
+                                    textSize = size.width * 0.78f
+                                    textAlign = android.graphics.Paint.Align.CENTER
+                                    typeface = android.graphics.Typeface.SERIF
+                                }
+                                val fm = p.fontMetrics
+                                cv.nativeCanvas.drawText(ch, size.width / 2, size.height / 2 - (fm.ascent + fm.descent) / 2, p)
+                            }
+                        }
+                    }
+                }
                 Box(
-                    Modifier.weight(1f).aspectRatio(1f).clip(RoundedCornerShape(16.dp)).background(Color.White)
+                    Modifier.fillMaxHeight().aspectRatio(1f).clip(RoundedCornerShape(16.dp)).background(Color.White)
                         .border(4.dp, theme.outline, RoundedCornerShape(16.dp))
                         .pointerInput(ch, penMode) {
                             awaitEachGesture {
@@ -162,26 +187,16 @@ fun MojiScreen(onBack: () -> Unit) {
                         drawLine(lc, Offset(size.width / 2, 0f), Offset(size.width / 2, size.height), 3f, pathEffect = dash)
                         drawLine(lc, Offset(0f, size.height / 2), Offset(size.width, size.height / 2), 3f, pathEffect = dash)
                         drawIntoCanvas { cv ->
-                            if (guide) {
-                                val p = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
-                                    color = android.graphics.Color.argb(40, 0, 0, 0)
-                                    textSize = size.width * 0.78f
-                                    textAlign = android.graphics.Paint.Align.CENTER
-                                    typeface = android.graphics.Typeface.SERIF
-                                }
-                                val fm = p.fontMetrics
-                                cv.nativeCanvas.drawText(ch, size.width / 2, size.height / 2 - (fm.ascent + fm.descent) / 2, p)
-                            }
                             Moji.draw(cv.nativeCanvas, strokes.toList() + listOfNotNull(current.toList().takeIf { it.isNotEmpty() }), 0f, 0f, size.width, android.graphics.Color.rgb(30, 30, 40))
                         }
                     }
+                }
                 }
                 Spacer(Modifier.height(10.dp))
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     RetroIconButton("⬅️", theme) { index = (index - 1 + chars.size) % chars.size }
                     RetroIconButton("↩️", theme) { if (strokes.isNotEmpty()) strokes.removeAt(strokes.lastIndex) }
                     RetroIconButton("🗑️", theme) { strokes.clear() }
-                    RetroIconButton("👻", theme, guide) { guide = !guide }
                     RetroIconButton("🖊️", theme, penMode) {
                         penMode = !penMode
                         context.getSharedPreferences("drawing", 0).edit().putBoolean("pen", penMode).apply()
