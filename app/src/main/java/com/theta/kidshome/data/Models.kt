@@ -116,17 +116,20 @@ data class Sticker(
     val y: Float = 0.6f,
     val rotation: Float = 0f,
     val color: Int = 0xFFFFF3A0.toInt(),
+    /** スタンプライブラリの シール（うかぶ）。あれば image・text より先 */
+    val stamp: String? = null,
 )
 
 fun Sticker.toJson(): JSONObject = JSONObject().apply {
     put("id", id); putOpt("image", image); put("text", text)
-    put("x", x.toDouble()); put("y", y.toDouble()); put("rotation", rotation.toDouble()); put("color", color)
+    put("x", x.toDouble()); put("y", y.toDouble()); put("rotation", rotation.toDouble()); put("color", color); putOpt("stamp", stamp)
 }
 
 fun stickerFromJson(o: JSONObject) = Sticker(
     id = o.getString("id"), image = if (o.has("image") && !o.isNull("image")) o.getString("image") else null,
     text = o.optString("text"), x = o.optDouble("x", 0.5).toFloat(), y = o.optDouble("y", 0.6).toFloat(),
     rotation = o.optDouble("rotation").toFloat(), color = o.optInt("color", 0xFFFFF3A0.toInt()),
+    stamp = if (o.has("stamp") && !o.isNull("stamp")) o.getString("stamp") else null,
 )
 
 // ---- JSON 変換 ----

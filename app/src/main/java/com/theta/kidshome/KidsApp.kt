@@ -13,6 +13,7 @@ class KidsApp : Application() {
         if (getProcessName().endsWith(":rescue")) return
         Store.init(this)
         com.theta.kidshome.data.Widgets.init(this)
+        com.theta.kidshome.data.StampLibrary.init(this)
         Rescue.watchMainThread(this)
     }
 }

@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -52,14 +53,20 @@ import kotlin.math.roundToInt
 @Composable
 fun StickerLayer(theme: KidTheme, stickers: List<Sticker>, width: Dp, height: Dp) {
     var open by remember { mutableStateOf<Sticker?>(null) }
-    stickers.forEach { s -> androidx.compose.runtime.key(s.id) { StickerNote(theme, s, width, height) { open = s } } }
+    stickers.forEach { s ->
+        androidx.compose.runtime.key(s.id) {
+            if (s.stamp != null) FloatingStamp(s, width, height) { open = s } else StickerNote(theme, s, width, height) { open = s }
+        }
+    }
     open?.let { s -> StickerDialog(theme, s) { open = null } }
 }
 
 @Composable
 private fun stickerImage(s: Sticker): ImageBitmap? {
     val context = LocalContext.current
-    val img by produceState<ImageBitmap?>(null, s.image) {
+    val img by produceState<ImageBitmap?>(null, s.image, s.stamp) {
+        val st = s.stamp
+        if (st != null) { value = withContext(Dispatchers.IO) { com.theta.kidshome.data.StampLibrary.bitmap(st)?.asImageBitmap() }; return@produceState }
         value = s.image?.let { name ->
             withContext(Dispatchers.IO) { BitmapFactory.decodeFile(File(File(context.filesDir, "stickers"), name).path)?.asImageBitmap() }
         }
@@ -102,6 +109,44 @@ private fun StickerNote(theme: KidTheme, s: Sticker, width: Dp, height: Dp, onOp
                 .rotate(-4f).background(theme.titleBars[0].copy(alpha = 0.75f))
         )
     }
+}
+
+/** スタンプライブラリの シール：紙なしで、ふわふわ うかぶ */
+@Composable
+private fun FloatingStamp(s: Sticker, width: Dp, height: Dp, onOpen: () -> Unit) {
+    val density = LocalDensity.current
+    val wPx = with(density) { width.toPx() }
+    val hPx = with(density) { height.toPx() }
+    var pos by remember(s.x, s.y) { mutableStateOf(Offset(s.x * wPx, s.y * hPx)) }
+    val img = stickerImage(s)
+    val t = androidx.compose.animation.core.rememberInfiniteTransition(label = "float")
+    val phase = (s.id.hashCode() % 1000) / 1000f
+    val bob by t.animateFloat(
+        -10f, 10f,
+        androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(2200 + (phase * 900).toInt()), androidx.compose.animation.core.RepeatMode.Reverse),
+        label = "bob",
+    )
+    val tilt by t.animateFloat(
+        -6f, 6f,
+        androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(3100 + (phase * 700).toInt()), androidx.compose.animation.core.RepeatMode.Reverse),
+        label = "tilt",
+    )
+    if (img == null) return
+    Image(
+        img, null,
+        Modifier
+            .offset { IntOffset(pos.x.roundToInt(), (pos.y + bob * density.density).roundToInt()) }
+            .rotate(s.rotation + tilt)
+            .size(130.dp)
+            .pointerInput(s.id) {
+                detectDragGestures(
+                    onDrag = { change, d -> change.consume(); pos += d },
+                    onDragEnd = { Store.moveSticker(s.id, pos.x / wPx, pos.y / hPx) },
+                )
+            }
+            .pointerInput(s.id) { detectTapGestures { onOpen() } },
+        contentScale = ContentScale.Fit,
+    )
 }
 
 @Composable

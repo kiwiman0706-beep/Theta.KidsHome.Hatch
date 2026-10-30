@@ -116,7 +116,13 @@ fun DrawingScreen(onBack: () -> Unit) {
     var stampMode by remember { mutableStateOf(false) }
     var color by remember { mutableStateOf(palette[2]) }
     var widthIndex by remember { mutableIntStateOf(1) }
+    // えもじ か "img:<ライブラリの id>"
     var stamp by remember { mutableStateOf(stamps.first()) }
+    var showMaker by remember { mutableStateOf(false) }
+    fun stampMark(x: Float, y: Float): Stamp {
+        val scale = listOf(0.7f, 1.2f, 2.0f)[widthIndex]
+        return if (stamp.startsWith("img:")) Stamp(x, y, "", stampSize * scale, stamp.removePrefix("img:")) else Stamp(x, y, stamp, stampSize * scale)
+    }
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
     var askClear by remember { mutableStateOf(false) }
     var showOpen by remember { mutableStateOf(false) }
@@ -246,7 +252,7 @@ fun DrawingScreen(onBack: () -> Unit) {
                                     if (penMode && !stylus) return@awaitEachGesture
                                     down.consume()
                                     if (stampMode) {
-                                        commit(Stamp(down.position.x, down.position.y, stamp, stampSize))
+                                        commit(stampMark(down.position.x, down.position.y))
                                         return@awaitEachGesture
                                     }
                                     // ペンのおしり（けしごむ側）なら けしごむ
@@ -287,6 +293,16 @@ fun DrawingScreen(onBack: () -> Unit) {
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     if (stampMode) {
+                        RetroIconButton("➕", theme, size = 50.dp) { showMaker = true }
+                        val lib = remember(com.theta.kidshome.data.StampLibrary.version) { com.theta.kidshome.data.StampLibrary.list() }
+                        lib.forEach { item -> StampThumb(theme, item.id, stamp == "img:${item.id}") { stamp = "img:${item.id}" } }
+                        if (stamp.startsWith("img:")) {
+                            RetroIconButton("🏠", theme, size = 50.dp) {
+                                floatOnHome(stamp.removePrefix("img:"))
+                                Toast.makeText(context, "ホームに うかべたよ！", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                        Spacer(Modifier.width(10.dp))
                         stamps.forEach { s -> RetroIconButton(s, theme, stamp == s, 50.dp) { stamp = s } }
                     } else if (brush == Brush.FINGER) {
                         DotText("☝️ ゆびで さわった いろを のばすよ", theme, 18)
@@ -330,6 +346,8 @@ fun DrawingScreen(onBack: () -> Unit) {
         rebuild()
         showOpen = false
     }
+
+    if (showMaker) StampMakerDialog(theme, onDismiss = { showMaker = false }) { stamp = "img:${it.id}" }
 
     if (showMagic) {
         Dialog(onDismissRequest = { showMagic = false }) {

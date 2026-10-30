@@ -36,7 +36,16 @@ object Gemini {
 
     private class ModelNotFound(m: String) : IOException("モデル $m が見つかりません")
 
-    suspend fun transform(context: Context, photo: Bitmap, style: Style): Bitmap = withContext(Dispatchers.IO) {
+    suspend fun transform(context: Context, photo: Bitmap, style: Style): Bitmap = edit(context, photo, style.prompt)
+
+    /** シールの型どり：主役だけを、まっ みどり の背景にして返してもらう（アプリで みどり を すけさせる） */
+    const val CUTOUT_PROMPT = "Cut out the single main character or sticker from this photo. Reproduce it faithfully with the same design, " +
+        "colors and outline, centered and filling most of the frame, on a perfectly flat pure green (#00FF00) background. " +
+        "No shadow, no other objects, no text, no frame."
+
+    suspend fun cutout(context: Context, photo: Bitmap): Bitmap = edit(context, photo, CUTOUT_PROMPT)
+
+    suspend fun edit(context: Context, photo: Bitmap, prompt: String): Bitmap = withContext(Dispatchers.IO) {
         val key = apiKey(context).ifBlank { throw IOException("Gemini の API キーが ありません（おうちのひと メニューで入れてね）") }
         val scaled = photo.let {
             val s = 1024f / maxOf(it.width, it.height)
@@ -47,7 +56,7 @@ object Gemini {
             "contents", JSONArray().put(
                 JSONObject().put(
                     "parts", JSONArray()
-                        .put(JSONObject().put("text", style.prompt))
+                        .put(JSONObject().put("text", prompt))
                         .put(JSONObject().put("inline_data", JSONObject().put("mime_type", "image/jpeg").put("data", Base64.encodeToString(jpeg, Base64.NO_WRAP))))
                 )
             )

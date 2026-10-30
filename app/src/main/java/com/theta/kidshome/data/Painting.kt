@@ -36,7 +36,8 @@ data class Stroke(
     /** ペンの筆圧（0〜1、点ごと）。指で描いたときは null */
     val pressures: FloatArray? = null,
 ) : Mark
-data class Stamp(val x: Float, val y: Float, val emoji: String, val size: Float) : Mark
+/** えもじ か、スタンプライブラリの画像（image に id） */
+data class Stamp(val x: Float, val y: Float, val emoji: String, val size: Float, val image: String? = null) : Mark
 
 /**
  * 画材ごとの描き方。同じ seed なら毎回おなじ「かすれ」になる（開き直しても同じ絵）。
@@ -57,8 +58,15 @@ object Painter {
     fun draw(c: Canvas, m: Mark) {
         when (m) {
             is Stamp -> {
-                val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = m.size; textAlign = Paint.Align.CENTER }
-                c.drawText(m.emoji, m.x, m.y + m.size / 3, p)
+                val img = m.image?.let { StampLibrary.bitmap(it) }
+                if (img != null) {
+                    val s = m.size * 1.6f / maxOf(img.width, img.height)
+                    val w = img.width * s; val h = img.height * s
+                    c.drawBitmap(img, null, RectF(m.x - w / 2, m.y - h / 2, m.x + w / 2, m.y + h / 2), Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG))
+                } else {
+                    val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = m.size; textAlign = Paint.Align.CENTER }
+                    c.drawText(m.emoji, m.x, m.y + m.size / 3, p)
+                }
             }
             is Stroke -> stroke(c, m)
         }
@@ -274,7 +282,7 @@ object Paintings {
         is Stroke -> JSONObject().put("t", "s").put("c", m.color).put("w", m.width.toDouble()).put("b", m.brush.name).put("seed", m.seed)
             .put("p", JSONArray().apply { m.points.forEach { put(Math.round(it * 10) / 10.0) } })
             .apply { m.pressures?.let { pr -> put("pr", JSONArray().apply { pr.forEach { put(Math.round(it * 100) / 100.0) } }) } }
-        is Stamp -> JSONObject().put("t", "e").put("x", m.x.toDouble()).put("y", m.y.toDouble()).put("e", m.emoji).put("size", m.size.toDouble())
+        is Stamp -> JSONObject().put("t", "e").put("x", m.x.toDouble()).put("y", m.y.toDouble()).put("e", m.emoji).put("size", m.size.toDouble()).putOpt("img", m.image)
     }
 
     fun fromJson(o: JSONObject): Mark? = when (o.optString("t")) {
@@ -286,7 +294,7 @@ object Paintings {
                 o.optJSONArray("pr")?.let { pr -> FloatArray(pr.length()) { pr.getDouble(it).toFloat() } },
             )
         }
-        "e" -> Stamp(o.getDouble("x").toFloat(), o.getDouble("y").toFloat(), o.getString("e"), o.getDouble("size").toFloat())
+        "e" -> Stamp(o.getDouble("x").toFloat(), o.getDouble("y").toFloat(), o.getString("e"), o.getDouble("size").toFloat(), if (o.has("img")) o.getString("img") else null)
         else -> null
     }
 }

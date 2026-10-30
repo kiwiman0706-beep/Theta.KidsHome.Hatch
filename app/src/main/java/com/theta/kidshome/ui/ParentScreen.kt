@@ -180,6 +180,8 @@ private fun SettingsTab(modifier: Modifier) {
 
         GeminiSection()
 
+        StampLibrarySection(config)
+
         CategorySection(config)
 
         VideoLockSection(config)
