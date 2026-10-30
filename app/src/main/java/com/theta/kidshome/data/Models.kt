@@ -5,7 +5,7 @@ import org.json.JSONObject
 import java.util.UUID
 
 /** CALL：Google Meet などの通話リンク（どうがロック中も押せる） */
-enum class TileType { APP, VIDEO, DRAWING, CALL, INSTRUMENT, EDUPAD, WORDPRO, PUZZLE, TYPING }
+enum class TileType { APP, VIDEO, DRAWING, CALL, INSTRUMENT, EDUPAD, WORDPRO, PUZZLE, TYPING, MOJI }
 
 /** ホーム画面に並ぶ1つのボタン */
 data class Tile(
@@ -32,6 +32,9 @@ data class Profile(
     val belongings: List<String> = List(6) { "" },
     /** ホームに はった ふせん（おえかき・わーぷろ から） */
     val stickers: List<Sticker> = emptyList(),
+    /** 学年（0 = 小学校まえ）。gradeYear はそれを決めた年度（4 月に 自動で 1 つ上がる） */
+    val grade: Int = 0,
+    val gradeYear: Int = 0,
 ) {
     val hasTimetable get() = timetable.any { d -> d.any { it.isNotBlank() } }
 }
@@ -93,6 +96,7 @@ data class AppConfig(
         fun wordproTile() = Tile(type = TileType.WORDPRO, label = "わーぷろ", emoji = "📝")
         fun puzzleTile() = Tile(type = TileType.PUZZLE, label = "パズル", emoji = "🧩")
         fun typingTile() = Tile(type = TileType.TYPING, label = "タイピング", emoji = "⌨️")
+        fun mojiTile() = Tile(type = TileType.MOJI, label = "もじ れんしゅう", emoji = "✍️")
 
         fun default(): AppConfig {
             val p1 = Profile(name = "おねえちゃん", themeId = "usagi", tiles = listOf(edupadTile(), drawingTile(), wordproTile(), puzzleTile(), instrumentTile()))
@@ -158,6 +162,8 @@ fun Profile.toJson(): JSONObject = JSONObject().apply {
     put("timetable", JSONArray(timetable.map { JSONArray(it) }))
     put("belongings", JSONArray(belongings))
     put("stickers", JSONArray(stickers.map { it.toJson() }))
+    put("grade", grade)
+    put("gradeYear", gradeYear)
 }
 
 fun profileFromJson(o: JSONObject): Profile {
@@ -172,6 +178,8 @@ fun profileFromJson(o: JSONObject): Profile {
         },
         belongings = List(6) { d -> o.optJSONArray("belongings")?.optString(d).orEmpty() },
         stickers = o.optJSONArray("stickers")?.let { a -> (0 until a.length()).map { stickerFromJson(a.getJSONObject(it)) } } ?: emptyList(),
+        grade = o.optInt("grade"),
+        gradeYear = o.optInt("gradeYear"),
     )
 }
 

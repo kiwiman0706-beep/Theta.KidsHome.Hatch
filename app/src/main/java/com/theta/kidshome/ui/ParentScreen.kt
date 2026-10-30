@@ -174,6 +174,8 @@ private fun SettingsTab(modifier: Modifier) {
 
         SongSection(config)
 
+        MojiExportSection(config)
+
         HatchSection()
 
         GeminiSection()
@@ -426,6 +428,8 @@ private fun ProfileEditor(profile: Profile, canDelete: Boolean, onDelete: () -> 
     Text("テーマ（キャラクター）", fontSize = 13.sp, color = Color.Gray)
     ThemePicker(profile.themeId) { id -> Store.updateProfile(profile.id) { it.copy(themeId = id) } }
 
+    GradeEditor(profile)
+
     TimetableEditor(profile)
 
     Spacer(Modifier.height(16.dp))
@@ -449,6 +453,9 @@ private fun ProfileEditor(profile: Profile, canDelete: Boolean, onDelete: () -> 
         OutlinedButton(onClick = { addingCall = true }) { Text("📞 でんわボタンを追加") }
         if (profile.tiles.none { it.type == TileType.EDUPAD }) {
             OutlinedButton(onClick = { Store.addTiles(profile.id, listOf(AppConfig.edupadTile())) }) { Text("🧠 くるくる思考パッドを追加") }
+        }
+        if (profile.tiles.none { it.type == TileType.MOJI }) {
+            OutlinedButton(onClick = { Store.addTiles(profile.id, listOf(AppConfig.mojiTile())) }) { Text("✍️ もじ れんしゅうを追加") }
         }
         if (profile.tiles.none { it.type == TileType.TYPING }) {
             OutlinedButton(onClick = { Store.addTiles(profile.id, listOf(AppConfig.typingTile())) }) { Text("⌨️ タイピングを追加") }
@@ -545,6 +552,7 @@ private fun TileRow(tile: Tile, onUp: (() -> Unit)?, onDown: (() -> Unit)?, onEd
                     TileType.WORDPRO -> add("わーぷろ（内蔵）")
                     TileType.PUZZLE -> add("パズル（内蔵）")
                     TileType.TYPING -> add("タイピング（内蔵）")
+                    TileType.MOJI -> add("もじ れんしゅう（内蔵）")
                 }
                 if (tile.isVideo) add("🔒ロック対象")
                 if (missing) add("⚠️ アプリが見つかりません")

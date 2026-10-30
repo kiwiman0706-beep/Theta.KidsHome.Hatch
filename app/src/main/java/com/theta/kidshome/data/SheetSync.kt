@@ -193,6 +193,7 @@ object SheetSync {
                         }
                         "おえかき" -> Tile(id = id, type = TileType.DRAWING, label = label.ifEmpty { "おえかき" }, emoji = emoji ?: "🎨")
                         "がっき" -> Tile(id = id, type = TileType.INSTRUMENT, label = label.ifEmpty { "がっき" }, emoji = emoji ?: "🎹")
+                        "もじ" -> Tile(id = id, type = TileType.MOJI, label = label.ifEmpty { "もじ れんしゅう" }, emoji = emoji ?: "✍️")
                         "タイピング" -> Tile(id = id, type = TileType.TYPING, label = label.ifEmpty { "タイピング" }, emoji = emoji ?: "⌨️")
                         "パズル" -> Tile(id = id, type = TileType.PUZZLE, label = label.ifEmpty { "パズル" }, emoji = emoji ?: "🧩")
                         "わーぷろ" -> Tile(id = id, type = TileType.WORDPRO, label = label.ifEmpty { "わーぷろ" }, emoji = emoji ?: "📝")
@@ -279,7 +280,7 @@ object SheetSync {
                     listOf(
                         who(p),
                         when (t.type) {
-                            TileType.VIDEO -> "どうが"; TileType.APP -> "アプリ"; TileType.DRAWING -> "おえかき"; TileType.CALL -> "でんわ"; TileType.INSTRUMENT -> "がっき"; TileType.EDUPAD -> "くるくる"; TileType.WORDPRO -> "わーぷろ"; TileType.PUZZLE -> "パズル"; TileType.TYPING -> "タイピング"
+                            TileType.VIDEO -> "どうが"; TileType.APP -> "アプリ"; TileType.DRAWING -> "おえかき"; TileType.CALL -> "でんわ"; TileType.INSTRUMENT -> "がっき"; TileType.EDUPAD -> "くるくる"; TileType.WORDPRO -> "わーぷろ"; TileType.PUZZLE -> "パズル"; TileType.TYPING -> "タイピング"; TileType.MOJI -> "もじ"
                         },
                         t.label,
                         when (t.type) { TileType.APP -> t.packageName.orEmpty(); else -> t.url.orEmpty() },
