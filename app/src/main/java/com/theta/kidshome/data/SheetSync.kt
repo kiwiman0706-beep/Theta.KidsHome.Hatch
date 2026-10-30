@@ -190,6 +190,7 @@ object SheetSync {
                                 isVideo = video || pkg in Launcher.videoPackages)
                         }
                         "おえかき" -> Tile(id = id, type = TileType.DRAWING, label = label.ifEmpty { "おえかき" }, emoji = emoji ?: "🎨")
+                        "がっき" -> Tile(id = id, type = TileType.INSTRUMENT, label = label.ifEmpty { "がっき" }, emoji = emoji ?: "🎹")
                         "でんわ" -> if (target.isEmpty()) null else Tile(
                             id = id, type = TileType.CALL, label = label.ifEmpty { "でんわ" }, url = target, emoji = emoji ?: "📞",
                         )
@@ -255,7 +256,7 @@ object SheetSync {
                     listOf(
                         who(p),
                         when (t.type) {
-                            TileType.VIDEO -> "どうが"; TileType.APP -> "アプリ"; TileType.DRAWING -> "おえかき"; TileType.CALL -> "でんわ"
+                            TileType.VIDEO -> "どうが"; TileType.APP -> "アプリ"; TileType.DRAWING -> "おえかき"; TileType.CALL -> "でんわ"; TileType.INSTRUMENT -> "がっき"
                         },
                         t.label,
                         when (t.type) { TileType.APP -> t.packageName.orEmpty(); else -> t.url.orEmpty() },

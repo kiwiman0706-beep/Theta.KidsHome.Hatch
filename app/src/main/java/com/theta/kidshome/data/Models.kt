@@ -5,7 +5,7 @@ import org.json.JSONObject
 import java.util.UUID
 
 /** CALL：Google Meet などの通話リンク（どうがロック中も押せる） */
-enum class TileType { APP, VIDEO, DRAWING, CALL }
+enum class TileType { APP, VIDEO, DRAWING, CALL, INSTRUMENT }
 
 /** ホーム画面に並ぶ1つのボタン */
 data class Tile(
@@ -76,10 +76,11 @@ data class AppConfig(
 
     companion object {
         fun drawingTile() = Tile(type = TileType.DRAWING, label = "おえかき", emoji = "🎨")
+        fun instrumentTile() = Tile(type = TileType.INSTRUMENT, label = "がっき", emoji = "🎹")
 
         fun default(): AppConfig {
-            val p1 = Profile(name = "おねえちゃん", themeId = "usagi", tiles = listOf(drawingTile()))
-            val p2 = Profile(name = "いもうと", themeId = "neko", tiles = listOf(drawingTile()))
+            val p1 = Profile(name = "おねえちゃん", themeId = "usagi", tiles = listOf(drawingTile(), instrumentTile()))
+            val p2 = Profile(name = "いもうと", themeId = "neko", tiles = listOf(drawingTile(), instrumentTile()))
             return AppConfig(profiles = listOf(p1, p2), currentProfileId = p1.id)
         }
     }

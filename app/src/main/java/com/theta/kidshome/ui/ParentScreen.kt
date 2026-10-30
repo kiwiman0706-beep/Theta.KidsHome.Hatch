@@ -439,6 +439,9 @@ private fun ProfileEditor(profile: Profile, canDelete: Boolean, onDelete: () -> 
         Button(onClick = { addingVideo = true }) { Text("🎬 どうがリンクを追加") }
         Button(onClick = { showAppPicker = true }) { Text("📱 アプリを追加") }
         OutlinedButton(onClick = { addingCall = true }) { Text("📞 でんわボタンを追加") }
+        if (profile.tiles.none { it.type == TileType.INSTRUMENT }) {
+            OutlinedButton(onClick = { Store.addTiles(profile.id, listOf(AppConfig.instrumentTile())) }) { Text("🎹 がっきを追加") }
+        }
         if (profile.tiles.none { it.type == TileType.DRAWING }) {
             OutlinedButton(onClick = { Store.addTiles(profile.id, listOf(AppConfig.drawingTile())) }) { Text("🎨 おえかきを追加") }
         }
@@ -517,6 +520,7 @@ private fun TileRow(tile: Tile, onUp: (() -> Unit)?, onDown: (() -> Unit)?, onEd
                     TileType.VIDEO -> add(tile.url?.let { Launcher.detectService(it)?.name } ?: "どうがリンク")
                     TileType.DRAWING -> add("おえかき（内蔵）")
                     TileType.CALL -> add("でんわ（ロック中も使える）")
+                    TileType.INSTRUMENT -> add("がっき（内蔵）")
                 }
                 if (tile.isVideo) add("🔒ロック対象")
                 if (missing) add("⚠️ アプリが見つかりません")

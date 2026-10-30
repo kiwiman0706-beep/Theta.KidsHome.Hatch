@@ -24,6 +24,13 @@ object Store {
         config = prefs.getString(KEY, null)
             ?.let { runCatching { appConfigFromJson(JSONObject(it)) }.getOrNull() }
             ?: AppConfig.default()
+        // 0.6.0：がっき を足したので、前からの端末にも 1 回だけ置く
+        if (!prefs.getBoolean("added:instrument", false)) {
+            if (config.profiles.none { p -> p.tiles.any { it.type == TileType.INSTRUMENT } }) {
+                update { c -> c.copy(profiles = c.profiles.map { it.copy(tiles = it.tiles + AppConfig.instrumentTile()) }) }
+            }
+            prefs.edit().putBoolean("added:instrument", true).apply()
+        }
     }
 
     fun update(transform: (AppConfig) -> AppConfig) {

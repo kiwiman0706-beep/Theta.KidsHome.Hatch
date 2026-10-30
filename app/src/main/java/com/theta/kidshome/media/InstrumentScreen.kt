@@ -1,0 +1,238 @@
+package com.theta.kidshome.media
+
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.PointerId
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.theta.kidshome.data.Store
+import com.theta.kidshome.ui.DotFont
+import com.theta.kidshome.ui.DotText
+import com.theta.kidshome.ui.KidTheme
+import com.theta.kidshome.ui.RetroBackground
+import com.theta.kidshome.ui.RetroIconButton
+import com.theta.kidshome.ui.RetroWindow
+import com.theta.kidshome.ui.themeById
+
+private val WHITE = intArrayOf(0, 2, 4, 5, 7, 9, 11)
+/** 黒けん：（左どなりの白けんの番号, 半音） */
+private val BLACK = listOf(0 to 1, 1 to 3, 3 to 6, 4 to 8, 5 to 10)
+private val NOTE_NAMES = listOf("ド", "レ", "ミ", "ファ", "ソ", "ラ", "シ")
+private val NOTE_COLORS = listOf(
+    Color(0xFFFF6B8B), Color(0xFFFF9F43), Color(0xFFF7C531), Color(0xFF6BCB77),
+    Color(0xFF4DA3FF), Color(0xFF7B6BFF), Color(0xFFC77DFF),
+)
+private val PAD_COLORS = listOf(
+    Color(0xFFFF8FAB), Color(0xFFFFB86B), Color(0xFFFFE066), Color(0xFF8FE3A0),
+    Color(0xFF7FC8FF), Color(0xFFA99BFF), Color(0xFFFFA8E2), Color(0xFF9EE6E0),
+)
+
+/**
+ * がっき：上に ミニけんばん（2 オクターブ、ドレミの色つき）、下に ドラムパッド（8 こ）。
+ * どちらも音色を変えられて、いくつ同時に押しても鳴る。
+ */
+@Composable
+fun InstrumentScreen(onBack: () -> Unit) {
+    BackHandler(onBack = onBack)
+    val context = LocalContext.current
+    val theme = themeById(Store.config.currentProfile.themeId)
+    val synth = remember { Synth(context) }
+    var voice by remember { mutableStateOf(Voice.PIANO) }
+    var kit by remember { mutableStateOf(Kit.DRUMS) }
+    var octave by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(voice, kit) { synth.prepare(voice, kit) }
+    DisposableEffect(Unit) {
+        AudioPlayer.pause()
+        onDispose { synth.release() }
+    }
+
+    Box(Modifier.fillMaxSize()) {
+        RetroBackground(theme)
+        Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).padding(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                RetroIconButton("🏠", theme, onClick = onBack)
+                DotText("がっき", theme, 28, theme.text, modifier = Modifier.padding(start = 10.dp))
+                if (!synth.ready) DotText("　じゅんびちゅう…", theme, 16, theme.text)
+            }
+            Spacer(Modifier.height(10.dp))
+
+            // ---- けんばん
+            RetroWindow(theme, Modifier.weight(1.15f).fillMaxWidth().padding(end = 6.dp, bottom = 6.dp), title = "けんばん　${voice.emoji} ${voice.label}", titleColor = theme.titleBars[0]) {
+                Row(
+                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 6.dp, vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Voice.entries.forEach { v -> RetroIconButton(v.emoji, theme, voice == v, 46.dp) { voice = v } }
+                    Spacer(Modifier.width(16.dp))
+                    RetroIconButton("⬇️", theme, size = 46.dp) { octave = (octave - 1).coerceAtLeast(-1) }
+                    DotText(when (octave) { -1 -> "ひくい"; 1 -> "たかい"; else -> "ふつう" }, theme, 16)
+                    RetroIconButton("⬆️", theme, size = 46.dp) { octave = (octave + 1).coerceAtMost(1) }
+                }
+                Keyboard(theme, Modifier.weight(1f).fillMaxWidth().padding(8.dp)) { key -> synth.playKey(voice, key, octave) }
+            }
+            Spacer(Modifier.height(12.dp))
+
+            // ---- ドラムパッド
+            RetroWindow(theme, Modifier.weight(1f).fillMaxWidth().padding(end = 6.dp, bottom = 6.dp), title = "ドラム　${kit.emoji} ${kit.label}", titleColor = theme.titleBars[2]) {
+                Row(Modifier.padding(horizontal = 6.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Kit.entries.forEach { k -> RetroIconButton(k.emoji, theme, kit == k, 46.dp) { kit = k } }
+                }
+                Column(Modifier.weight(1f).fillMaxWidth().padding(8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    kit.pads.chunked(4).forEachIndexed { row, pads ->
+                        Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            pads.forEachIndexed { col, (emoji, label) ->
+                                val i = row * 4 + col
+                                Pad(theme, emoji, label, PAD_COLORS[i], Modifier.weight(1f).fillMaxHeight()) { synth.playPad(kit, i) }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun Pad(theme: KidTheme, emoji: String, label: String, color: Color, modifier: Modifier, onHit: () -> Unit) {
+    var down by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(if (down) 0.9f else 1f, label = "pad")
+    val shape = RoundedCornerShape(18.dp)
+    Box(
+        modifier.scale(scale).clip(shape)
+            .background(if (down) Color.White else color)
+            .border(3.dp, theme.outline, shape)
+            // 指が触れた瞬間に鳴らす（はなすのを待たない）
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    awaitFirstDown().consume()
+                    onHit()
+                    down = true
+                    waitForUpOrCancellation()
+                    down = false
+                }
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(emoji, fontSize = 34.sp)
+            Text(label, fontFamily = DotFont, fontSize = 16.sp, color = theme.outline)
+        }
+    }
+}
+
+/** 2 オクターブのけんばん。いくつ同時に押しても、指をすべらせても鳴る */
+@Composable
+private fun Keyboard(theme: KidTheme, modifier: Modifier, onKey: (Int) -> Unit) {
+    val pressed = remember { mutableStateMapOf<PointerId, Int>() }
+    val measurer = rememberTextMeasurer()
+    val whiteCount = 15
+
+    fun keyAt(o: Offset, size: Size): Int? {
+        if (o.x < 0 || o.y < 0 || o.x > size.width || o.y > size.height) return null
+        val w = size.width / whiteCount
+        if (o.y < size.height * 0.6f) {
+            for (oct in 0..1) for ((after, semi) in BLACK) {
+                val cx = (oct * 7 + after + 1) * w
+                if (o.x in cx - w * 0.3f..cx + w * 0.3f) return oct * 12 + semi
+            }
+        }
+        val i = (o.x / w).toInt().coerceIn(0, whiteCount - 1)
+        return if (i == 14) 24 else (i / 7) * 12 + WHITE[i % 7]
+    }
+
+    Canvas(
+        modifier.pointerInput(Unit) {
+            awaitPointerEventScope {
+                while (true) {
+                    val e = awaitPointerEvent()
+                    val sz = Size(size.width.toFloat(), size.height.toFloat())
+                    e.changes.forEach { c ->
+                        if (c.pressed) {
+                            val k = keyAt(c.position, sz)
+                            if (k != null && pressed[c.id] != k) {
+                                onKey(k)
+                                pressed[c.id] = k
+                            } else if (k == null) pressed.remove(c.id)
+                            c.consume()
+                        } else {
+                            pressed.remove(c.id)
+                        }
+                    }
+                }
+            }
+        }
+    ) {
+        val w = size.width / whiteCount
+        val r = CornerRadius(10.dp.toPx())
+        val line = 3.dp.toPx()
+        val down = pressed.values.toSet()
+        // 白けん
+        for (i in 0 until whiteCount) {
+            val semi = if (i == 14) 24 else (i / 7) * 12 + WHITE[i % 7]
+            val rect = Rect(i * w + 2, 0f, (i + 1) * w - 2, size.height)
+            val c = NOTE_COLORS[i % 7]
+            drawRoundRect(if (semi in down) c else Color.White, rect.topLeft, rect.size, r)
+            drawRoundRect(theme.outline, rect.topLeft, rect.size, r, style = Stroke(line))
+            // 下に ドレミ と色の丸
+            drawCircle(c, w * 0.2f, Offset(rect.center.x, size.height - w * 1.0f))
+            val label = measurer.measure(NOTE_NAMES[i % 7], TextStyle(fontFamily = DotFont, fontSize = (w * 0.26f).toSp(), color = theme.outline))
+            drawText(label, topLeft = Offset(rect.center.x - label.size.width / 2, size.height - w * 0.42f - label.size.height / 2))
+        }
+        // 黒けん
+        for (oct in 0..1) for ((after, semi) in BLACK) {
+            val cx = (oct * 7 + after + 1) * w
+            val rect = Rect(cx - w * 0.3f, 0f, cx + w * 0.3f, size.height * 0.6f)
+            drawRoundRect(if (oct * 12 + semi in down) Color(0xFF8A7BFF) else Color(0xFF3A3150), rect.topLeft, rect.size, r)
+            drawRoundRect(theme.outline, rect.topLeft, rect.size, r, style = Stroke(line))
+        }
+    }
+}

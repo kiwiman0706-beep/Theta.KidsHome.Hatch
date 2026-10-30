@@ -104,6 +104,7 @@ private data class Burst(val id: Long, val at: Offset, val emojis: List<String>)
 fun HomeScreen(
     onOpenDrawing: () -> Unit,
     onOpenParent: () -> Unit,
+    onOpenInstrument: () -> Unit = {},
     onPlayVideo: (List<com.theta.kidshome.data.MediaEntry>, Int) -> Unit = { _, _ -> },
 ) {
     val config = Store.config
@@ -153,6 +154,7 @@ fun HomeScreen(
         when {
             tile.isVideo && locked -> showLockedDialog = true
             tile.type == TileType.DRAWING -> onOpenDrawing()
+            tile.type == TileType.INSTRUMENT -> onOpenInstrument()
             else -> Launcher.launch(context, tile)
         }
     }
@@ -602,6 +604,7 @@ private fun TileWindow(tile: Tile, theme: KidTheme, index: Int, locked: Boolean,
         tile.type == TileType.VIDEO -> tile.url?.let { Launcher.detectService(it)?.name } ?: "どうが"
         tile.type == TileType.DRAWING -> "おえかき"
         tile.type == TileType.CALL -> "でんわ"
+        tile.type == TileType.INSTRUMENT -> "がっき"
         tile.isVideo -> "どうが"
         else -> "アプリ"
     }
