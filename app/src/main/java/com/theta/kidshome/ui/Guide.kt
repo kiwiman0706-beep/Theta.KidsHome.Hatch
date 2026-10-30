@@ -62,11 +62,13 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 
-private class GuideBridge(private val onTap: () -> Unit, private val onReady: (String) -> Unit, private val onError: (String) -> Unit) {
+// しらせ を うける 関数 は、JS から よばれる メソッド と ちがう 名前 に する
+// （おなじ 名前 だと メソッド が じぶん を よびつづけて、しらせ が とどかない）
+private class GuideBridge(private val tapped: () -> Unit, private val readied: (String) -> Unit, private val failed: (String) -> Unit) {
     private val main = Handler(Looper.getMainLooper())
-    @JavascriptInterface fun onTap() { main.post(onTap) }
-    @JavascriptInterface fun onReady(json: String) { main.post { onReady(json) } }
-    @JavascriptInterface fun onError(msg: String) { main.post { onError(msg) } }
+    @JavascriptInterface fun onTap() { main.post { tapped() } }
+    @JavascriptInterface fun onReady(json: String) { main.post { readied(json) } }
+    @JavascriptInterface fun onError(msg: String) { main.post { failed(msg) } }
     @JavascriptInterface fun onStage(stage: String) { main.post { GuidePack.stage(stage) } }
 }
 
