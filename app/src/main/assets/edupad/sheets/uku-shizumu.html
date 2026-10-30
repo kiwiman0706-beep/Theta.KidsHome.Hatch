@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>みずに うくもの／しずむもの</title>
+<style>
+  :root{
+    --float-bg:#E9F6FF; --float-line:#5FB8E8; --float-deep:#0B6FA4;
+    --sink-bg:#EFEDF8; --sink-line:#8E86C6; --sink-deep:#3B3384;
+    --ink:#3D3A44; --paper:#FFFFFF; --warn:#F0A93B; --warn-bg:#FFF7E8;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{background:#eee;}
+  body{
+    font-family:"Zen Maru Gothic","Hiragino Maru Gothic ProN","BIZ UDGothic",sans-serif;
+    color:var(--ink);
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+  .page{
+    width:210mm; min-height:297mm; margin:10px auto; background:var(--paper);
+    padding:9mm 9mm 7mm; display:flex; flex-direction:column;
+  }
+  /* ---------- header ---------- */
+  header{text-align:center; margin-bottom:4mm;}
+  h1{
+    font-size:21pt; font-weight:900; letter-spacing:.04em;
+    display:inline-block; padding:1mm 6mm 1.5mm; border-radius:20px;
+    background:linear-gradient(180deg,var(--float-bg) 0 50%,var(--sink-bg) 50% 100%);
+    border:1.2mm solid var(--ink);
+  }
+  h1 .f{color:var(--float-deep);}
+  h1 .s{color:var(--sink-deep);}
+  header p{font-size:9.5pt; font-weight:700; margin-top:1.5mm;}
+  /* ---------- two columns ---------- */
+  .columns{display:flex; gap:5mm;}
+  .col{
+    flex:1; border-radius:6mm; padding:3.5mm 3.5mm 3mm; border:1mm solid;
+    display:flex; flex-direction:column;
+  }
+  .col.f{background:var(--float-bg); border-color:var(--float-line);}
+  .col.s{background:var(--sink-bg); border-color:var(--sink-line);}
+  .col-title{text-align:center; font-size:14.5pt; font-weight:900; margin-bottom:.5mm;}
+  .f .col-title{color:var(--float-deep);}
+  .s .col-title{color:var(--sink-deep);}
+  .col-sub{text-align:center; font-size:8pt; font-weight:700; margin-bottom:2.5mm;}
+  .group{margin-bottom:2mm;}
+  .group-label{
+    display:inline-block; font-size:8.5pt; font-weight:900; color:#fff;
+    padding:.3mm 3mm .6mm; border-radius:10px; margin-bottom:1.2mm;
+  }
+  .f .group-label{background:var(--float-deep);}
+  .s .group-label{background:var(--sink-deep);}
+  .cards{display:flex; flex-wrap:wrap; gap:1.6mm;}
+  .card{
+    background:#fff; border-radius:3mm; text-align:center;
+    width:15.8mm; padding:1.2mm 0 .8mm; border:.45mm solid rgba(0,0,0,.13);
+  }
+  .card .pic{font-size:17pt; line-height:1.1; display:block;}
+  .card .name{font-size:7.4pt; font-weight:700; display:block; margin-top:.2mm;}
+  .hint{
+    margin-top:auto; background:#fff; border-radius:3mm; padding:1.6mm 2.5mm;
+    font-size:8.2pt; font-weight:700; line-height:1.45; border:.6mm dashed;
+  }
+  .f .hint{border-color:var(--float-line);}
+  .s .hint{border-color:var(--sink-line);}
+  .f .hint b{color:var(--float-deep);}
+  .s .hint b{color:var(--sink-deep);}
+  /* ---------- rule strip ---------- */
+  .rule{
+    margin-top:4mm; display:flex; gap:3mm;
+  }
+  .rule-box{
+    flex:1; background:#fff; border:.8mm solid var(--ink); border-radius:4mm;
+    padding:2mm 3mm; font-size:8.6pt; font-weight:700; line-height:1.5;
+  }
+  .rule-box .h{display:block; font-size:9.5pt; font-weight:900; margin-bottom:.8mm;}
+  /* ---------- trick ---------- */
+  .trap{
+    margin-top:4mm; border:1mm solid var(--warn); border-radius:6mm;
+    background:var(--warn-bg); padding:3mm 3.5mm;
+  }
+  .trap-title{text-align:center; font-size:12.5pt; font-weight:900; color:#a86a05; margin-bottom:2mm;}
+  .trap-cards{display:flex; gap:2mm;}
+  .trap-card{
+    background:#fff; border-radius:3.5mm; text-align:center; flex:1;
+    padding:1.6mm 1mm 1.4mm; border:.5mm solid rgba(0,0,0,.12);
+  }
+  .trap-card .pic{font-size:15pt; display:block; line-height:1.1;}
+  .trap-card .name{font-size:7.8pt; font-weight:900; display:block; margin:.4mm 0;}
+  .trap-card .ans{
+    display:inline-block; font-size:7.2pt; font-weight:900; color:#fff;
+    border-radius:8px; padding:.2mm 2.2mm .5mm;
+  }
+  .ans.a-f{background:var(--float-deep);}
+  .ans.a-s{background:var(--sink-deep);}
+  .trap-card .why{font-size:6.6pt; font-weight:700; display:block; margin-top:.6mm; line-height:1.35; color:#555;}
+  footer{text-align:center; font-size:7.5pt; font-weight:700; color:#888; margin-top:3mm;}
+  @page{size:A4 portrait; margin:0;}
+  @media print{
+    html,body{background:#fff;}
+    .page{margin:0; width:auto; min-height:auto;}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <h1><span class="f">うくもの</span>？　<span class="s">しずむもの</span>？</h1>
+    <p>みずに いれたら どうなるかな？</p>
+  </header>
+
+  <div class="columns">
+
+    <!-- ===== 浮く ===== -->
+    <section class="col f">
+      <div class="col-title">⬆️ うく もの</div>
+      <div class="col-sub">みずに ぷかぷか</div>
+
+      <div class="group">
+        <span class="group-label">き・かみ</span>
+        <div class="cards">
+          <div class="card"><span class="pic">🪵</span><span class="name">き</span></div>
+          <div class="card"><span class="pic">🥢</span><span class="name">わりばし</span></div>
+          <div class="card"><span class="pic">📄</span><span class="name">かみ</span></div>
+          <div class="card"><span class="pic">🍁</span><span class="name">はっぱ</span></div>
+        </div>
+      </div>
+
+      <div class="group">
+        <span class="group-label">くうきが はいって いる</span>
+        <div class="cards">
+          <div class="card"><span class="pic">🎈</span><span class="name">ふうせん</span></div>
+          <div class="card"><span class="pic">⚽</span><span class="name">ボール</span></div>
+          <div class="card"><span class="pic">🧽</span><span class="name">スポンジ</span></div>
+          <div class="card"><span class="pic">🥤</span><span class="name">からの<br>ペットボトル</span></div>
+        </div>
+      </div>
+
+      <div class="group">
+        <span class="group-label">つちの うえで そだつ やさい・くだもの</span>
+        <div class="cards">
+          <div class="card"><span class="pic">🍎</span><span class="name">りんご</span></div>
+          <div class="card"><span class="pic">🍊</span><span class="name">みかん</span></div>
+          <div class="card"><span class="pic">🥒</span><span class="name">きゅうり</span></div>
+          <div class="card"><span class="pic">🎃</span><span class="name">かぼちゃ</span></div>
+          <div class="card"><span class="pic">🫑</span><span class="name">ピーマン</span></div>
+          <div class="card"><span class="pic">🍋</span><span class="name">レモン</span></div>
+        </div>
+      </div>
+
+      <div class="group">
+        <span class="group-label">そのほか</span>
+        <div class="cards">
+          <div class="card"><span class="pic">🕯️</span><span class="name">ろうそく</span></div>
+          <div class="card"><span class="pic">🧊</span><span class="name">こおり</span></div>
+          <div class="card"><span class="pic">🪶</span><span class="name">はね</span></div>
+        </div>
+      </div>
+
+      <div class="hint">💡 <b>おぼえかた</b>：かるいもの・なかに <b>くうき</b>が あるものは うく！</div>
+    </section>
+
+    <!-- ===== 沈む ===== -->
+    <section class="col s">
+      <div class="col-title">⬇️ しずむ もの</div>
+      <div class="col-sub">みずの そこへ ストン</div>
+
+      <div class="group">
+        <span class="group-label">かなもの（てつ）</span>
+        <div class="cards">
+          <div class="card"><span class="pic">🔩</span><span class="name">くぎ</span></div>
+          <div class="card"><span class="pic">✂️</span><span class="name">はさみ</span></div>
+          <div class="card"><span class="pic">🗝️</span><span class="name">かぎ</span></div>
+          <div class="card"><span class="pic">🥄</span><span class="name">スプーン</span></div>
+          <div class="card"><span class="pic">🪙</span><span class="name">こうか</span></div>
+        </div>
+      </div>
+
+      <div class="group">
+        <span class="group-label">いし・ガラス・やきもの</span>
+        <div class="cards">
+          <div class="card"><span class="pic">🪨</span><span class="name">いし</span></div>
+          <div class="card"><span class="pic">🔮</span><span class="name">ビーだま</span></div>
+          <div class="card"><span class="pic">🏺</span><span class="name">おちゃわん</span></div>
+          <div class="card"><span class="pic">🧱</span><span class="name">ねんど</span></div>
+        </div>
+      </div>
+
+      <div class="group">
+        <span class="group-label">つちの なかで そだつ やさい</span>
+        <div class="cards">
+          <div class="card"><span class="pic">🥔</span><span class="name">じゃがいも</span></div>
+          <div class="card"><span class="pic">🍠</span><span class="name">さつまいも</span></div>
+          <div class="card"><span class="pic">🥕</span><span class="name">にんじん</span></div>
+        </div>
+      </div>
+
+      <div class="group">
+        <span class="group-label">そのほか</span>
+        <div class="cards">
+          <div class="card"><span class="pic">⏳</span><span class="name">すな</span></div>
+          <div class="card"><span class="pic">🍶</span><span class="name">みずいりの<br>びん</span></div>
+        </div>
+      </div>
+
+      <div class="hint">💡 <b>おぼえかた</b>：おもいもの・<b>つちの なか</b>で できる やさいは しずむ！</div>
+    </section>
+  </div>
+
+  <!-- ===== ルール ===== -->
+  <div class="rule">
+    <div class="rule-box">
+      <span class="h">🥕 やさいの きまり</span>
+      つちの <b>うえ</b>に なるもの → <b style="color:var(--float-deep)">うく</b>　／　つちの <b>なか</b>に できるもの → <b style="color:var(--sink-deep)">しずむ</b>
+    </div>
+    <div class="rule-box">
+      <span class="h">🎈 かたちの きまり</span>
+      おなじ ものでも <b>くうき</b>が はいると うく。ぺしゃんこに すると しずむ。
+    </div>
+  </div>
+
+  <!-- ===== ひっかけ ===== -->
+  <section class="trap">
+    <div class="trap-title">⚠️ ひっかけ・じっけんもんだい</div>
+    <div class="trap-cards">
+      <div class="trap-card">
+        <span class="pic">🍊</span><span class="name">みかん</span>
+        <span class="ans a-f">かわつき＝うく</span>
+        <span class="why">かわを むくと<br><b>しずむ</b>！</span>
+      </div>
+      <div class="trap-card">
+        <span class="pic">🥚</span><span class="name">たまご</span>
+        <span class="ans a-s">みず＝しずむ</span>
+        <span class="why">しおみずでは<br><b>うく</b>！</span>
+      </div>
+      <div class="trap-card">
+        <span class="pic">🚢</span><span class="name">ふね</span>
+        <span class="ans a-f">うく</span>
+        <span class="why">てつでも なかが<br>くうどうだから</span>
+      </div>
+      <div class="trap-card">
+        <span class="pic">🧊</span><span class="name">こおり</span>
+        <span class="ans a-f">うく</span>
+        <span class="why">みずより かるい。<br>すこし かおを だす</span>
+      </div>
+      <div class="trap-card">
+        <span class="pic">🥤</span><span class="name">ペットボトル</span>
+        <span class="ans a-f">から＝うく</span>
+        <span class="why">みずを いれると<br><b>しずむ</b>！</span>
+      </div>
+      <div class="trap-card">
+        <span class="pic">🧱</span><span class="name">ねんど</span>
+        <span class="ans a-s">まるめる＝しずむ</span>
+        <span class="why">ふねの かたちに<br>すると <b>うく</b>！</span>
+      </div>
+    </div>
+  </section>
+
+  <footer>おうちの かたへ：ブラウザの「印刷」から A4・カラーで印刷してください（背景の色を印刷する設定を ON に）</footer>
+</div>
+</body>
+</html>

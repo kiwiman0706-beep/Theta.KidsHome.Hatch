@@ -31,6 +31,13 @@ object Store {
             }
             prefs.edit().putBoolean("added:instrument", true).apply()
         }
+        // 0.7.0：くるくる思考パッド を内蔵したので、前からの端末にも 1 回だけ置く
+        if (!prefs.getBoolean("added:edupad", false)) {
+            if (config.profiles.none { p -> p.tiles.any { it.type == TileType.EDUPAD } }) {
+                update { c -> c.copy(profiles = c.profiles.map { it.copy(tiles = listOf(AppConfig.edupadTile()) + it.tiles) }) }
+            }
+            prefs.edit().putBoolean("added:edupad", true).apply()
+        }
     }
 
     fun update(transform: (AppConfig) -> AppConfig) {

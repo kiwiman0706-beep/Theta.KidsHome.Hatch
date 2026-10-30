@@ -1,0 +1,1526 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<!-- キッズホームに内蔵：共有・保存・印刷をアプリに渡す -->
+<script src="kidshome-bridge.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#2b6cb0">
+<title>くるくる思考パッド</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="くるくる">
+<style>
+  :root{
+    --bg:#eef3f9; --panel:#ffffff; --ink:#233; --accent:#2b6cb0; --accent2:#38a169;
+    --line:#d7dee8; --shadow:0 2px 10px rgba(30,50,80,.12); --btn:#eef3f9;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; height:100%; overflow:hidden; background:var(--bg); color:var(--ink);
+    font-family:-apple-system,"Hiragino Kaku Gothic ProN","Noto Sans JP","Segoe UI",Roboto,sans-serif;
+    touch-action:none; user-select:none; -webkit-user-select:none;}
+  #app{display:flex; flex-direction:column; height:100%;}
+
+  header{display:flex; align-items:center; gap:10px; padding:8px 12px; background:var(--panel);
+    border-bottom:1px solid var(--line); box-shadow:var(--shadow); z-index:5; flex-wrap:wrap; min-height:56px;}
+  header h1{font-size:16px; margin:0; white-space:nowrap; cursor:pointer;}
+  #crumb{font-size:13px; color:#789; margin-right:auto;}
+  #toolbar{display:flex; gap:8px; flex-wrap:wrap;}
+
+  .btn{border:1px solid var(--line); background:var(--btn); color:var(--ink);
+    border-radius:12px; padding:9px 14px; font-size:14px; cursor:pointer; white-space:nowrap;
+    min-height:42px; display:inline-flex; align-items:center; gap:6px;}
+  .btn:active{transform:translateY(1px);}
+  .btn.primary{background:var(--accent); color:#fff; border-color:var(--accent);}
+  .btn.on{background:var(--accent2); color:#fff; border-color:var(--accent2);}
+  .btn.small{padding:6px 10px; min-height:36px; font-size:13px;}
+  .seg{display:inline-flex; border:1px solid var(--line); border-radius:12px; overflow:hidden;}
+  .seg .btn{border:none; border-radius:0; border-right:1px solid var(--line);}
+  .seg .btn:last-child{border-right:none;}
+
+  main{flex:1; position:relative; min-height:0;}
+  canvas{display:block; width:100%; height:100%; touch-action:none;}
+
+  /* home */
+  #home{position:absolute; inset:0; overflow-y:auto; padding:20px; display:none;}
+  #home.show{display:block;}
+  .hero{text-align:center; margin:6px 0 18px;}
+  .hero h2{font-size:22px; margin:0 0 4px;}
+  .hero p{color:#678; margin:0; font-size:14px;}
+  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; max-width:1000px; margin:0 auto;}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:18px;
+    box-shadow:var(--shadow); cursor:pointer; transition:transform .12s;}
+  .card:active{transform:scale(.98);}
+  .card.soon{opacity:.5;}
+  .card .ico{font-size:40px; line-height:1;}
+  .card h3{margin:10px 0 4px; font-size:16px;}
+  .card p{margin:0; font-size:12px; color:#678; line-height:1.5;}
+  .badge{display:inline-block; font-size:11px; padding:2px 8px; border-radius:8px; background:#eaf3ff; color:#2b6cb0; margin-top:8px;}
+  .badge.soon{background:#f1f1f4; color:#999;}
+
+  /* drawer */
+  #drawer{position:absolute; top:0; right:0; height:100%; width:min(360px,88vw);
+    background:var(--panel); border-left:1px solid var(--line); box-shadow:-4px 0 20px rgba(0,0,0,.12);
+    transform:translateX(100%); transition:transform .25s ease; z-index:20; overflow-y:auto; padding:16px; display:none;}
+  #drawer.open{transform:translateX(0);}
+  #drawer h2{font-size:15px; margin:2px 0 10px;}
+  #drawer h3{font-size:13px; color:#678; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:12px;}
+  .row{display:flex; align-items:center; gap:8px; margin:8px 0; flex-wrap:wrap;}
+  .row label{font-size:13px; min-width:78px;}
+  .chips{display:flex; flex-wrap:wrap; gap:6px;}
+  .chip{border:1px solid var(--line); background:#fff; border-radius:10px; padding:6px 8px; font-size:20px; cursor:pointer; line-height:1;}
+  .chip.sel{outline:3px solid var(--accent);}
+  input[type=range]{flex:1; min-width:120px;}
+  input[type=text]{border:1px solid var(--line); border-radius:8px; padding:8px; font-size:16px; width:100%;}
+  .preset{display:flex; gap:8px; flex-wrap:wrap;}
+  .preset .btn{flex:1; justify-content:center;}
+  .hint{font-size:12px; color:#789; line-height:1.5;}
+  .close{position:absolute; top:10px; right:12px;}
+
+  #status{position:absolute; left:12px; bottom:12px; background:rgba(255,255,255,.92);
+    border:1px solid var(--line); border-radius:12px; padding:8px 14px; font-size:15px; max-width:74%;
+    box-shadow:var(--shadow); pointer-events:none;}
+  #status:empty{display:none;}
+  #status b{color:var(--accent);}
+
+  /* プリント全画面ビューア */
+  #sheetView{position:fixed; inset:0; z-index:40; background:#e9edf2; display:none; flex-direction:column;}
+  #sheetView.show{display:flex;}
+  #sheetBar{display:flex; align-items:center; gap:10px; padding:8px 12px; background:var(--panel); border-bottom:1px solid var(--line); box-shadow:var(--shadow);}
+  #sheetBar .t{font-weight:700; margin-right:auto; font-size:15px;}
+  #sheetFrame{flex:1; border:0; width:100%; background:#e9edf2;}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1 id="homeLink">🎡 くるくる思考パッド</h1>
+    <span id="crumb">ホーム</span>
+    <button class="btn small" id="capBtn" style="display:none">📷 ほぞん</button>
+    <div id="toolbar"></div>
+  </header>
+  <main>
+    <canvas id="cv"></canvas>
+    <div id="status"></div>
+
+    <!-- ホーム -->
+    <div id="home" class="show">
+      <div class="hero">
+        <h2>すきな テーマを えらんでね</h2>
+        <p>指やペンでさわって、じゆうに うごかして たしかめる Sandbox。（授業・家庭学習むけ）</p>
+      </div>
+      <div class="grid" id="moduleGrid"></div>
+      <div class="hero" style="margin-top:34px">
+        <h2>📄 おぼえる表・プリント</h2>
+        <p>知識のまとめ。全画面で見る／印刷できます（オフラインOK）。</p>
+      </div>
+      <div class="grid" id="sheetGrid"></div>
+      <div style="text-align:center; margin:26px 0 10px;">
+        <p class="hint" style="margin-bottom:8px">設定・手書き・保存データ（この端末）をファイルに書き出し／読み込み</p>
+        <button class="btn small" id="expBtn">⬇️ エクスポート</button>
+        <button class="btn small" id="impBtn">⬆️ インポート</button>
+        <input type="file" id="impFile" accept="application/json" style="display:none">
+      </div>
+    </div>
+
+    <!-- 設定ドロワー（モジュールが中身を差し込む） -->
+    <div id="drawer">
+      <button class="btn small close" id="closeDrawer">✕</button>
+      <div id="drawerBody"></div>
+    </div>
+  </main>
+</div>
+
+<!-- プリント全画面ビューア -->
+<div id="sheetView">
+  <div id="sheetBar">
+    <button class="btn small" id="sheetBack">← もどる</button>
+    <span class="t" id="sheetTitle"></span>
+    <button class="btn small" id="sheetPrint">🖨️ 印刷</button>
+  </div>
+  <iframe id="sheetFrame" title="プリント"></iframe>
+</div>
+
+<script>
+"use strict";
+/* =========================================================================
+   くるくる思考パッド — 学習プラットフォーム
+   共通エンジン + モジュール(回転盤 / 回転図形)。Pointer Eventsでペン/指対応。
+   ========================================================================= */
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const DPR = Math.max(1, Math.min(3, window.devicePixelRatio||1));
+const $ = id=>document.getElementById(id);
+let W=0,H=0,cx=0,cy=0,R=0;
+
+function resize(){
+  const m=document.querySelector('main').getBoundingClientRect();
+  W=m.width; H=m.height;
+  cv.width=W*DPR; cv.height=H*DPR; cv.style.width=W+'px'; cv.style.height=H+'px';
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  cx=W/2; cy=H/2; R=Math.min(W,H)*0.42;
+  if(App.active) App.active.draw&&App.active.draw();
+}
+window.addEventListener('resize', resize);
+
+/* ---------- 共通ヘルパ ---------- */
+function angDiff(a,b){ let d=(a-b)%(2*Math.PI); if(d>Math.PI)d-=2*Math.PI; if(d<-Math.PI)d+=2*Math.PI; return d; }
+function pt(e){ const r=cv.getBoundingClientRect(); return {x:e.clientX-r.left, y:e.clientY-r.top}; }
+function shade(hex,amt){ const n=parseInt(hex.slice(1),16); let r=(n>>16)+amt,g=((n>>8)&255)+amt,b=(n&255)+amt;
+  r=Math.max(0,Math.min(255,r));g=Math.max(0,Math.min(255,g));b=Math.max(0,Math.min(255,b));
+  return '#'+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1); }
+function glyph(s,x,y,size){ ctx.save(); ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.font=`${Math.round(size)}px -apple-system,"Noto Color Emoji","Noto Sans JP",sans-serif`;
+  ctx.fillStyle='#233'; ctx.fillText(s,x,y); ctx.restore(); }
+function setStatus(t){ $('status').innerHTML=t||''; $('status').style.display=t?'block':'none'; }
+function setToolbar(html){ $('toolbar').innerHTML=html; }
+function openDrawer(html){ $('drawerBody').innerHTML=html; $('drawer').style.display='block'; requestAnimationFrame(()=>$('drawer').classList.add('open')); }
+function closeDrawer(){ $('drawer').classList.remove('open'); setTimeout(()=>$('drawer').style.display='none',250); }
+$('closeDrawer').onclick=closeDrawer;
+
+/* ---------- ルーター ---------- */
+const App = { active:null };
+function goHome(){
+  if(App.active&&App.active.unmount) App.active.unmount();
+  App.active=null; closeDrawer(); setToolbar(''); setStatus('');
+  $('home').classList.add('show'); $('crumb').textContent='ホーム'; $('capBtn').style.display='none';
+}
+function openModule(id){
+  const mod=MODULES[id]; if(!mod||mod.soon) return;
+  $('home').classList.remove('show');
+  if(App.active&&App.active.unmount) App.active.unmount();
+  App.active=mod.make();
+  $('crumb').textContent=mod.title; $('capBtn').style.display='';
+  resize();
+  App.active.mount&&App.active.mount();
+}
+$('homeLink').onclick=goHome;
+
+/* 画面キャプチャ→保存（Androidは共有シート→フォト＝カメラロール、他はダウンロード） */
+function captureScreen(){
+  const done=blob=>{ const file=new File([blob],`kuru_${Date.now()}.png`,{type:'image/png'});
+    if(navigator.canShare && navigator.canShare({files:[file]})){ navigator.share({files:[file],title:'がめん'}).catch(()=>dl(blob,file.name)); }
+    else dl(blob,file.name); };
+  const dl=(blob,name)=>{ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),4000); };
+  if(cv.toBlob) cv.toBlob(b=>{ if(b)done(b); },'image/png');
+  else { const u=cv.toDataURL('image/png'); const a=document.createElement('a'); a.href=u; a.download=`kuru_${Date.now()}.png`; a.click(); }
+}
+$('capBtn').onclick=captureScreen;
+
+/* ローカル保存（設定・手書き）のエクスポート／インポート */
+function exportData(){ const o={}; for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k&&k.indexOf('kuru')===0) o[k]=localStorage.getItem(k); }
+  const blob=new Blob([JSON.stringify(o,null,0)],{type:'application/json'});
+  const file=new File([blob],`kuru_backup_${Date.now()}.json`,{type:'application/json'});
+  if(navigator.canShare && navigator.canShare({files:[file]})){ navigator.share({files:[file],title:'バックアップ'}).catch(()=>dlBlob(blob,file.name)); }
+  else dlBlob(blob,file.name); }
+function dlBlob(blob,name){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),4000); }
+function importData(file){ const r=new FileReader(); r.onload=()=>{ try{ const o=JSON.parse(r.result); let n=0;
+    Object.entries(o).forEach(([k,v])=>{ if(k.indexOf('kuru')===0){ localStorage.setItem(k, typeof v==='string'?v:JSON.stringify(v)); n++; } });
+    buildHome(); alert(`読み込みました（${n}件）。各モジュールを開くと反映されます。`); }catch(e){ alert('読み込めませんでした。'); } }; r.readAsText(file); }
+$('expBtn').onclick=exportData;
+$('impBtn').onclick=()=>$('impFile').click();
+$('impFile').onchange=e=>{ if(e.target.files[0]) importData(e.target.files[0]); e.target.value=''; };
+
+/* Pointer を現在のモジュールへ委譲 */
+['pointerdown','pointermove','pointerup','pointercancel','pointerleave'].forEach(ev=>{
+  cv.addEventListener(ev, e=>{ if(App.active&&App.active[ev]) App.active[ev](e); });
+});
+
+/* =========================================================================
+   モジュール1: 回転盤（観覧車・二重円）
+   ========================================================================= */
+function WheelModule(){
+  const PRESETS={
+    fruit8:{name:'果物8こ',segments:8,markers:4,outer:false,rings:[{items:['🍌','🍍','🍒','🍓','🍎','🍑','🍇','🍈'],rotatable:true}]},
+    animalVeg:{name:'動物＋野菜(二重)',segments:6,markers:0,outer:true,rings:[
+      {items:['🧅','🌽','🍆','🥔','🫛','🥦'],rotatable:true},{items:['🐱','🦌','🐑','🐻','🐘','🐵'],rotatable:true}]},
+    fruit6:{name:'果物6こ',segments:6,markers:4,outer:false,rings:[{items:['🍑','🍓','🍇','🍎','🍌','🍒'],rotatable:true}]},
+    numbers:{name:'数字',segments:8,markers:4,outer:false,rings:[{items:['1','2','3','4','5','6','7','8'],rotatable:true}]},
+    hira:{name:'ひらがな',segments:10,markers:5,outer:false,rings:[{items:['あ','い','う','え','お','か','き','く','け','こ'],rotatable:true}]},
+  };
+  const FACES=['👦','👴','👧','👵','🧑','👩','🧒','👨'];
+  const PALETTE=['🍎','🍌','🍇','🍓','🍈','🍑','🍒','🍍','🐱','🐶','🐰','🐻','🐼','🦁','🐸','🐵','🐷','🐮','🧅','🌽','🍆','🥔','🥦','⭐','❤️','🔺','🔷','🟩','🟡','1','2','3','あ','い'];
+  const RC=['#fff7db','#eaf3ff'], RE=['#e6c94b','#8fb7e8'];
+
+  let cfg=load('kuru_wheel')||structuredClone(PRESETS.fruit8);
+  let st={snap:true,lines:true,markers:true,rot:[0,0],editRing:0,sel:0,drag:null};
+
+  function activeRings(){ return (cfg.outer&&cfg.rings.length>1)?2:1; }
+  function geom(){ const two=cfg.outer&&cfg.rings.length>1;
+    return two?[{r0:R*0.18,r1:R*0.60},{r0:R*0.60,r1:R*1.0}]:[{r0:R*0.22,r1:R*1.0}]; }
+  function itemAt(ri,a){ const N=cfg.segments,seg=2*Math.PI/N,rot=st.rot[ri]||0; let best=0,bd=1e9;
+    for(let i=0;i<N;i++){ const c=-Math.PI/2+i*seg+seg/2+rot; const d=Math.abs(angDiff(c,a)); if(d<bd){bd=d;best=i;} } return best; }
+
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    const N=cfg.segments,seg=2*Math.PI/N,g=geom(),nR=activeRings();
+    for(let ri=0;ri<nR;ri++){ const gg=g[ri],rot=st.rot[ri]||0,items=cfg.rings[ri].items;
+      for(let i=0;i<N;i++){ const a0=-Math.PI/2+i*seg+rot,a1=a0+seg;
+        ctx.beginPath(); ctx.moveTo(cx+Math.cos(a0)*gg.r0,cy+Math.sin(a0)*gg.r0);
+        ctx.arc(cx,cy,gg.r1,a0,a1); ctx.arc(cx,cy,gg.r0,a1,a0,true); ctx.closePath();
+        ctx.fillStyle=(i%2===0)?RC[ri]:shade(RC[ri],-6); ctx.fill();
+        ctx.lineWidth=2; ctx.strokeStyle=RE[ri]; ctx.stroke();
+        const am=a0+seg/2,rm=(gg.r0+gg.r1)/2, fs=Math.max(20,Math.min(gg.r1-gg.r0,R*0.9/N)*1.1);
+        glyph(items[i]??'',cx+Math.cos(am)*rm,cy+Math.sin(am)*rm,fs); } }
+    ctx.beginPath(); ctx.arc(cx,cy,R*0.10,0,7); ctx.fillStyle='#4a90d9'; ctx.fill();
+    ctx.lineWidth=3; ctx.strokeStyle='#2b6cb0'; ctx.stroke();
+    if(st.markers&&cfg.markers>0){ const M=cfg.markers, ri=nR-1;
+      for(let k=0;k<M;k++){ const a=-Math.PI/2+k*(2*Math.PI/M), mr=R*1.12;
+        const px=cx+Math.cos(a)*mr,py=cy+Math.sin(a)*mr, idx=itemAt(ri,a);
+        if(st.lines){ const gg=g[ri]; ctx.beginPath(); ctx.moveTo(px,py);
+          ctx.lineTo(cx+Math.cos(a)*gg.r1,cy+Math.sin(a)*gg.r1);
+          ctx.lineWidth=3; ctx.strokeStyle='rgba(43,108,176,.5)'; ctx.setLineDash([6,6]); ctx.stroke(); ctx.setLineDash([]);
+          hi(ri,idx); }
+        glyph(FACES[k%FACES.length],px,py,R*0.16); } }
+  }
+  function hi(ri,i){ const N=cfg.segments,seg=2*Math.PI/N,gg=geom()[ri],rot=st.rot[ri]||0,a0=-Math.PI/2+i*seg+rot,a1=a0+seg;
+    ctx.beginPath(); ctx.moveTo(cx+Math.cos(a0)*gg.r0,cy+Math.sin(a0)*gg.r0);
+    ctx.arc(cx,cy,gg.r1,a0,a1); ctx.arc(cx,cy,gg.r0,a1,a0,true); ctx.closePath();
+    ctx.fillStyle='rgba(56,161,105,.18)'; ctx.fill(); ctx.lineWidth=3; ctx.strokeStyle='#38a169'; ctx.stroke(); }
+
+  function pointerdown(e){ cv.setPointerCapture(e.pointerId); const p=pt(e),d=Math.hypot(p.x-cx,p.y-cy),g=geom();
+    let ri=0; if(activeRings()===2) ri=(d>=g[1].r0)?1:0; if(d<R*0.10) return;
+    if(!cfg.rings[ri]?.rotatable) return; st.drag={ri,a:Math.atan2(p.y-cy,p.x-cx)}; }
+  function pointermove(e){ if(!st.drag) return; const p=pt(e),a=Math.atan2(p.y-cy,p.x-cx);
+    st.rot[st.drag.ri]=(st.rot[st.drag.ri]||0)+angDiff(a,st.drag.a); st.drag.a=a; draw(); }
+  function up(){ if(!st.drag) return; if(st.snap) snap(st.drag.ri); st.drag=null; }
+  const pointerup=up, pointercancel=up, pointerleave=up;
+  function snap(ri){ const seg=2*Math.PI/cfg.segments,to=Math.round((st.rot[ri]||0)/seg)*seg,from=st.rot[ri]||0,t0=performance.now();
+    (function s(t){ const k=Math.min(1,(t-t0)/180),e=1-Math.pow(1-k,3); st.rot[ri]=from+(to-from)*e; draw(); if(k<1)requestAnimationFrame(s); else{st.rot[ri]=to;draw();} })(t0); }
+
+  function toolbar(){ setToolbar(`
+    <button class="btn small ${st.snap?'on':''}" id="w_snap">🧲 ピタッと</button>
+    <button class="btn small ${st.lines?'on':''}" id="w_line">🔗 むすぶ線</button>
+    <button class="btn small ${st.markers?'on':''}" id="w_mark">🙂 人</button>
+    <button class="btn small" id="w_reset">↩︎ もどす</button>
+    <button class="btn small primary" id="w_menu">⚙️ せってい</button>`);
+    $('w_snap').onclick=()=>{st.snap=!st.snap;toolbar();};
+    $('w_line').onclick=()=>{st.lines=!st.lines;toolbar();draw();};
+    $('w_mark').onclick=()=>{st.markers=!st.markers;toolbar();draw();};
+    $('w_reset').onclick=()=>{st.rot=[0,0];draw();};
+    $('w_menu').onclick=drawer;
+  }
+  function drawer(){ openDrawer(`
+    <h2>⚙️ 回転盤の せってい</h2>
+    <h3>プリセット</h3>
+    <div class="preset">
+      <button class="btn" data-p="fruit8">🍎 果物8</button>
+      <button class="btn" data-p="fruit6">🍓 果物6</button>
+      <button class="btn" data-p="animalVeg">🐻 二重</button>
+      <button class="btn" data-p="numbers">🔢 数字</button>
+      <button class="btn" data-p="hira">あ かな</button>
+    </div>
+    <h3>分けの数</h3><div class="row"><label>数</label><input type="range" id="w_seg" min="3" max="12" value="${cfg.segments}"><span id="w_segv">${cfg.segments}</span></div>
+    <h3>まわりの人</h3><div class="row"><label>人数</label><input type="range" id="w_mk" min="0" max="8" value="${cfg.markers}"><span id="w_mkv">${cfg.markers}</span></div>
+    <h3>記号を入れかえる</h3>
+    <div class="row"><label>リング</label><div class="seg">
+      <button class="btn small ${st.editRing===0?'on':''}" id="w_ri">内</button>
+      <button class="btn small ${st.editRing===1?'on':''}" id="w_ro">外</button></div>
+      <button class="btn small" id="w_toggle">外リング On/Off</button></div>
+    <div id="w_grid" class="chips"></div>
+    <div class="row" style="margin-top:8px"><input type="text" id="w_in" placeholder="絵文字/文字（例 🍇 / 3 / あ）"><button class="btn small primary" id="w_apply">セット</button></div>
+    <div class="chips" id="w_pal" style="margin-top:8px"></div>
+    <h3>共有</h3><div class="row"><button class="btn small" id="w_copy">設定コピー</button><button class="btn small" id="w_paste">貼付け読込</button></div>`);
+    document.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{cfg=structuredClone(PRESETS[b.dataset.p]);st.rot=[0,0];st.editRing=0;st.sel=0;save('kuru_wheel',cfg);resize();drawer();});
+    $('w_seg').oninput=e=>{const n=+e.target.value;$('w_segv').textContent=n;cfg.segments=n;cfg.rings.forEach(r=>{while(r.items.length<n)r.items.push('⭐');r.items.length=n;});grid();save('kuru_wheel',cfg);draw();};
+    $('w_mk').oninput=e=>{cfg.markers=+e.target.value;$('w_mkv').textContent=cfg.markers;save('kuru_wheel',cfg);draw();};
+    $('w_toggle').onclick=()=>{cfg.outer=!cfg.outer; if(cfg.outer&&cfg.rings.length<2)cfg.rings.push({items:Array.from({length:cfg.segments},()=>'🔷'),rotatable:true}); save('kuru_wheel',cfg); resize(); drawer();};
+    $('w_ri').onclick=()=>{st.editRing=0;drawer();};
+    $('w_ro').onclick=()=>{if(cfg.rings.length<2){alert('外リングをONに');return;}st.editRing=1;drawer();};
+    $('w_apply').onclick=()=>{const v=$('w_in').value.trim();if(v){setItem([...v][0]||v);$('w_in').value='';}};
+    $('w_copy').onclick=async()=>{try{await navigator.clipboard.writeText(JSON.stringify(cfg));alert('コピーしました');}catch(_){prompt('コピー',JSON.stringify(cfg));}};
+    $('w_paste').onclick=async()=>{let t='';try{t=await navigator.clipboard.readText();}catch(_){}t=prompt('設定JSON',t||'');if(t){try{cfg=JSON.parse(t);save('kuru_wheel',cfg);resize();drawer();}catch(e){alert('読込失敗');}}};
+    grid(); pal();
+    function grid(){ const g=$('w_grid'); g.innerHTML=''; const ring=cfg.rings[st.editRing]; if(!ring)return;
+      ring.items.forEach((it,i)=>{const c=document.createElement('div');c.className='chip'+(i===st.sel?' sel':'');c.textContent=it;c.onclick=()=>{st.sel=i;grid();};g.appendChild(c);}); }
+    function pal(){ const g=$('w_pal'); g.innerHTML=''; PALETTE.forEach(e=>{const c=document.createElement('div');c.className='chip';c.textContent=e;c.onclick=()=>setItem(e);g.appendChild(c);}); }
+    function setItem(v){ const ring=cfg.rings[st.editRing]; if(!ring)return; ring.items[st.sel]=v; grid(); save('kuru_wheel',cfg); draw(); }
+  }
+  return { draw, pointerdown, pointermove, pointerup, pointercancel, pointerleave,
+    mount(){ toolbar(); setStatus('指やペンで円ばんを回してね ✋🖊️'); draw(); }, unmount(){} };
+}
+
+/* =========================================================================
+   モジュール2: 回転図形（その場回転） 画像⑥⑩
+   図形を90/180°回してみる・当てる
+   ========================================================================= */
+function RotateModule(){
+  // 図形は単位正方形[0..1]内の線・塗り・向きマーカー○(上辺中央)で定義
+  const FIGS={
+    diagBox:{ name:'ななめ線', marker:true,
+      lines:[[[0,0],[1,1]],[[0,1],[1,0.5]]], fills:[] },
+    triFill:{ name:'三角ぬり', marker:true,
+      lines:[], fills:[{pts:[[0,0],[1,0],[0,1]],c:'#4a90d9'}] },
+    flag:{ name:'旗', marker:true,
+      lines:[[[0.5,0],[0.5,1]],[[0.5,0],[1,0.25]],[[1,0.25],[0.5,0.5]]], fills:[{pts:[[0.5,0],[1,0.25],[0.5,0.5]],c:'#e05353'}] },
+    windmill:{ name:'かざぐるま', marker:true,
+      lines:[[[0.5,0.5],[0.5,0]],[[0.5,0.5],[1,0.5]],[[0.5,0.5],[0.5,1]],[[0.5,0.5],[0,0.5]]],
+      fills:[{pts:[[0.5,0.5],[0.5,0],[1,0]],c:'#38a169'},{pts:[[0.5,0.5],[1,0.5],[1,1]],c:'#f0b429'}] },
+    house:{ name:'いえ', marker:true,
+      lines:[[[0.5,0],[1,0.4]],[[0,0.4],[0.5,0]],[[0,0.4],[0,1]],[[0,1],[1,1]],[[1,1],[1,0.4]],[[0,0.4],[1,0.4]]], fills:[] },
+  };
+  const HANDFIG={hand:true, marker:true};
+  const cfg=load('kuru_rot')||{fig:'flag'};
+  let st={fig:cfg.fig,angle:0,drag:null,snap:true,flipH:false,flipV:false,
+          tool:'rotate', hand:load('kuru_rot_hand')||[], hd:null};
+  const curFig=()=> st.fig==='hand'?HANDFIG:FIGS[st.fig];
+  const isDraw=()=> st.fig==='hand' && st.tool==='draw';
+  function normPt(p){ const s=Math.min(W,H)*0.5, ox=cx-s/2, oy=cy-s/2;
+    return [Math.max(0,Math.min(1,(p.x-ox)/s)), Math.max(0,Math.min(1,(p.y-oy)/s))]; }
+
+  // rotate point around center 0.5,0.5
+  function rot(p,ang){ const dx=p[0]-0.5,dy=p[1]-0.5,c=Math.cos(ang),s=Math.sin(ang);
+    return [0.5+dx*c-dy*s, 0.5+dx*s+dy*c]; }
+
+  function drawFig(fig,ang,ox,oy,size,opts={}){
+    const fx=(!opts.ghost&&st.flipH)?-1:1, fy=(!opts.ghost&&st.flipV)?-1:1;
+    const T=p=>{const q=[0.5+(p[0]-0.5)*fx, 0.5+(p[1]-0.5)*fy]; const r=rot(q,ang); return [ox+r[0]*size, oy+r[1]*size];};
+    // frame
+    ctx.save();
+    ctx.lineWidth=opts.thin?1.5:2.5; ctx.strokeStyle=opts.ghost?'#c8d2e0':'#334';
+    const corners=[[0,0],[1,0],[1,1],[0,1]].map(T);
+    ctx.beginPath(); ctx.moveTo(corners[0][0],corners[0][1]);
+    for(let i=1;i<4;i++)ctx.lineTo(corners[i][0],corners[i][1]); ctx.closePath();
+    ctx.fillStyle=opts.ghost?'#f7f9fc':'#fff'; ctx.fill(); ctx.stroke();
+    // fills
+    (fig.fills||[]).forEach(f=>{ const pts=f.pts.map(T); ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]);
+      for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i][0],pts[i][1]); ctx.closePath();
+      ctx.fillStyle=opts.ghost?shade(f.c,60):f.c; ctx.fill(); ctx.lineWidth=1.5; ctx.strokeStyle='#334'; ctx.stroke(); });
+    // lines
+    ctx.lineWidth=opts.thin?1.5:2.5; ctx.strokeStyle=opts.ghost?'#aab6c8':'#334';
+    (fig.lines||[]).forEach(l=>{ const a=T(l[0]),b=T(l[1]); ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke(); });
+    // 手書きストローク
+    if(fig.hand){ ctx.lineWidth=Math.max(opts.thin?1.5:3, size*0.022); ctx.lineCap='round'; ctx.lineJoin='round'; ctx.strokeStyle=opts.ghost?'#aab6c8':'#2b6cb0';
+      st.hand.forEach(str=>{ if(str.length===1){ const q=T(str[0]); ctx.fillStyle=ctx.strokeStyle; ctx.beginPath(); ctx.arc(q[0],q[1],ctx.lineWidth/2,0,7); ctx.fill(); return; }
+        ctx.beginPath(); str.forEach((p,i)=>{ const q=T(p); i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]); }); ctx.stroke(); }); }
+    // orientation marker ○ at top-mid
+    if(fig.marker){ const m=T([0.5,0.08]); ctx.beginPath(); ctx.arc(m[0],m[1],size*0.05,0,7);
+      ctx.fillStyle=opts.ghost?'#dfe6ef':'#e05353'; ctx.fill(); }
+    ctx.restore();
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    const s=Math.min(W,H)*0.5; drawFig(curFig(), st.angle, cx-s/2, cy-s/2, s);
+    // 元の向きを薄く
+    const gs=s*0.34; drawFig(curFig(),0, 20, 20, gs, {ghost:true,thin:true});
+    glyph('もとの向き',20+gs/2, 20+gs+14, 13);
+  }
+
+  // 手書き＝描画 / それ以外＝回転ドラッグ
+  function pointerdown(e){ cv.setPointerCapture(e.pointerId); const p=pt(e);
+    if(isDraw()){ const str=[normPt(p)]; st.hand.push(str); st.hd=str; draw(); return; }
+    st.drag={a:Math.atan2(p.y-cy,p.x-cx)}; }
+  function pointermove(e){ const p=pt(e);
+    if(st.hd){ const q=normPt(p); const last=st.hd[st.hd.length-1]; if(Math.hypot(q[0]-last[0],q[1]-last[1])>0.004){ st.hd.push(q); draw(); } return; }
+    if(!st.drag) return; const a=Math.atan2(p.y-cy,p.x-cx); st.angle+=angDiff(a,st.drag.a); st.drag.a=a; draw(); }
+  function up(){ if(st.hd){ st.hd=null; save('kuru_rot_hand',st.hand); return; }
+    if(st.drag){ if(st.snap){ const to=Math.round(st.angle/(Math.PI/2))*(Math.PI/2);
+      const from=st.angle,t0=performance.now(); (function s(t){const k=Math.min(1,(t-t0)/160),e=1-Math.pow(1-k,3);
+      st.angle=from+(to-from)*e;draw();if(k<1)requestAnimationFrame(s);else{st.angle=to;draw();showAngle();}})(t0);} else showAngle(); }
+    st.drag=null; }
+  const pointerup=up,pointercancel=up,pointerleave=up;
+  function showAngle(){ if(isDraw()){ setStatus('✏️ 指やペンで図形をかこう。かけたら「✋ まわす」で回して確かめよう'); return; }
+    let deg=Math.round(((-st.angle*180/Math.PI)%360+360)%360);
+    const fl = st.flipH||st.flipV ? '（裏返し中）' : '';
+    setStatus(`右に <b>${(360-deg)%360}</b>°まわした向き${fl}`); }
+
+  function toolbar(){
+    const handOn=st.fig==='hand';
+    const rotBtns = (handOn&&st.tool==='draw') ? '' : `
+      <button class="btn small ${st.snap?'on':''}" id="r_snap">🧲 90°ピタッと</button>
+      <button class="btn small" id="r_l90">↺ 左90</button>
+      <button class="btn small" id="r_r90">↻ 右90</button>
+      <button class="btn small ${st.flipH?'on':''}" id="r_fh">↔️ うら返し</button>
+      <button class="btn small ${st.flipV?'on':''}" id="r_fv">↕️ うら返し</button>
+      <button class="btn small" id="r_reset">↩︎ もどす</button>`;
+    setToolbar(`
+      <button class="btn small ${handOn?'on':''}" id="r_hand">✏️ 手書き</button>
+      ${handOn?`<div class="seg"><button class="btn small ${st.tool==='draw'?'on':''}" id="r_td">✏️ かく</button><button class="btn small ${st.tool==='rotate'?'on':''}" id="r_tr">✋ まわす</button></div>${st.tool==='draw'?'<button class="btn small" id="r_clr">🧽 消す</button>':''}`:''}
+      ${rotBtns}
+      <button class="btn small primary" id="r_menu">⚙️ 図形えらび</button>`);
+    $('r_hand').onclick=()=>{ if(handOn){ st.fig=cfg.fig==='hand'?'flag':cfg.fig; } else { st.fig='hand'; st.tool='draw'; st.angle=0; st.flipH=false; st.flipV=false; } save('kuru_rot',{fig:st.fig}); toolbar(); draw(); showAngle(); };
+    if(handOn){ $('r_td').onclick=()=>{st.tool='draw';st.angle=0;st.flipH=false;st.flipV=false;toolbar();draw();showAngle();};
+      $('r_tr').onclick=()=>{st.tool='rotate';toolbar();draw();showAngle();};
+      if(st.tool==='draw') $('r_clr').onclick=()=>{st.hand=[];save('kuru_rot_hand',st.hand);draw();}; }
+    if(!(handOn&&st.tool==='draw')){
+      $('r_snap').onclick=()=>{st.snap=!st.snap;toolbar();};
+      $('r_l90').onclick=()=>animate(-Math.PI/2);
+      $('r_r90').onclick=()=>animate(Math.PI/2);
+      $('r_fh').onclick=()=>{st.flipH=!st.flipH;toolbar();draw();showAngle();};
+      $('r_fv').onclick=()=>{st.flipV=!st.flipV;toolbar();draw();showAngle();};
+      $('r_reset').onclick=()=>{st.angle=0;st.flipH=false;st.flipV=false;toolbar();draw();showAngle();};
+    }
+    $('r_menu').onclick=drawer;
+  }
+  function animate(d){ const from=st.angle,to=st.angle+d,t0=performance.now();
+    (function s(t){const k=Math.min(1,(t-t0)/220),e=1-Math.pow(1-k,3);st.angle=from+(to-from)*e;draw();if(k<1)requestAnimationFrame(s);else{st.angle=to;draw();showAngle();}})(t0); }
+  function drawer(){ openDrawer(`
+    <h2>⚙️ 回転図形の せってい</h2>
+    <h3>図形をえらぶ</h3>
+    <div class="grid" style="grid-template-columns:repeat(3,1fr);gap:8px" id="r_figs"></div>
+    <p class="hint">指でぐりぐり→90°ごとにピタッと止まります。左上に元の向きを表示。</p>`);
+    const g=$('r_figs'); g.innerHTML='';
+    Object.entries(FIGS).forEach(([k,f])=>{ const c=document.createElement('div'); c.className='card'; c.style.padding='10px'; c.style.textAlign='center';
+      c.innerHTML=`<canvas width="120" height="120" style="width:100%;max-width:90px"></canvas><div style="font-size:12px;margin-top:4px">${f.name}</div>`;
+      if(st.fig===k) c.style.outline='3px solid var(--accent)';
+      const cc=c.querySelector('canvas').getContext('2d'); miniFig(cc,f);
+      c.onclick=()=>{ st.fig=k; cfg.fig=k; st.tool='rotate'; save('kuru_rot',cfg); st.angle=0; toolbar(); draw(); drawer(); };
+      g.appendChild(c); });
+  }
+  function miniFig(c,fig){ const S=120,T=p=>[p[0]*S,p[1]*S];
+    c.clearRect(0,0,S,S); c.lineWidth=3; c.strokeStyle='#334'; c.fillStyle='#fff';
+    c.strokeRect(4,4,S-8,S-8); c.fillRect(4,4,S-8,S-8); c.strokeRect(4,4,S-8,S-8);
+    (fig.fills||[]).forEach(f=>{const p=f.pts.map(T);c.beginPath();c.moveTo(p[0][0],p[0][1]);for(let i=1;i<p.length;i++)c.lineTo(p[i][0],p[i][1]);c.closePath();c.fillStyle=f.c;c.fill();c.strokeStyle='#334';c.lineWidth=1.5;c.stroke();});
+    c.lineWidth=2.5;c.strokeStyle='#334';(fig.lines||[]).forEach(l=>{const a=T(l[0]),b=T(l[1]);c.beginPath();c.moveTo(a[0],a[1]);c.lineTo(b[0],b[1]);c.stroke();});
+    if(fig.marker){const m=T([0.5,0.08]);c.beginPath();c.arc(m[0],m[1],6,0,7);c.fillStyle='#e05353';c.fill();}
+  }
+  return { draw, pointerdown, pointermove, pointerup, pointercancel, pointerleave,
+    mount(){ toolbar(); setStatus('指やペンで図形をぐりぐり回してね ✋🖊️'); draw(); }, unmount(){} };
+}
+
+/* =========================================================================
+   モジュール3: タイル転がし  画像②
+   模様の正方形タイルを1マスずつ「転がす」＝90°回転の連続
+   ========================================================================= */
+function RollModule(){
+  const PATTERNS={
+    dot:{name:'●と↑', draw(s){ ctx.fillStyle='#e05353'; ctx.beginPath(); ctx.arc(s*0.24,s*0.24,s*0.11,0,7); ctx.fill();
+      ctx.strokeStyle='#2b6cb0'; ctx.lineWidth=s*0.05; ctx.beginPath(); ctx.moveTo(s*0.5,s*0.75); ctx.lineTo(s*0.5,s*0.35);
+      ctx.moveTo(s*0.5,s*0.35); ctx.lineTo(s*0.4,s*0.48); ctx.moveTo(s*0.5,s*0.35); ctx.lineTo(s*0.6,s*0.48); ctx.stroke(); }},
+    tri:{name:'ぬり三角', draw(s){ ctx.fillStyle='#38a169'; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(s,0); ctx.lineTo(0,s); ctx.closePath(); ctx.fill(); }},
+    face:{name:'かお', draw(s){ ctx.font=`${s*0.7}px sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('🙂',s*0.5,s*0.52); }},
+    star:{name:'ほし角', draw(s){ ctx.font=`${s*0.4}px sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('⭐',s*0.25,s*0.25); }},
+    hand:{name:'✏️ 手書き', draw(s){ ctx.strokeStyle='#2b6cb0'; ctx.lineWidth=Math.max(3,s*0.05); ctx.lineCap='round'; ctx.lineJoin='round';
+      st.hand.forEach(str=>{ if(str.length===1){ctx.fillStyle=ctx.strokeStyle;ctx.beginPath();ctx.arc(str[0][0]*s,str[0][1]*s,ctx.lineWidth/2,0,7);ctx.fill();return;}
+        ctx.beginPath(); str.forEach((p,i)=> i?ctx.lineTo(p[0]*s,p[1]*s):ctx.moveTo(p[0]*s,p[1]*s)); ctx.stroke(); }); }},
+  };
+  const cfg=load('kuru_roll')||{cells:5, pat:'dot'};
+  let st={cell:0, ang:0, anim:null, tool:'roll', hand:load('kuru_roll_hand')||[], hd:null};
+  const isDraw=()=> cfg.pat==='hand' && st.tool==='draw';
+
+  function layout(){ const cw=Math.min(W/(cfg.cells+1.5), H*0.34); const boardW=cw*cfg.cells;
+    return {cw, x0:cx-boardW/2, gy:cy+cw*0.9}; }
+  function normPt(p){ const L=layout(); const tx=L.x0, ty=L.gy-L.cw; return [Math.max(0,Math.min(1,(p.x-tx)/L.cw)), Math.max(0,Math.min(1,(p.y-ty)/L.cw))]; }
+
+  function tile(px,py,size,ang){ // px,py = top-left of tile in rest position; rotate about center
+    ctx.save(); ctx.translate(px+size/2,py+size/2); ctx.rotate(ang); ctx.translate(-size/2,-size/2);
+    ctx.fillStyle='#fdf3d0'; ctx.strokeStyle='#c8a63a'; ctx.lineWidth=3; ctx.fillRect(0,0,size,size); ctx.strokeRect(0,0,size,size);
+    ctx.save(); PATTERNS[cfg.pat].draw(size); ctx.restore(); ctx.restore(); }
+
+  function draw(){
+    ctx.clearRect(0,0,W,H); const L=layout();
+    // ground + cells
+    ctx.strokeStyle='#cdd6e2'; ctx.lineWidth=2;
+    for(let i=0;i<cfg.cells;i++){ ctx.strokeRect(L.x0+i*L.cw, L.gy-L.cw, L.cw, L.cw); }
+    ctx.beginPath(); ctx.moveTo(L.x0-10,L.gy); ctx.lineTo(L.x0+cfg.cells*L.cw+10,L.gy); ctx.strokeStyle='#8a97a8'; ctx.lineWidth=3; ctx.stroke();
+    // goal
+    glyph('🌳', L.x0+(cfg.cells-0.5)*L.cw, L.gy-L.cw-24, L.cw*0.5);
+    // tile (animating or at rest)
+    if(st.anim){ const a=st.anim; const px=L.x0+a.from*L.cw, py=L.gy-L.cw;
+      const pivotX = a.dir>0 ? px+L.cw : px, pivotY=L.gy;
+      ctx.save(); ctx.translate(pivotX,pivotY); ctx.rotate(a.dir*a.k*Math.PI/2); ctx.translate(-pivotX,-pivotY);
+      tile(px,py,L.cw,st.ang); ctx.restore();
+    } else {
+      tile(L.x0+st.cell*L.cw, L.gy-L.cw, L.cw, st.ang);
+    }
+  }
+
+  function roll(dir){ if(st.anim) return; const next=st.cell+dir; if(next<0||next>cfg.cells-1) return;
+    st.anim={from:st.cell, dir, k:0}; const t0=performance.now();
+    (function s(t){ const k=Math.min(1,(t-t0)/300); st.anim.k=1-Math.pow(1-k,2.2); draw();
+      if(k<1) requestAnimationFrame(s); else { st.cell=next; st.ang=(st.ang+dir*Math.PI/2); st.anim=null; draw(); showPos(); } })(t0); }
+  function showPos(){ setStatus(`${st.cell+1} マスめ・${cfg.cells}マス中`); }
+
+  function pointerdown(e){ const p=pt(e);
+    if(isDraw()){ st.cell=0; st.ang=0; st.anim=null; cv.setPointerCapture(e.pointerId); const str=[normPt(p)]; st.hand.push(str); st.hd=str; draw(); return; }
+    // 画面の右半分タップ＝右へ転がす／左半分＝もどる
+    if(p.x>cx) roll(1); else roll(-1); }
+  function pointermove(e){ if(!st.hd) return; const q=normPt(pt(e)); const last=st.hd[st.hd.length-1];
+    if(Math.hypot(q[0]-last[0],q[1]-last[1])>0.004){ st.hd.push(q); draw(); } }
+  function up(){ if(st.hd){ st.hd=null; save('kuru_roll_hand',st.hand); } }
+  const pointerup=up,pointercancel=up,pointerleave=up;
+
+  function toolbar(){ const hand=cfg.pat==='hand'; setToolbar(`
+    <button class="btn small ${hand?'on':''}" id="rl_hand">✏️ 手書き</button>
+    ${hand?`<div class="seg"><button class="btn small ${st.tool==='draw'?'on':''}" id="rl_td">✏️ かく</button><button class="btn small ${st.tool==='roll'?'on':''}" id="rl_tr">👉 ころがす</button></div>${st.tool==='draw'?'<button class="btn small" id="rl_clr">🧽 消す</button>':''}`:''}
+    ${(hand&&st.tool==='draw')?'':`<button class="btn small" id="rl_back">◀ もどす</button><button class="btn small primary" id="rl_go">ころがす ▶</button><button class="btn small" id="rl_reset">↩︎ はじめ</button>`}
+    <button class="btn small primary" id="rl_menu">⚙️ せってい</button>`);
+    $('rl_hand').onclick=()=>{ if(hand){ cfg.pat='dot'; } else { cfg.pat='hand'; st.tool='draw'; st.cell=0; st.ang=0; st.anim=null; } save('kuru_roll',cfg); toolbar(); draw(); };
+    if(hand){ $('rl_td').onclick=()=>{st.tool='draw';st.cell=0;st.ang=0;st.anim=null;toolbar();draw();setStatus('✏️ タイルに模様をかこう。「👉 ころがす」で転がして確かめよう');};
+      $('rl_tr').onclick=()=>{st.tool='roll';toolbar();draw();setStatus('画面右半分タップで転がる ▶');};
+      if(st.tool==='draw') $('rl_clr').onclick=()=>{st.hand=[];save('kuru_roll_hand',st.hand);draw();}; }
+    if(!(hand&&st.tool==='draw')){ $('rl_back').onclick=()=>roll(-1); $('rl_go').onclick=()=>roll(1);
+      $('rl_reset').onclick=()=>{st.cell=0;st.ang=0;st.anim=null;draw();showPos();}; }
+    $('rl_menu').onclick=drawer; }
+  function drawer(){ openDrawer(`
+    <h2>⚙️ タイル転がし</h2>
+    <h3>マスの数</h3><div class="row"><label>数</label><input type="range" id="rl_c" min="3" max="8" value="${cfg.cells}"><span id="rl_cv">${cfg.cells}</span></div>
+    <h3>もようをえらぶ</h3><div class="chips" id="rl_pat"></div>
+    <p class="hint">画面の右半分をタップ＝右へ転がす／左半分＝もどる。タイルが90°ずつ回るのを見てね。</p>`);
+    $('rl_c').oninput=e=>{cfg.cells=+e.target.value;$('rl_cv').textContent=cfg.cells;st.cell=Math.min(st.cell,cfg.cells-1);save('kuru_roll',cfg);draw();};
+    const g=$('rl_pat'); g.innerHTML=''; Object.entries(PATTERNS).forEach(([k,pp])=>{ const c=document.createElement('div');
+      c.className='chip'+(cfg.pat===k?' sel':''); c.style.fontSize='14px'; c.textContent=pp.name; c.onclick=()=>{cfg.pat=k;save('kuru_roll',cfg);drawer();draw();}; g.appendChild(c); }); }
+  return { draw, pointerdown, pointermove, pointerup, pointercancel, pointerleave,
+    mount(){ toolbar(); if(cfg.pat!=='hand'){st.cell=0;st.ang=0;} setStatus('画面右半分タップで転がる ▶'); draw(); }, unmount(){} };
+}
+
+/* =========================================================================
+   モジュール4: マス目の回転  画像⑩
+   記号を置いた盤面を回して位置を追う
+   ========================================================================= */
+function GridRotModule(){
+  const PRESETS={
+    g33:{name:'3×3', rows:3, cols:3, cells:['⭐','','🔺','','●','','■','','🔷']},
+    g23:{name:'2×3', rows:2, cols:3, cells:['🍎','','🍌','','🍇','']},
+    g44:{name:'4×4', rows:4, cols:4, cells:['①','','','②','','●','▲','','','■','◆','','③','','','④']},
+  };
+  const PAL=['⭐','●','▲','■','🔷','🔺','◆','①','②','③','🍎','🍌','🍇','🐱','🐻',''];
+  let cfg=load('kuru_grid')||structuredClone(PRESETS.g33);
+  let st={ang:0, drag:null, snap:true, edit:0, tool:'rotate', hand:load('kuru_grid_hand')||[], hd:null};
+
+  function boardSize(){ return Math.min(W,H)*0.55; }
+  const isDraw=()=> st.tool==='draw';
+  function normPt(p){ const S=boardSize(),ox=cx-S/2,oy=cy-S/2; return [Math.max(0,Math.min(1,(p.x-ox)/S)),Math.max(0,Math.min(1,(p.y-oy)/S))]; }
+  function drawGrid(ang, ox, oy, S, cells, opts={}){
+    const R=cfg.rows,C=cfg.cols, cw=S/C, ch=S/R;
+    ctx.save(); ctx.translate(ox+S/2, oy+S/2); ctx.rotate(ang); ctx.translate(-S/2,-S/2);
+    ctx.fillStyle=opts.ghost?'#f7f9fc':'#fff'; ctx.fillRect(0,0,S,S);
+    ctx.strokeStyle=opts.ghost?'#cdd6e2':'#334'; ctx.lineWidth=opts.ghost?1.5:2.5;
+    for(let i=0;i<=C;i++){ ctx.beginPath(); ctx.moveTo(i*cw,0); ctx.lineTo(i*cw,S); ctx.stroke(); }
+    for(let j=0;j<=R;j++){ ctx.beginPath(); ctx.moveTo(0,j*ch); ctx.lineTo(S,j*ch); ctx.stroke(); }
+    // corner mark（向きの目印）
+    ctx.fillStyle=opts.ghost?'#dfe6ef':'#e05353'; ctx.beginPath(); ctx.arc(cw*0.16,ch*0.16,Math.min(cw,ch)*0.09,0,7); ctx.fill();
+    for(let j=0;j<R;j++) for(let i=0;i<C;i++){ const v=cells[j*C+i]; if(v) glyph(v, i*cw+cw/2, j*ch+ch/2, Math.min(cw,ch)*0.5); }
+    // 手書き
+    ctx.strokeStyle=opts.ghost?'#aab6c8':'#2b6cb0'; ctx.lineWidth=Math.max(3,S*0.02); ctx.lineCap='round'; ctx.lineJoin='round';
+    st.hand.forEach(str=>{ if(str.length===1){ctx.fillStyle=ctx.strokeStyle;ctx.beginPath();ctx.arc(str[0][0]*S,str[0][1]*S,ctx.lineWidth/2,0,7);ctx.fill();return;}
+      ctx.beginPath(); str.forEach((p,i)=> i?ctx.lineTo(p[0]*S,p[1]*S):ctx.moveTo(p[0]*S,p[1]*S)); ctx.stroke(); });
+    ctx.restore();
+  }
+  function draw(){ ctx.clearRect(0,0,W,H);
+    const S=boardSize(); drawGrid(st.ang, cx-S/2, cy-S/2, S, cfg.cells);
+    const gs=S*0.28; drawGrid(0, 16, 16, gs, cfg.cells, {ghost:true}); glyph('もとの向き',16+gs/2,16+gs+14,13); }
+
+  function pointerdown(e){ const p=pt(e); cv.setPointerCapture(e.pointerId);
+    if(isDraw()){ const str=[normPt(p)]; st.hand.push(str); st.hd=str; draw(); return; }
+    st.drag={a:Math.atan2(p.y-cy,p.x-cx)}; }
+  function pointermove(e){ const p=pt(e);
+    if(st.hd){ const q=normPt(p); const last=st.hd[st.hd.length-1]; if(Math.hypot(q[0]-last[0],q[1]-last[1])>0.004){ st.hd.push(q); draw(); } return; }
+    if(!st.drag) return; const a=Math.atan2(p.y-cy,p.x-cx); st.ang+=angDiff(a,st.drag.a); st.drag.a=a; draw(); }
+  function up(){ if(st.hd){ st.hd=null; save('kuru_grid_hand',st.hand); return; }
+    if(st.drag&&st.snap){ const to=Math.round(st.ang/(Math.PI/2))*(Math.PI/2),from=st.ang,t0=performance.now();
+    (function s(t){const k=Math.min(1,(t-t0)/160),e=1-Math.pow(1-k,3);st.ang=from+(to-from)*e;draw();if(k<1)requestAnimationFrame(s);else{st.ang=to;draw();}})(t0);} st.drag=null; }
+  const pointerup=up,pointercancel=up,pointerleave=up;
+
+  function toolbar(){ setToolbar(`
+    <div class="seg"><button class="btn small ${st.tool==='draw'?'on':''}" id="gr_td">✏️ かく</button><button class="btn small ${st.tool==='rotate'?'on':''}" id="gr_tr">✋ まわす</button></div>
+    ${st.tool==='draw'?'<button class="btn small" id="gr_clr">🧽 消す</button>'
+      :`<button class="btn small ${st.snap?'on':''}" id="gr_snap">🧲 90°ピタッと</button><button class="btn small" id="gr_reset">↩︎ もどす</button>`}
+    <button class="btn small primary" id="gr_menu">⚙️ せってい</button>`);
+    $('gr_td').onclick=()=>{st.tool='draw';st.ang=0;toolbar();draw();setStatus('✏️ 盤面に手書き。「✋ まわす」で回して確かめよう');};
+    $('gr_tr').onclick=()=>{st.tool='rotate';toolbar();draw();setStatus('盤面を指でぐりぐり回してね ✋🖊️');};
+    if(st.tool==='draw') $('gr_clr').onclick=()=>{st.hand=[];save('kuru_grid_hand',st.hand);draw();};
+    else { $('gr_snap').onclick=()=>{st.snap=!st.snap;toolbar();}; $('gr_reset').onclick=()=>{st.ang=0;draw();}; }
+    $('gr_menu').onclick=drawer; }
+  function drawer(){ openDrawer(`
+    <h2>⚙️ マス目の回転</h2>
+    <h3>プリセット</h3><div class="preset">
+      <button class="btn" data-g="g23">2×3</button><button class="btn" data-g="g33">3×3</button><button class="btn" data-g="g44">4×4</button></div>
+    <h3>記号をおく（タップで切替）</h3><div id="gr_cells" class="chips"></div>
+    <p class="hint">赤い●は「向きの目印」。マスをタップ→パレットで記号を入れかえて類題に。</p>
+    <div class="chips" id="gr_pal" style="margin-top:8px"></div>`);
+    document.querySelectorAll('[data-g]').forEach(b=>b.onclick=()=>{cfg=structuredClone(PRESETS[b.dataset.g]);st.ang=0;st.edit=0;save('kuru_grid',cfg);drawer();draw();});
+    const g=$('gr_cells'); g.innerHTML=''; cfg.cells.forEach((v,i)=>{ const c=document.createElement('div');
+      c.className='chip'+(i===st.edit?' sel':''); c.textContent=v||'·'; c.onclick=()=>{st.edit=i;drawer();}; g.appendChild(c); });
+    const pg=$('gr_pal'); pg.innerHTML=''; PAL.forEach(v=>{ const c=document.createElement('div'); c.className='chip'; c.textContent=v||'（空）';
+      c.style.fontSize=v?'20px':'12px'; c.onclick=()=>{cfg.cells[st.edit]=v;save('kuru_grid',cfg);drawer();draw();}; pg.appendChild(c); }); }
+  return { draw, pointerdown, pointermove, pointerup, pointercancel, pointerleave,
+    mount(){ toolbar(); setStatus('盤面を指でぐりぐり回してね ✋🖊️'); draw(); }, unmount(){} };
+}
+
+/* =========================================================================
+   モジュール5: 線で分ける  画像④
+   ペンで線を引いて、両がわの数をくらべる（等分・線対称の下地）
+   ========================================================================= */
+function DivideModule(){
+  let cfg=load('kuru_div')||{count:10, icon:'⭐'};
+  let st={stars:[], stroke:[], drawing:false, counts:{l:0,r:0}};
+  const ICONS=['⭐','🍎','🐱','🔴','🌸','⚽'];
+
+  function gen(){ st.stars=[]; const pad=Math.min(W,H)*0.14, x0=pad, x1=W-pad, y0=pad+40, y1=H-pad;
+    // ゆるいグリッド＋ゆらぎで自然に配置
+    const n=cfg.count, cols=Math.ceil(Math.sqrt(n*(x1-x0)/(y1-y0))), rows=Math.ceil(n/cols); let k=0;
+    for(let r=0;r<rows&&k<n;r++) for(let c=0;c<cols&&k<n;c++){ const gx=x0+(c+0.5)*(x1-x0)/cols, gy=y0+(r+0.5)*(y1-y0)/rows;
+      st.stars.push({x:gx+(Math.random()-0.5)*(x1-x0)/cols*0.5, y:gy+(Math.random()-0.5)*(y1-y0)/rows*0.5}); k++; }
+    st.stroke=[]; recount(); }
+  function strokeXat(y){ const s=st.stroke; if(s.length<2) return null;
+    if(y<=s[0].y) return s[0].x; if(y>=s[s.length-1].y) return s[s.length-1].x;
+    for(let i=1;i<s.length;i++){ if(y<=s[i].y){ const t=(y-s[i-1].y)/((s[i].y-s[i-1].y)||1); return s[i-1].x+t*(s[i].x-s[i-1].x); } }
+    return s[s.length-1].x; }
+  function recount(){ let l=0,r=0; const has=st.stroke.length>=2;
+    for(const st2 of st.stars){ if(!has){continue;} const xx=strokeXat(st2.y); if(xx==null)continue; if(st2.x<xx)l++; else r++; }
+    st.counts={l,r,has}; }
+
+  function draw(){ ctx.clearRect(0,0,W,H);
+    // stars
+    st.stars.forEach(s=>{ let side=null; if(st.counts.has){ const xx=strokeXat(s.y); side=s.x<xx?'l':'r'; }
+      if(side){ ctx.beginPath(); ctx.arc(s.x,s.y,20,0,7); ctx.fillStyle=side==='l'?'rgba(43,108,176,.12)':'rgba(56,161,105,.12)'; ctx.fill(); }
+      glyph(cfg.icon, s.x, s.y, 30); });
+    // stroke
+    if(st.stroke.length>1){ ctx.beginPath(); ctx.moveTo(st.stroke[0].x,st.stroke[0].y);
+      for(let i=1;i<st.stroke.length;i++) ctx.lineTo(st.stroke[i].x,st.stroke[i].y);
+      ctx.strokeStyle='#e0533e'; ctx.lineWidth=5; ctx.lineJoin='round'; ctx.lineCap='round'; ctx.stroke(); }
+    // counts
+    if(st.counts.has){ const eq=st.counts.l===st.counts.r;
+      ctx.font='bold 30px sans-serif'; ctx.textAlign='center';
+      ctx.fillStyle='#2b6cb0'; ctx.fillText(`ひだり ${st.counts.l}`, W*0.2, 40);
+      ctx.fillStyle='#38a169'; ctx.fillText(`みぎ ${st.counts.r}`, W*0.8, 40);
+      setStatus(eq?`✅ 同じ数に分けられた！（${st.counts.l} と ${st.counts.r}）`:`ひだり ${st.counts.l} ・ みぎ ${st.counts.r}`);
+    } }
+
+  function pointerdown(e){ cv.setPointerCapture(e.pointerId); st.drawing=true; st.stroke=[pt(e)]; }
+  function pointermove(e){ if(!st.drawing) return; const p=pt(e); const last=st.stroke[st.stroke.length-1];
+    if(!last||Math.hypot(p.x-last.x,p.y-last.y)>3){ st.stroke.push(p); recount(); draw(); } }
+  function up(){ if(!st.drawing) return; st.drawing=false; recount(); draw(); }
+  const pointerup=up,pointercancel=up,pointerleave=up;
+
+  function toolbar(){ setToolbar(`
+    <button class="btn small" id="dv_clear">🧽 線をけす</button>
+    <button class="btn small" id="dv_new">🔀 新しい配置</button>
+    <button class="btn small primary" id="dv_menu">⚙️ せってい</button>`);
+    $('dv_clear').onclick=()=>{st.stroke=[];recount();draw();setStatus('上から下へ、ペンで線を引いてね ✏️');};
+    $('dv_new').onclick=()=>{gen();draw();setStatus('上から下へ、ペンで線を引いてね ✏️');};
+    $('dv_menu').onclick=drawer; }
+  function drawer(){ openDrawer(`
+    <h2>⚙️ 線で分ける</h2>
+    <h3>${cfg.icon} の数</h3><div class="row"><label>数</label><input type="range" id="dv_c" min="4" max="20" value="${cfg.count}"><span id="dv_cv">${cfg.count}</span></div>
+    <h3>絵をえらぶ</h3><div class="chips" id="dv_ic"></div>
+    <p class="hint">上から下へ線を引くと、左右の数を自動でかぞえます。同じ数に分けられたら◯。曲げてもOK。</p>`);
+    $('dv_c').oninput=e=>{cfg.count=+e.target.value;$('dv_cv').textContent=cfg.count;save('kuru_div',cfg);gen();draw();};
+    const g=$('dv_ic'); g.innerHTML=''; ICONS.forEach(v=>{const c=document.createElement('div');c.className='chip'+(cfg.icon===v?' sel':'');c.textContent=v;c.onclick=()=>{cfg.icon=v;save('kuru_div',cfg);drawer();draw();};g.appendChild(c);}); }
+  return { draw, pointerdown, pointermove, pointerup, pointercancel, pointerleave,
+    mount(){ toolbar(); gen(); setStatus('上から下へ、ペンで線を引いてね ✏️'); draw(); }, unmount(){} };
+}
+
+/* =========================================================================
+   モジュール6: 四方観察（積み木）  画像⑨
+   立体を回して前・右・後ろ・左から見た形をくらべる
+   ========================================================================= */
+function View4Module(){
+  const PRESETS={
+    steps:{h:[[1,2,3],[1,2,3],[1,2,3]]},
+    lshape:{h:[[1,1,1],[1,0,0],[1,0,0]]},
+    tower:{h:[[0,1,0],[1,3,1],[0,1,0]]},
+    bumpy:{h:[[2,1,3],[1,2,1],[3,1,2]]},
+  };
+  // 光源（ワールド固定）。数えやすいよう明度は高め＆側面が沈みすぎないように。
+  const L=(()=>{const v=[0.4,0.78,0.5];const m=Math.hypot(...v);return v.map(k=>k/m);})();
+  function tone(base,n){ const d=Math.max(0,n[0]*L[0]+n[1]*L[1]+n[2]*L[2]); const s=0.66+0.34*d;
+    return `rgb(${Math.round(base[0]*s)},${Math.round(base[1]*s)},${Math.round(base[2]*s)})`; }
+  function shadeColor(n){ return tone([120,182,244], n); }   // 通常ブロック（明るめ青）
+  const PALETTE=[
+    {n:'オレンジ',rgb:[250,168,72]},{n:'あか',rgb:[240,96,96]},{n:'みどり',rgb:[86,192,120]},
+    {n:'あお',rgb:[86,150,236]},{n:'むらさき',rgb:[176,120,228]},{n:'きいろ',rgb:[244,206,74]},
+  ];
+  // 立方体の6面（法線＋4頂点オフセット）
+  const FACES=[
+    {n:[0,1,0], v:[[0,1,0],[0,1,1],[1,1,1],[1,1,0]]},   // 上
+    {n:[0,-1,0],v:[[0,0,0],[1,0,0],[1,0,1],[0,0,1]]},   // 下
+    {n:[0,0,-1],v:[[0,0,0],[0,1,0],[1,1,0],[1,0,0]]},   // 前
+    {n:[0,0,1], v:[[1,0,1],[1,1,1],[0,1,1],[0,0,1]]},   // 後
+    {n:[-1,0,0],v:[[0,0,0],[0,0,1],[0,1,1],[0,1,0]]},   // 左
+    {n:[1,0,0], v:[[1,0,0],[1,1,0],[1,1,1],[1,0,1]]},   // 右
+  ];
+  FACES.forEach(f=>f.color=shadeColor(f.n));
+
+  let cfg=load('kuru_view')||{h:structuredClone(PRESETS.steps.h)};
+  if(!cfg.h) cfg={h:structuredClone(PRESETS.steps.h)};
+  let st={yaw:-0.7, pitch:0.5, drag:null, spin:false, vel:0, alive:true, threeView:true,
+          gap:false, count:false, painted:new Map(), color:0, paletteRects:[], pickFaces:[], raf:0};
+  const key=(x,y,z)=>x+','+y+','+z;
+  function paintCube(ck){ if(st.color===-1) st.painted.delete(ck);
+    else if(st.painted.get(ck)===st.color) st.painted.delete(ck); else st.painted.set(ck,st.color); }
+
+  function filled(Hm,x,y,z){ const R=Hm.length,C=Hm[0].length; if(x<0||x>=C||z<0||z>=R||y<0) return false; return y < Hm[z][x]; }
+  function totalCubes(){ let s=0; cfg.h.forEach(r=>r.forEach(v=>s+=v)); return s; }
+
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    const Hm=cfg.h, R=Hm.length, C=Hm[0].length; let mh=1; Hm.forEach(r=>r.forEach(v=>mh=Math.max(mh,v)));
+    const P = st.threeView ? 130 : 20;
+    const projX=cx, projY=(H-P)/2+8;
+    const extent=Math.sqrt(C*C+R*R+mh*mh)*0.5+0.5;
+    const scale=Math.min(W*0.92, H-P)*0.42/extent;
+    const cyaw=Math.cos(st.yaw),syaw=Math.sin(st.yaw),cpit=Math.cos(st.pitch),spit=Math.sin(st.pitch);
+    const cX=C/2,cY=mh/2,cZ=R/2;
+    const proj=(x,y,z)=>{ const X=x-cX,Y=y-cY,Z=z-cZ; const x1=X*cyaw+Z*syaw, z1=-X*syaw+Z*cyaw;
+      const y2=Y*cpit - z1*spit, z2=Y*spit + z1*cpit; return [projX+x1*scale, projY - y2*scale, z2]; };
+    const faces=[];
+    const perCube = st.gap || st.count;      // すきま/かぞえるモードは1個ずつ描く
+    const inset = st.gap ? 0.13 : 0;          // 中心に向けて縮めて隙間をつくる
+    const shrink = o => inset ? (0.5 + (o-0.5)*(1-2*inset)) : o;
+    // 地面は無し（下からも見られるように）
+    for(let z=0;z<R;z++) for(let x=0;x<C;x++){ const hh=Hm[z][x];
+      for(let y=0;y<hh;y++){ const ck=key(x,y,z); const ci = st.count ? st.painted.get(ck) : undefined;
+        for(const f of FACES){ const nx=x+f.n[0],ny=y+f.n[1],nz=z+f.n[2];
+          if(!perCube && filled(Hm,nx,ny,nz)) continue;   // 通常は隠れる面を省く
+          const vs=f.v.map(o=>proj(x+shrink(o[0]),y+shrink(o[1]),z+shrink(o[2])));
+          let fill,stroke,alpha;
+          if(st.count){ if(ci!=null){ fill=tone(PALETTE[ci].rgb,f.n); stroke='#5a4416'; alpha=1; }
+                        else { fill=shadeColor(f.n); stroke='rgba(70,100,130,.6)'; alpha=0.16; } }
+          else { fill=shadeColor(f.n); stroke='#25456b'; alpha=1; }
+          faces.push({v:vs, depth:(vs[0][2]+vs[1][2]+vs[2][2]+vs[3][2])/4, fill,stroke,alpha, cube:ck}); } } }
+    faces.sort((a,b)=>a.depth-b.depth); // 奥から手前へ
+    faces.forEach(f=>{ ctx.globalAlpha=f.alpha; ctx.beginPath(); ctx.moveTo(f.v[0][0],f.v[0][1]);
+      for(let i=1;i<f.v.length;i++)ctx.lineTo(f.v[i][0],f.v[i][1]); ctx.closePath();
+      ctx.fillStyle=f.fill; ctx.fill(); ctx.globalAlpha=1; ctx.strokeStyle=f.stroke; ctx.lineWidth=1.2; ctx.stroke(); });
+    st.pickFaces = st.count ? faces : [];
+    if(st.threeView) drawThreeView(Hm,R,C,mh,P);
+    if(st.count){ drawPalette(); setStatus(`🎨 色をえらんでブロックをタップ。ぬった数 <b>${st.painted.size}</b> ／ ぜんぶ ${totalCubes()}`); }
+  }
+  function drawPalette(){ const x0=18,y0=52,r=15,gap=10; st.paletteRects=[];
+    const items=PALETTE.map((c,i)=>({c,idx:i})).concat([{c:null,idx:-1}]);
+    items.forEach((it,i)=>{ const px=x0+r+i*(2*r+gap), py=y0+r;
+      ctx.beginPath(); ctx.arc(px,py,r,0,7);
+      if(it.c){ ctx.fillStyle=`rgb(${it.c.rgb})`; ctx.fill(); }
+      else { ctx.fillStyle='#fff'; ctx.fill(); ctx.fillStyle='#e05353'; ctx.font='bold 16px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('✕',px,py); }
+      ctx.lineWidth=st.color===it.idx?4:1.5; ctx.strokeStyle=st.color===it.idx?'#233':(it.c?'#fff':'#bbb'); ctx.stroke();
+      st.paletteRects.push({x:px,y:py,r,idx:it.idx}); });
+    ctx.fillStyle='#8090a2'; ctx.font='12px sans-serif'; ctx.textAlign='left'; ctx.fillText('色をえらぶ →', x0, y0-6); }
+  function pickCube(px,py){ const fs=st.pickFaces; for(let i=fs.length-1;i>=0;i--){ if(pointInPoly(px,py,fs[i].v)) return fs[i].cube; } return null; }
+  function pointInPoly(x,y,poly){ let hit=false; for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+    const xi=poly[i][0],yi=poly[i][1],xj=poly[j][0],yj=poly[j][1];
+    if(((yi>y)!==(yj>y)) && (x<(xj-xi)*(y-yi)/((yj-yi)||1e-9)+xi)) hit=!hit; } return hit; }
+
+  function drawThreeView(Hm,R,C,mh,P){
+    const front=[]; for(let r=0;r<mh;r++){front.push([]); for(let x=0;x<C;x++){ let h=0; for(let z=0;z<R;z++)h=Math.max(h,Hm[z][x]); front[r].push((mh-1-r)<h);}}
+    const side=[];  for(let r=0;r<mh;r++){side.push([]);  for(let z=0;z<R;z++){ let h=0; for(let x=0;x<C;x++)h=Math.max(h,Hm[z][x]); side[r].push((mh-1-r)<h);}}
+    const top=[];   for(let z=0;z<R;z++){top.push([]);    for(let x=0;x<C;x++) top[z].push(Hm[z][x]>0);}
+    const panels=[['まえ',front],['よこ',side],['うえ',top]];
+    const cell=Math.min(16, Math.max(9, (W/3-56)/Math.max(C,R,mh)));
+    const wOf=g=>g[0].length*cell, gap=44;
+    const totalW=panels.reduce((s,[,g])=>s+wOf(g),0)+gap*(panels.length-1);
+    let gx=cx-totalW/2; const gy=H-P+26;
+    ctx.font='12px sans-serif'; ctx.fillStyle='#8090a2'; ctx.textAlign='left';
+    ctx.fillText('この積み木を…', 16, H-P+14);
+    panels.forEach(([label,g])=>{ drawCells(g,gx,gy,cell,label); gx+=wOf(g)+gap; });
+  }
+  function drawCells(g,ox,oy,cell,label){ ctx.font='12px sans-serif'; ctx.fillStyle='#678'; ctx.textAlign='center';
+    ctx.fillText(label+'から見た形', ox+g[0].length*cell/2, oy-6);
+    for(let r=0;r<g.length;r++)for(let c=0;c<g[0].length;c++){ const x=ox+c*cell,y=oy+r*cell;
+      ctx.fillStyle=g[r][c]?'#8fc0f0':'#eef2f7'; ctx.fillRect(x,y,cell-2,cell-2);
+      ctx.strokeStyle='#cdd6e2'; ctx.lineWidth=1; ctx.strokeRect(x,y,cell-2,cell-2); } }
+
+  // ---- 自由回転（ヨー＝左右／ピッチ＝上下）＋慣性 ----
+  function tick(){ if(!st.alive){st.raf=0;return;}
+    let active=false;
+    if(st.spin){ st.yaw+=0.012; active=true; }
+    else if(Math.abs(st.vel)>0.0006){ st.yaw+=st.vel; st.vel*=0.93; active=true; }
+    if(active){ draw(); st.raf=requestAnimationFrame(tick); } else st.raf=0; }
+  function ensureLoop(){ if(!st.raf) st.raf=requestAnimationFrame(tick); }
+
+  function pointerdown(e){ const p=pt(e);
+    if(st.count){ for(const s of st.paletteRects){ if(Math.hypot(p.x-s.x,p.y-s.y)<=s.r+3){ cv.setPointerCapture(e.pointerId); st.color=s.idx; st.drag=null; draw(); return; } } }
+    cv.setPointerCapture(e.pointerId); st.spin=false; st.vel=0;
+    st.drag={x:p.x,y:p.y,dx0:p.x,dy0:p.y,vx:0,moved:false}; }
+  function pointermove(e){ if(!st.drag) return; const p=pt(e); const dx=p.x-st.drag.x, dy=p.y-st.drag.y;
+    if(Math.hypot(p.x-st.drag.dx0,p.y-st.drag.dy0)>6) st.drag.moved=true;
+    st.yaw += dx*0.011; st.pitch += dy*0.011; st.pitch=Math.max(-1.55,Math.min(1.55,st.pitch));
+    st.drag.vx=dx*0.011; st.drag.x=p.x; st.drag.y=p.y; draw(); }
+  function up(){ if(st.drag){
+      if(st.count && !st.drag.moved){ const cube=pickCube(st.drag.dx0,st.drag.dy0);
+        if(cube!=null){ paintCube(cube); draw(); } }
+      else { st.vel=Math.max(-0.09,Math.min(0.09,st.drag.vx)); if(Math.abs(st.vel)>0.0006) ensureLoop(); }
+    } st.drag=null; }
+  const pointerup=up,pointercancel=up,pointerleave=up;
+
+  function toolbar(){ setToolbar(`
+    <button class="btn small ${st.spin?'on':''}" id="v_spin">🔄 じどう回転</button>
+    <button class="btn small" id="v_reset">⟲ リセット</button>
+    <button class="btn small ${st.gap?'on':''}" id="v_gap">✂️ すきま</button>
+    <button class="btn small ${st.count?'on':''}" id="v_count">🎨 かぞえる</button>
+    ${st.count?'<button class="btn small" id="v_cells">🔳 別窓で塗る</button>':''}
+    <button class="btn small ${st.threeView?'on':''}" id="v_tv">📐 三面図</button>
+    <button class="btn small primary" id="v_menu">⚙️ 形をつくる</button>`);
+    $('v_spin').onclick=()=>{st.spin=!st.spin;toolbar();if(st.spin)ensureLoop();};
+    $('v_reset').onclick=()=>{st.yaw=-0.7;st.pitch=0.5;st.vel=0;st.spin=false;st.painted.clear();toolbar();draw();};
+    $('v_gap').onclick=()=>{st.gap=!st.gap;toolbar();draw();};
+    $('v_count').onclick=()=>{st.count=!st.count; if(st.count){st.painted.clear();} toolbar(); if(st.count)setStatus('🎨 色をえらんでブロックをタップ'); else setStatus('指やペンで つみ木を ぐりぐり回してね ✋🖊️'); draw();};
+    if(st.count) $('v_cells').onclick=paintDrawer;
+    $('v_tv').onclick=()=>{st.threeView=!st.threeView;toolbar();draw();};
+    $('v_menu').onclick=drawer; }
+
+  // 別窓：段ごとのマス目でセルを指定して塗る（回しても届かないブロック用）
+  function paintDrawer(){ const Hm=cfg.h,R=Hm.length,C=Hm[0].length; let mh=1; Hm.forEach(r=>r.forEach(v=>mh=Math.max(mh,v)));
+    let html=`<h2>🔳 セルをえらんで塗る</h2>
+      <p class="hint">回しても届かないブロックは、ここで指定して塗れます。色をえらんで、段ごとのマスをタップ（上が高い段）。同じ色で再タップすると消えます。</p>
+      <div id="pv_pal" class="chips" style="margin-bottom:10px"></div>`;
+    for(let y=mh-1;y>=0;y--) html+=`<h3 style="margin:12px 0 4px">${y+1} だんめ</h3>
+      <div class="pv-layer" data-y="${y}" style="display:grid;gap:3px;grid-template-columns:repeat(${C},34px);justify-content:center"></div>`;
+    openDrawer(html);
+    buildPalChips($('pv_pal'));
+    document.querySelectorAll('.pv-layer').forEach(g=>{ const y=+g.dataset.y;
+      for(let z=0;z<R;z++)for(let x=0;x<C;x++){ const b=document.createElement('button'); b.className='btn small';
+        b.style.cssText='height:34px;min-height:0;padding:0';
+        if(y>=Hm[z][x]){ b.style.visibility='hidden'; }
+        else { const ck=key(x,y,z); const ci=st.painted.get(ck);
+          b.style.background=ci!=null?`rgb(${PALETTE[ci].rgb})`:'#dbe8f8'; b.style.borderColor='#c4d3e6';
+          b.onclick=()=>{ paintCube(ck); refreshLayers(); draw(); }; }
+        g.appendChild(b); } }); }
+  function buildPalChips(cont){ if(!cont)return; cont.innerHTML='';
+    PALETTE.forEach((c,i)=>{ const d=document.createElement('div'); d.className='chip';
+      d.style.cssText=`background:rgb(${c.rgb});width:32px;height:32px;${st.color===i?'outline:3px solid #233;outline-offset:1px':''}`;
+      d.onclick=()=>{st.color=i;buildPalChips(cont);draw();}; cont.appendChild(d); });
+    const e=document.createElement('div'); e.className='chip'; e.textContent='✕'; e.style.cssText=`width:32px;height:32px;color:#e05353;${st.color===-1?'outline:3px solid #233;outline-offset:1px':''}`;
+    e.onclick=()=>{st.color=-1;buildPalChips(cont);draw();}; cont.appendChild(e); }
+  function refreshLayers(){ const Hm=cfg.h,C=Hm[0].length,R=Hm.length;
+    document.querySelectorAll('.pv-layer').forEach(g=>{ const y=+g.dataset.y; let idx=0;
+      for(let z=0;z<R;z++)for(let x=0;x<C;x++){ const b=g.children[idx++]; if(y<Hm[z][x]){ const ci=st.painted.get(key(x,y,z));
+        b.style.background=ci!=null?`rgb(${PALETTE[ci].rgb})`:'#dbe8f8'; } } }); }
+
+  function drawer(){ openDrawer(`
+    <h2>⚙️ 積み木をつくる</h2>
+    <h3>プリセット</h3><div class="preset">
+      <button class="btn" data-v="steps">かいだん</button><button class="btn" data-v="lshape">Lがた</button>
+      <button class="btn" data-v="tower">タワー</button><button class="btn" data-v="bumpy">でこぼこ</button></div>
+    <h3>おおきさ</h3><div class="row">
+      <button class="btn small" id="v_sz2">2×2</button><button class="btn small" id="v_sz3">3×3</button><button class="btn small" id="v_sz4">4×4</button></div>
+    <h3>たかさを編集</h3>
+    <p class="hint">下のマスをタップすると高さが 0→1→2→3→0 と変わります。自分で積み木を作って、指でぐりぐり回して確かめよう。</p>
+    <div id="v_edit" style="display:grid;gap:4px;justify-content:center;margin-top:8px"></div>`);
+    document.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{cfg={h:structuredClone(PRESETS[b.dataset.v].h)};save('kuru_view',cfg);drawer();draw();});
+    $('v_sz2').onclick=()=>resizeGrid(2); $('v_sz3').onclick=()=>resizeGrid(3); $('v_sz4').onclick=()=>resizeGrid(4);
+    buildEditor();
+  }
+  function resizeGrid(n){ const old=cfg.h,h=[]; for(let z=0;z<n;z++){h.push([]);for(let x=0;x<n;x++)h[z].push((old[z]&&old[z][x])||0);} cfg.h=h; save('kuru_view',cfg); drawer(); draw(); }
+  function buildEditor(){ const R=cfg.h.length,C=cfg.h[0].length,g=$('v_edit'); if(!g)return;
+    g.style.gridTemplateColumns=`repeat(${C},42px)`; g.innerHTML='';
+    for(let z=0;z<R;z++)for(let x=0;x<C;x++){ const v=cfg.h[z][x]; const b=document.createElement('button');
+      b.className='btn small'; b.style.cssText='height:42px;padding:0;font-weight:bold'; b.textContent=v;
+      b.style.background=v?`rgba(74,144,217,${0.22+0.2*v})`:'#eef3f9'; b.style.color=v>=2?'#fff':'#233';
+      b.onclick=()=>{ cfg.h[z][x]=(cfg.h[z][x]+1)%4; save('kuru_view',cfg); buildEditor(); draw(); }; g.appendChild(b); } }
+
+  return { draw, pointerdown, pointermove, pointerup, pointercancel, pointerleave,
+    mount(){ st.alive=true; toolbar(); setStatus('指やペンで つみ木を ぐりぐり回してね ✋🖊️'); draw(); },
+    unmount(){ st.alive=false; if(st.raf) cancelAnimationFrame(st.raf); } };
+}
+
+/* =========================================================================
+   モジュール7: 図形構成  画像⑦
+   パーツをドラッグ＆回転して形を作る（タングラム風）
+   ========================================================================= */
+function ComposeModule(){
+  const PUZZLES={
+    square:{name:'四角', pieces:[
+      {pts:[[0,0],[1,0],[0,1]], c:'#4a90d9'}, {pts:[[1,0],[1,1],[0,1]], c:'#38a169'} ]},
+    house:{name:'いえ', pieces:[
+      {pts:[[0,0.4],[1,0.4],[0.5,0]], c:'#e0533e'}, {pts:[[0,0.4],[1,0.4],[1,1],[0,1]], c:'#f0b429'} ]},
+    pinwheel:{name:'かざぐるま', pieces:[
+      {pts:[[0.5,0.5],[0.5,0],[1,0]], c:'#4a90d9'}, {pts:[[0.5,0.5],[1,0],[1,0.5]], c:'#38a169'},
+      {pts:[[0.5,0.5],[1,1],[0.5,1]], c:'#e0533e'}, {pts:[[0.5,0.5],[0,1],[0,0.5]], c:'#f0b429'} ]},
+    tri4:{name:'大きな三角', pieces:[
+      {pts:[[0,1],[0.5,0],[0.25,0.5]], c:'#4a90d9'}, {pts:[[0.5,0],[1,1],[0.75,0.5]], c:'#38a169'},
+      {pts:[[0,1],[1,1],[0.5,1]], c:'#e0533e'}, {pts:[[0.25,0.5],[0.75,0.5],[0.5,1]], c:'#f0b429'} ]},
+  };
+  let cfg=load('kuru_comp')||{puzzle:'square'};
+  let st={pieces:[], drag:null, board:{x:0,y:0,s:0}};
+
+  function centroid(pts){ let x=0,y=0; pts.forEach(p=>{x+=p[0];y+=p[1];}); return [x/pts.length,y/pts.length]; }
+  function setup(){ const S=Math.min(W,H)*0.5; st.board={x:cx-S/2, y:cy-S/2-20, s:S};
+    const def=PUZZLES[cfg.puzzle]; st.pieces=def.pieces.map((pc,i)=>{ const ct=centroid(pc.pts);
+      return {pts:pc.pts, c:pc.c, ct, dx:(Math.random()*0.5-0.25), dy:0.75+Math.random()*0.15, rot:Math.floor(Math.random()*4), placed:false}; }); }
+  function pieceScreen(p){ const S=st.board.s, bx=st.board.x, by=st.board.y; const ang=p.rot*Math.PI/2, cs=Math.cos(ang), sn=Math.sin(ang);
+    return p.pts.map(pt0=>{ const dx=pt0[0]-p.ct[0], dy=pt0[1]-p.ct[1]; const rx=dx*cs-dy*sn, ry=dx*sn+dy*cs;
+      const X=(p.ct[0]+rx+p.dx), Y=(p.ct[1]+ry+p.dy); return [bx+X*S, by+Y*S]; }); }
+  function solvedScreen(pc){ const S=st.board.s,bx=st.board.x,by=st.board.y; return pc.pts.map(p=>[bx+p[0]*S, by+p[1]*S]); }
+
+  function draw(){ ctx.clearRect(0,0,W,H);
+    // 目標のうすい輪郭
+    const def=PUZZLES[cfg.puzzle];
+    ctx.save(); def.pieces.forEach(pc=>{ const sp=solvedScreen(pc); ctx.beginPath(); ctx.moveTo(sp[0][0],sp[0][1]);
+      for(let i=1;i<sp.length;i++)ctx.lineTo(sp[i][0],sp[i][1]); ctx.closePath();
+      ctx.fillStyle='#eef2f7'; ctx.fill(); ctx.strokeStyle='#c8d2e0'; ctx.setLineDash([5,5]); ctx.lineWidth=1.5; ctx.stroke(); ctx.setLineDash([]); }); ctx.restore();
+    // ピース（未配置→配置の順で、配置は下地の上）
+    const order=[...st.pieces].sort((a,b)=>(a.placed===b.placed)?0:(a.placed?-1:1));
+    order.forEach(p=>{ const sp=pieceScreen(p); ctx.beginPath(); ctx.moveTo(sp[0][0],sp[0][1]);
+      for(let i=1;i<sp.length;i++)ctx.lineTo(sp[i][0],sp[i][1]); ctx.closePath();
+      ctx.fillStyle=p.c; ctx.globalAlpha=p.placed?1:0.92; ctx.fill(); ctx.globalAlpha=1;
+      ctx.strokeStyle=p.placed?'#2e7d32':'#334'; ctx.lineWidth=p===st.drag?.p?3:2; ctx.stroke(); });
+    if(st.pieces.every(p=>p.placed)){ ctx.font='40px sans-serif'; ctx.textAlign='center'; ctx.fillText('🎉 かんせい！', cx, st.board.y-30);
+      setStatus('🎉 かんせい！べつの形もためしてみよう'); }
+    else setStatus('ピースをドラッグ、タップで90°回転。うすい形にはめてね');
+  }
+  function inPoly(x,y,poly){ let hit=false; for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+    const xi=poly[i][0],yi=poly[i][1],xj=poly[j][0],yj=poly[j][1];
+    if(((yi>y)!==(yj>y)) && (x < (xj-xi)*(y-yi)/((yj-yi)||1e-9)+xi)) hit=!hit; } return hit; }
+
+  function pointerdown(e){ const p=pt(e); cv.setPointerCapture(e.pointerId);
+    for(let i=st.pieces.length-1;i>=0;i--){ const pc=st.pieces[i]; if(inPoly(p.x,p.y,pieceScreen(pc))){
+      st.drag={p:pc, sx:p.x, sy:p.y, odx:pc.dx, ody:pc.dy, moved:false}; st.pieces.splice(i,1); st.pieces.push(pc); draw(); return; } } }
+  function pointermove(e){ if(!st.drag) return; const p=pt(e); const S=st.board.s;
+    st.drag.p.dx=st.drag.odx+(p.x-st.drag.sx)/S; st.drag.p.dy=st.drag.ody+(p.y-st.drag.sy)/S;
+    if(Math.hypot(p.x-st.drag.sx,p.y-st.drag.sy)>6) st.drag.moved=true; st.drag.p.placed=false; draw(); }
+  function up(){ if(!st.drag) return; const p=st.drag.p;
+    if(!st.drag.moved){ p.rot=(p.rot+1)%4; } // タップ＝回転
+    // スナップ判定
+    if(Math.abs(p.dx)<0.08 && Math.abs(p.dy)<0.08 && p.rot%4===0){ p.dx=0; p.dy=0; p.rot=0; p.placed=true; }
+    st.drag=null; draw(); }
+  const pointerup=up,pointercancel=up,pointerleave=up;
+
+  function toolbar(){ setToolbar(`
+    <button class="btn small" id="cp_shuffle">🔀 ならべ直す</button>
+    <button class="btn small" id="cp_solve">💡 こたえ</button>
+    <button class="btn small primary" id="cp_menu">⚙️ 形をえらぶ</button>`);
+    $('cp_shuffle').onclick=()=>{setup();draw();};
+    $('cp_solve').onclick=()=>{st.pieces.forEach(p=>{p.dx=0;p.dy=0;p.rot=0;p.placed=true;});draw();};
+    $('cp_menu').onclick=drawer; }
+  function drawer(){ openDrawer(`
+    <h2>⚙️ 図形構成</h2>
+    <h3>作る形をえらぶ</h3><div class="preset">
+      <button class="btn" data-c="square">四角</button><button class="btn" data-c="house">いえ</button>
+      <button class="btn" data-c="pinwheel">かざぐるま</button><button class="btn" data-c="tri4">大きな三角</button></div>
+    <p class="hint">パーツをドラッグして、うすい形にぴったり重ねよう。パーツをタップすると90°回転します。</p>`);
+    document.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{cfg.puzzle=b.dataset.c;save('kuru_comp',cfg);setup();draw();drawer();}); }
+  return { draw, pointerdown, pointermove, pointerup, pointercancel, pointerleave,
+    mount(){ toolbar(); setup(); draw(); }, unmount(){} };
+}
+
+/* =========================================================================
+   モジュール8: ホワイトボード（お絵かき）
+   ペン/指で自由に描く。保存(端末)・画像書き出し・共有(Drive等)。
+   ========================================================================= */
+function DrawModule(){
+  const COLORS=['#222222','#e0322e','#2b6cb0','#2f9e44','#f08c00','#a21caf'];
+  const WIDTHS=[3,6,12]; const WNAME=['細','中','太'];
+  let st={color:COLORS[0], width:WIDTHS[1], eraser:false, grid:false, penOnly:false,
+          strokes:[], draw:null, undo:[], redo:[]};
+  // 前回の続きを復元
+  const last=load('kuru_wb_last'); if(last&&last.strokes){ st.strokes=last.strokes; st.grid=!!last.grid; }
+
+  function wFor(e){ const base=st.width; if(e&&e.pointerType==='pen'&&e.pressure>0) return Math.max(1,base*(0.35+1.4*e.pressure)); return base; }
+  function pnt(e){ const p=pt(e); return {x:p.x,y:p.y,w:wFor(e)}; }
+
+  function drawBg(){ ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,W,H); }
+  function drawGrid(){ ctx.save(); ctx.strokeStyle='rgba(60,110,170,.14)'; ctx.lineWidth=1; const s=40;
+    for(let x=s;x<W;x+=s){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+    for(let y=s;y<H;y+=s){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();} ctx.restore(); }
+  function seg(a,b,color,eraser){ ctx.strokeStyle=eraser?'#ffffff':color; ctx.lineWidth=(a.w+b.w)/2;
+    ctx.lineCap='round'; ctx.lineJoin='round'; ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke(); }
+  function dot(a,color,eraser){ ctx.fillStyle=eraser?'#ffffff':color; ctx.beginPath(); ctx.arc(a.x,a.y,a.w/2,0,7); ctx.fill(); }
+  function drawStroke(s){ if(s.pts.length===1){ dot(s.pts[0],s.color,s.eraser); return; }
+    for(let i=1;i<s.pts.length;i++) seg(s.pts[i-1],s.pts[i],s.color,s.eraser); }
+  function draw(){ drawBg(); st.strokes.forEach(drawStroke); if(st.grid) drawGrid(); }
+
+  function snapshot(){ return JSON.parse(JSON.stringify(st.strokes)); }
+  function pushUndo(){ st.undo.push(snapshot()); if(st.undo.length>40) st.undo.shift(); st.redo=[]; }
+  function autosave(){ save('kuru_wb_last',{strokes:st.strokes,grid:st.grid}); }
+
+  function pointerdown(e){ if(st.penOnly && e.pointerType!=='pen') return; if(st.draw) return;
+    cv.setPointerCapture(e.pointerId); pushUndo();
+    const s={color:st.color,width:st.width,eraser:st.eraser,pts:[pnt(e)]};
+    st.draw={id:e.pointerId, s}; st.strokes.push(s); dot(s.pts[0],s.color,s.eraser); }
+  function pointermove(e){ if(!st.draw||e.pointerId!==st.draw.id) return; const p=pnt(e); const s=st.draw.s;
+    const prev=s.pts[s.pts.length-1]; if(Math.hypot(p.x-prev.x,p.y-prev.y)<1) return;
+    s.pts.push(p); seg(prev,p,s.color,s.eraser); }
+  function up(e){ if(st.draw&&(!e||e.pointerId===st.draw.id)){ st.draw=null; autosave(); } }
+  const pointerup=up,pointercancel=up,pointerleave=up;
+
+  function doUndo(){ if(!st.undo.length)return; st.redo.push(snapshot()); st.strokes=st.undo.pop(); draw(); autosave(); }
+  function doRedo(){ if(!st.redo.length)return; st.undo.push(snapshot()); st.strokes=st.redo.pop(); draw(); autosave(); }
+  function clearAll(){ if(!st.strokes.length)return; pushUndo(); st.strokes=[]; draw(); autosave(); }
+
+  function toolbar(){ let chips=COLORS.map(c=>`<button class="btn small" data-col="${c}" style="width:34px;padding:0;background:${c};${(!st.eraser&&st.color===c)?'outline:3px solid #233;outline-offset:1px':''}">&nbsp;</button>`).join('');
+    setToolbar(`${chips}
+      <button class="btn small ${st.eraser?'on':''}" id="d_er">🧽 消しゴム</button>
+      <button class="btn small" id="d_w">太さ:${WNAME[WIDTHS.indexOf(st.width)]}</button>
+      <button class="btn small" id="d_undo">↩︎</button>
+      <button class="btn small" id="d_redo">↪︎</button>
+      <button class="btn small" id="d_clear">🗑️ 全消し</button>
+      <button class="btn small primary" id="d_save">💾 ほぞん</button>
+      <button class="btn small primary" id="d_menu">⚙️</button>`);
+    document.querySelectorAll('[data-col]').forEach(b=>b.onclick=()=>{st.color=b.dataset.col;st.eraser=false;toolbar();});
+    $('d_er').onclick=()=>{st.eraser=!st.eraser;toolbar();};
+    $('d_w').onclick=()=>{const i=(WIDTHS.indexOf(st.width)+1)%WIDTHS.length;st.width=WIDTHS[i];toolbar();};
+    $('d_undo').onclick=doUndo; $('d_redo').onclick=doRedo; $('d_clear').onclick=clearAll;
+    $('d_save').onclick=saveBoard; $('d_menu').onclick=drawer; }
+
+  // 保存（端末）
+  function boards(){ return load('kuru_wb_boards')||[]; }
+  function saveBoard(){ const list=boards(); const now=new Date();
+    const name=`${now.getMonth()+1}/${now.getDate()} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+    list.unshift({id:Date.now(),name,strokes:snapshot(),grid:st.grid}); if(list.length>30)list.length=30;
+    save('kuru_wb_boards',list); setStatus(`💾 「${name}」に保存しました`); setTimeout(()=>setStatus(''),1800); }
+
+  // 画像で保存（PNG）
+  function exportPNG(){ draw(); const url=cv.toDataURL('image/png'); const a=document.createElement('a');
+    a.href=url; a.download='whiteboard_'+Date.now()+'.png'; a.click(); }
+  // 共有（Androidの共有シート→Drive/フォト等）
+  async function sharePNG(){ draw();
+    if(!cv.toBlob){ exportPNG(); return; }
+    cv.toBlob(async blob=>{ const file=new File([blob],'whiteboard.png',{type:'image/png'});
+      if(navigator.canShare&&navigator.canShare({files:[file]})){ try{ await navigator.share({files:[file],title:'ホワイトボード'});}catch(_){} }
+      else { alert('この端末では共有に未対応です。「画像で保存」をお使いください。'); exportPNG(); } },'image/png'); }
+
+  function drawer(){ let list=boards();
+    let items = list.length? list.map(b=>`<div class="row" data-bid="${b.id}" style="justify-content:space-between;border:1px solid var(--line);border-radius:10px;padding:6px 10px">
+        <span>🖼️ ${b.name}</span><span><button class="btn small" data-load="${b.id}">ひらく</button><button class="btn small" data-del="${b.id}" style="margin-left:4px">🗑️</button></span></div>`).join('')
+      : '<p class="hint">まだ保存はありません。「💾 ほぞん」で保存できます。</p>';
+    openDrawer(`
+      <h2>⚙️ ホワイトボード</h2>
+      <h3>太さ</h3><div class="row"><input type="range" id="d_wr" min="1" max="30" value="${st.width}"><span id="d_wv">${st.width}</span></div>
+      <h3>背景</h3><div class="row"><button class="btn small ${st.grid?'on':''}" id="d_grid">方眼を表示</button></div>
+      <h3>ペン</h3><div class="row"><button class="btn small ${st.penOnly?'on':''}" id="d_pen">手のひら無視（ペンのみ）</button></div>
+      <h3>書き出し・共有</h3><div class="row">
+        <button class="btn small" id="d_png">📷 画像で保存</button>
+        <button class="btn small" id="d_share">📤 共有（Drive等）</button></div>
+      <h3>保存した絵</h3>${items}`);
+    $('d_wr').oninput=e=>{st.width=+e.target.value;$('d_wv').textContent=st.width;};
+    $('d_grid').onclick=()=>{st.grid=!st.grid;draw();autosave();drawer();};
+    $('d_pen').onclick=()=>{st.penOnly=!st.penOnly;drawer();};
+    $('d_png').onclick=exportPNG; $('d_share').onclick=sharePNG;
+    document.querySelectorAll('[data-load]').forEach(b=>b.onclick=()=>{ const bd=boards().find(x=>x.id==b.dataset.load);
+      if(bd){ pushUndo(); st.strokes=JSON.parse(JSON.stringify(bd.strokes)); st.grid=!!bd.grid; draw(); autosave(); closeDrawer(); toolbar(); } });
+    document.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{ const l=boards().filter(x=>x.id!=b.dataset.del); save('kuru_wb_boards',l); drawer(); });
+  }
+
+  return { draw, pointerdown, pointermove, pointerup, pointercancel, pointerleave,
+    mount(){ toolbar(); setStatus('自由にお絵かき ✏️（ペン・指OK。⚙️で保存/共有）'); draw(); },
+    unmount(){ autosave(); } };
+}
+
+/* =========================================================================
+   モジュール9: かさねてみよう（重ね図形）  テスト3①・テスト4①
+   透明な2枚をドラッグして重ね、合わさった形を見る
+   ========================================================================= */
+function OverlayModule(){
+  const LINEFIGS={
+    diag:{type:'lines', name:'ななめ', lines:[[[0.1,0.1],[0.9,0.9]]]},
+    cross:{type:'lines', name:'バツ', lines:[[[0.1,0.1],[0.9,0.9]],[[0.9,0.1],[0.1,0.9]]]},
+    vh:{type:'lines', name:'たてよこ', lines:[[[0.5,0.05],[0.5,0.95]],[[0.05,0.5],[0.95,0.5]]]},
+    tri:{type:'fills', name:'三角', fills:[{pts:[[0.15,0.15],[0.85,0.15],[0.15,0.85]]}]},
+    zbox:{type:'lines', name:'Z', lines:[[[0.1,0.1],[0.9,0.1]],[[0.9,0.1],[0.1,0.9]],[[0.1,0.9],[0.9,0.9]]]},
+    dots:{type:'grid', name:'まる3', n:3, cells:[1,0,0, 0,1,0, 0,0,1]},
+    heart:{type:'fills', name:'まる', fills:[{pts:[[0.5,0.2],[0.8,0.5],[0.5,0.8],[0.2,0.5]]}]},
+    // 折り紙プリント（推理86）用プリセット
+    yama:{type:'lines', name:'⛰やま', lines:[[[0.12,0.85],[0.12,0.5]],[[0.12,0.5],[0.3,0.15]],[[0.3,0.15],[0.5,0.55]],[[0.5,0.55],[0.7,0.15]],[[0.7,0.15],[0.88,0.5]],[[0.88,0.5],[0.88,0.85]],[[0.88,0.85],[0.12,0.85]]]},
+    fshape:{type:'lines', name:'Fっぽい', lines:[[[0.25,0.12],[0.25,0.88]],[[0.25,0.12],[0.72,0.12]],[[0.25,0.5],[0.62,0.5]]]},
+    notch:{type:'lines', name:'ギザ', lines:[[[0.15,0.12],[0.55,0.12]],[[0.55,0.12],[0.85,0.32]],[[0.85,0.32],[0.55,0.5]],[[0.55,0.5],[0.85,0.68]],[[0.85,0.68],[0.55,0.88]],[[0.55,0.88],[0.15,0.88]],[[0.15,0.88],[0.15,0.12]]]},
+    tflag:{type:'lines', name:'はた', lines:[[[0.2,0.12],[0.2,0.88]],[[0.2,0.12],[0.8,0.35]],[[0.8,0.35],[0.2,0.5]]]},
+  };
+  const GRIDPATS={
+    ga:{type:'grid', name:'ななめ3', n:3, cells:[1,0,0, 0,1,0, 0,0,1]},
+    gb:{type:'grid', name:'かど', n:3, cells:[1,1,0, 1,0,0, 0,0,0]},
+    gc:{type:'grid', name:'かたまり', n:3, cells:[0,0,1, 0,1,1, 1,1,1]},
+    gd:{type:'grid', name:'ちどり', n:3, cells:[1,0,1, 0,1,0, 1,0,1]},
+    ge:{type:'grid', name:'よこ帯', n:3, cells:[0,0,0, 1,1,1, 0,0,0]},
+    gf:{type:'grid', name:'たて帯', n:3, cells:[0,1,0, 0,1,0, 0,1,0]},
+    gg:{type:'grid', name:'かたはん', n:4, cells:[1,1,0,0, 1,1,0,0, 1,0,0,0, 1,0,0,0]},
+  };
+  const HAND={type:'hand', name:'✏️ 手書き'};
+  let cfg=load('kuru_ov')||{op:'stack', type:'line', a:'diag', b:'cross', foldDir:'v'};
+  if(!cfg.op){ cfg={op:'stack', type:(cfg.mode||'line'), a:cfg.a||'diag', b:cfg.b||'cross', foldDir:'v'}; save('kuru_ov',cfg); }
+  let st={tx:0,ty:0,ang:0, theta:0, drag:null, playing:false, raf:0, alive:true,
+          tool:'fold', hand:load('kuru_ov_hand')||[], hd:null};
+  const setOf=t=> t==='grid'?GRIDPATS:LINEFIGS;
+  const shp=k=> k==='hand'?HAND : (setOf(cfg.type)[k]||Object.values(setOf(cfg.type))[0]);
+  function work(){ const S=Math.min(W,H)*0.5; return {S, X0:cx-S/2, Y0:cy-S/2}; }
+
+  function paintAt(shape,color,X0,Y0,S){ ctx.fillStyle=color; ctx.strokeStyle=color; ctx.lineWidth=Math.max(5,S*0.03); ctx.lineCap='round'; ctx.lineJoin='round';
+    if(shape.type==='hand'){ ctx.lineWidth=Math.max(4,S*0.022);
+      st.hand.forEach(str=>{ if(str.length===1){ ctx.beginPath(); ctx.arc(X0+str[0][0]*S,Y0+str[0][1]*S,ctx.lineWidth/2,0,7); ctx.fill(); return; }
+        ctx.beginPath(); str.forEach((p,i)=> i?ctx.lineTo(X0+p[0]*S,Y0+p[1]*S):ctx.moveTo(X0+p[0]*S,Y0+p[1]*S)); ctx.stroke(); }); return; }
+    if(shape.type==='grid'){ const n=shape.n,cw=S/n; shape.cells.forEach((v,i)=>{ if(v){const x=i%n,y=(i/n|0); ctx.fillRect(X0+x*cw+1.5,Y0+y*cw+1.5,cw-3,cw-3);} }); }
+    else { if(shape.fills)shape.fills.forEach(f=>{ctx.beginPath();f.pts.forEach((p,i)=>i?ctx.lineTo(X0+p[0]*S,Y0+p[1]*S):ctx.moveTo(X0+p[0]*S,Y0+p[1]*S));ctx.closePath();ctx.fill();});
+           if(shape.lines)shape.lines.forEach(l=>{ctx.beginPath();ctx.moveTo(X0+l[0][0]*S,Y0+l[0][1]*S);ctx.lineTo(X0+l[1][0]*S,Y0+l[1][1]*S);ctx.stroke();}); } }
+  function normPt(p){ const {S,X0,Y0}=work(); return [Math.max(0,Math.min(1,(p.x-X0)/S)), Math.max(0,Math.min(1,(p.y-Y0)/S))]; }
+  function isHandDraw(){ return cfg.op==='fold' && cfg.a==='hand' && st.tool==='draw'; }
+  function rect(X0,Y0,w,h,color,dash){ ctx.save(); ctx.strokeStyle=color; ctx.lineWidth=2; if(dash)ctx.setLineDash([6,6]); ctx.strokeRect(X0,Y0,w,h); ctx.restore(); }
+
+  function drawStack(){ const {S,X0,Y0}=work();
+    const ms=S*0.34; paintAt(shp(cfg.a),'#4a90d9',20,20,ms); rect(20,20,ms,ms,'#9cc0ec');
+    ctx.fillStyle='#678'; ctx.font='12px sans-serif'; ctx.textAlign='left'; ctx.fillText('1まいめ',20,20+ms+14);
+    paintAt(shp(cfg.b),'#e0433e',20+ms+16,20,ms); rect(20+ms+16,20,ms,ms,'#eda9a2'); ctx.fillText('2まいめ（動かせる）',20+ms+16,20+ms+14);
+    rect(X0,Y0,S,S,'#c8d2e0',true);
+    ctx.save(); ctx.globalCompositeOperation='multiply';
+    paintAt(shp(cfg.a),'#7fb2ec',X0,Y0,S);
+    ctx.save(); ctx.translate(X0+S/2+st.tx,Y0+S/2+st.ty); ctx.rotate(st.ang); ctx.translate(-(X0+S/2),-(Y0+S/2)); paintAt(shp(cfg.b),'#ef8b83',X0,Y0,S); ctx.restore();
+    ctx.restore();
+    ctx.save(); ctx.translate(X0+S/2+st.tx,Y0+S/2+st.ty); ctx.rotate(st.ang); ctx.translate(-(X0+S/2),-(Y0+S/2)); rect(X0,Y0,S,S,'rgba(224,67,62,.5)'); ctx.restore();
+    setStatus('赤い「2まいめ」をドラッグ、または「▶ 重ねる」で重なる様子を見よう。重なりは色が濃く');
+  }
+
+  // 折り定義（v:たて h:よこ d1:／ d2:＼）
+  function foldDef(){ const {S,X0,Y0}=work(); const Cx=X0+S/2, Cy=Y0+S/2, X1=X0+S, Y1=Y0+S;
+    switch(cfg.foldDir){
+      case 'h': return {ang:0, line:[[X0,Cy],[X1,Cy]], half:[[X0,Cy],[X1,Cy],[X1,Y1],[X0,Y1]], fixed:[[X0,Y0],[X1,Y0],[X1,Cy],[X0,Cy]]};
+      case 'd1': return {ang:Math.PI/4, line:[[X0,Y0],[X1,Y1]], half:[[X0,Y0],[X0,Y1],[X1,Y1]], fixed:[[X0,Y0],[X1,Y0],[X1,Y1]]};
+      case 'd2': return {ang:3*Math.PI/4, line:[[X1,Y0],[X0,Y1]], half:[[X1,Y0],[X1,Y1],[X0,Y1]], fixed:[[X0,Y0],[X1,Y0],[X0,Y1]]};
+      default:  return {ang:Math.PI/2, line:[[Cx,Y0],[Cx,Y1]], half:[[Cx,Y0],[X1,Y0],[X1,Y1],[Cx,Y1]], fixed:[[X0,Y0],[Cx,Y0],[Cx,Y1],[X0,Y1]]};
+    } }
+  function clipPoly(poly){ ctx.beginPath(); poly.forEach((p,i)=> i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1])); ctx.closePath(); ctx.clip(); }
+  function drawFold(){ const {S,X0,Y0}=work(); const shape=shp(cfg.a); const F=foldDef(); const c=Math.cos(st.theta);
+    const Cx=X0+S/2, Cy=Y0+S/2;
+    rect(X0,Y0,S,S,'#c8d2e0');
+    // 固定側
+    ctx.save(); clipPoly(F.fixed); paintAt(shape,'#7fb2ec',X0,Y0,S); ctx.restore();
+    // 折れる側（折り線を軸に奥行き→90°で消え→鏡像で反対側へ）
+    ctx.save();
+    ctx.translate(Cx,Cy); ctx.rotate(-F.ang); ctx.scale(1,c); ctx.rotate(F.ang); ctx.translate(-Cx,-Cy);
+    clipPoly(F.half);
+    ctx.globalCompositeOperation='multiply'; ctx.globalAlpha=0.5+0.5*Math.abs(c);
+    paintAt(shape,'#ef8b83',X0,Y0,S); ctx.restore();
+    // 折り線
+    ctx.save(); ctx.strokeStyle='#f0a93b'; ctx.lineWidth=3; ctx.setLineDash([8,6]);
+    ctx.beginPath(); ctx.moveTo(F.line[0][0],F.line[0][1]); ctx.lineTo(F.line[1][0],F.line[1][1]); ctx.stroke(); ctx.restore();
+    const pct=Math.round(st.theta/Math.PI*100);
+    if(isHandDraw()) setStatus('✏️ 指やペンで模様をかこう。かけたら「✋ おる」で折って重なりを見よう');
+    else setStatus(`「▶ おりたたむ」または折り線をまたぐ向きに指でドラッグして折ろう（${pct}%）。重なった形を見てね`);
+  }
+  function draw(){ ctx.clearRect(0,0,W,H); if(cfg.op==='fold') drawFold(); else drawStack(); }
+
+  function stopAnim(){ if(st.raf){cancelAnimationFrame(st.raf);st.raf=0;} st.playing=false; }
+  function play(){ if(st.playing) return; st.playing=true; const t0=performance.now();
+    if(cfg.op==='fold'){ st.theta=0; (function s(t){ if(!st.alive)return; const k=Math.min(1,(t-t0)/1000); const e=0.5-0.5*Math.cos(Math.PI*k); st.theta=Math.PI*e; draw(); if(k<1)st.raf=requestAnimationFrame(s); else st.playing=false; })(t0); }
+    else { const fx=st.tx,fy=st.ty,fa=st.ang; (function s(t){ if(!st.alive)return; const k=Math.min(1,(t-t0)/700); const e=1-Math.pow(1-k,3); st.tx=fx*(1-e); st.ty=fy*(1-e); st.ang=fa*(1-e); draw(); if(k<1)st.raf=requestAnimationFrame(s); else st.playing=false; })(t0); } }
+  function reset(){ stopAnim(); if(cfg.op==='fold'){ st.theta=0; } else { const {S}=work(); st.tx=S*0.75; st.ty=-S*0.25; st.ang=0; } draw(); }
+
+  function pointerdown(e){ cv.setPointerCapture(e.pointerId); const p=pt(e);
+    if(isHandDraw()){ const s=[normPt(p)]; st.hand.push(s); st.hd=s; draw(); return; }
+    stopAnim(); st.drag={x:p.x,y:p.y,sx:p.x,sy:p.y,theta0:st.theta,tx0:st.tx,ty0:st.ty}; }
+  function pointermove(e){ const p=pt(e);
+    if(st.hd){ const q=normPt(p); const last=st.hd[st.hd.length-1]; if(Math.hypot(q[0]-last[0],q[1]-last[1])>0.004){ st.hd.push(q); draw(); } return; }
+    if(!st.drag)return; const {S}=work();
+    if(cfg.op==='fold'){ const F=foldDef(); // 折れる側の中心→折り線 方向へドラッグすると折れる
+      const lm=[(F.line[0][0]+F.line[1][0])/2,(F.line[0][1]+F.line[1][1])/2];
+      let cxx=0,cyy=0; F.half.forEach(q=>{cxx+=q[0];cyy+=q[1];}); cxx/=F.half.length; cyy/=F.half.length;
+      let dx=lm[0]-cxx, dy=lm[1]-cyy; const m=Math.hypot(dx,dy)||1; dx/=m; dy/=m;
+      const dp=(p.x-st.drag.sx)*dx+(p.y-st.drag.sy)*dy;
+      st.theta=Math.max(0,Math.min(Math.PI, st.drag.theta0 + dp/(S*0.5)*Math.PI)); }
+    else { st.tx=st.drag.tx0+(p.x-st.drag.x); st.ty=st.drag.ty0+(p.y-st.drag.y); }
+    draw(); }
+  function up(){ if(st.hd){ st.hd=null; save('kuru_ov_hand',st.hand); return; }
+    if(st.drag && cfg.op==='stack'){ const {S}=work(); if(Math.hypot(st.tx,st.ty)<S*0.12){ st.tx=0; st.ty=0; draw(); } } st.drag=null; }
+  const pointerup=up,pointercancel=up,pointerleave=up;
+
+  function toolbar(){ setToolbar(`
+    <div class="seg"><button class="btn small ${cfg.op==='stack'?'on':''}" id="o_stack">かさねる</button>
+    <button class="btn small ${cfg.op==='fold'?'on':''}" id="o_fold">おりたたむ</button></div>
+    <div class="seg"><button class="btn small ${cfg.type==='line'?'on':''}" id="o_tl">線の形</button>
+    <button class="btn small ${cfg.type==='grid'?'on':''}" id="o_tg">マス模様</button></div>
+    ${cfg.op==='fold'?`<div class="seg"><button class="btn small ${cfg.foldDir==='v'?'on':''}" id="o_dv">たて</button><button class="btn small ${cfg.foldDir==='h'?'on':''}" id="o_dh">よこ</button><button class="btn small ${cfg.foldDir==='d1'?'on':''}" id="o_d1">⟍</button><button class="btn small ${cfg.foldDir==='d2'?'on':''}" id="o_d2">⟋</button></div>
+      <button class="btn small ${cfg.a==='hand'?'on':''}" id="o_hand">✏️ 手書き</button>
+      ${cfg.a==='hand'?`<div class="seg"><button class="btn small ${st.tool==='draw'?'on':''}" id="o_td">✏️ かく</button><button class="btn small ${st.tool==='fold'?'on':''}" id="o_tf">✋ おる</button></div><button class="btn small" id="o_clr">🧽 消す</button>`:''}`
+      :`<button class="btn small" id="o_rl">↺</button><button class="btn small" id="o_rr">↻</button>`}
+    <button class="btn small primary" id="o_play">▶ ${cfg.op==='fold'?'おりたたむ':'重ねる'}</button>
+    <button class="btn small" id="o_reset">↩︎ もどす</button>
+    <button class="btn small primary" id="o_menu">⚙️ 形をえらぶ</button>`);
+    $('o_stack').onclick=()=>{cfg.op='stack';save('kuru_ov',cfg);reset();toolbar();};
+    $('o_fold').onclick=()=>{cfg.op='fold';save('kuru_ov',cfg);reset();toolbar();};
+    $('o_tl').onclick=()=>{cfg.type='line';cfg.a='diag';cfg.b='cross';save('kuru_ov',cfg);reset();toolbar();};
+    $('o_tg').onclick=()=>{cfg.type='grid';cfg.a='ga';cfg.b='ge';save('kuru_ov',cfg);reset();toolbar();};
+    if(cfg.op==='fold'){ $('o_dv').onclick=()=>{cfg.foldDir='v';save('kuru_ov',cfg);reset();toolbar();}; $('o_dh').onclick=()=>{cfg.foldDir='h';save('kuru_ov',cfg);reset();toolbar();};
+      $('o_d1').onclick=()=>{cfg.foldDir='d1';save('kuru_ov',cfg);reset();toolbar();}; $('o_d2').onclick=()=>{cfg.foldDir='d2';save('kuru_ov',cfg);reset();toolbar();};
+      $('o_hand').onclick=()=>{ if(cfg.a==='hand'){ cfg.a=(cfg.type==='grid'?'ga':'diag'); } else { cfg.a='hand'; st.tool='draw'; } save('kuru_ov',cfg); st.theta=0; toolbar(); draw(); };
+      if(cfg.a==='hand'){ $('o_td').onclick=()=>{st.tool='draw';st.theta=0;toolbar();draw();}; $('o_tf').onclick=()=>{st.tool='fold';toolbar();draw();};
+        $('o_clr').onclick=()=>{st.hand=[];save('kuru_ov_hand',st.hand);draw();}; } }
+    else { $('o_rl').onclick=()=>{st.ang-=Math.PI/2;draw();}; $('o_rr').onclick=()=>{st.ang+=Math.PI/2;draw();}; }
+    $('o_play').onclick=play; $('o_reset').onclick=reset; $('o_menu').onclick=drawer; }
+  function drawer(){ const s=setOf(cfg.type); const opts=Object.entries(s).map(([k,v])=>`<option value="${k}">${v.name}</option>`).join('');
+    openDrawer(`<h2>⚙️ かさねてみよう</h2>
+      ${cfg.op==='fold'
+        ? `<h3>おりたたむ形</h3><select id="o_a" style="width:100%;padding:8px;font-size:16px;border-radius:8px;border:1px solid var(--line)">${opts}</select>
+           <p class="hint">折り線（オレンジ）で二つ折り。指で左右/上下にドラッグしてゆっくり折る、または「▶ おりたたむ」。折り重なった形が濃く出ます。</p>`
+        : `<h3>1まいめ（青）</h3><select id="o_a" style="width:100%;padding:8px;font-size:16px;border-radius:8px;border:1px solid var(--line)">${opts}</select>
+           <h3>2まいめ（赤・動かせる）</h3><select id="o_b" style="width:100%;padding:8px;font-size:16px;border-radius:8px;border:1px solid var(--line)">${opts}</select>
+           <p class="hint">2枚をドラッグして重ね、合わさった形を確認。「▶ 重ねる」で自動で重なります。</p>`}`);
+    $('o_a').value=cfg.a; $('o_a').onchange=e=>{cfg.a=e.target.value;save('kuru_ov',cfg);draw();};
+    if(cfg.op==='stack'){ $('o_b').value=cfg.b; $('o_b').onchange=e=>{cfg.b=e.target.value;save('kuru_ov',cfg);draw();}; } }
+  return { draw, pointerdown, pointermove, pointerup, pointercancel, pointerleave,
+    mount(){ st.alive=true; toolbar(); reset(); }, unmount(){ st.alive=false; stopAnim(); } };
+}
+/* =========================================================================
+   モジュール10: きおくゲーム  テスト2（記憶）
+   絵と向き（右/左）を覚えて、同じものを当てる。正誤つき・ランダム出題。
+   ※ POOL に画像を足せば拡張可（今は絵文字）
+   ========================================================================= */
+function MemoryModule(){
+  const POOL=[
+    {e:'🐧',n:'ペンギン'},{e:'🐤',n:'ひよこ'},{e:'🦆',n:'あひる'},{e:'🐕',n:'いぬ'},{e:'🐈',n:'ねこ'},
+    {e:'🐎',n:'うま'},{e:'🐘',n:'ぞう'},{e:'🐊',n:'わに'},{e:'🦖',n:'きょうりゅう'},{e:'🐇',n:'うさぎ'},
+    {e:'🐢',n:'かめ'},{e:'🦩',n:'フラミンゴ'},{e:'🐁',n:'ねずみ'},{e:'🐛',n:'いもむし'},{e:'🦋',n:'ちょう'},
+    {e:'🚗',n:'くるま'},{e:'🚌',n:'バス'},{e:'🚕',n:'タクシー'},{e:'🏎️',n:'レーシングカー'},{e:'🚲',n:'じてんしゃ'},
+    {e:'🛵',n:'スクーター'},{e:'✈️',n:'ひこうき'},{e:'🚀',n:'ロケット'},{e:'⛵',n:'ヨット'},{e:'🏃',n:'はしる人'},
+  ];
+  const cfg=Object.assign({k:3, sec:5, choices:4, useDir:true}, load('kuru_mem')||{});
+  let st={phase:'idle', items:[], qi:0, ans:[], choices:[], rects:[], feedback:null, t0:0, dur:0, raf:0, alive:true};
+
+  function glyphF(e,x,y,size,dir){ ctx.save(); ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.font=`${Math.round(size)}px -apple-system,"Noto Color Emoji","Noto Sans JP",sans-serif`;
+    ctx.translate(x,y); ctx.scale(dir||1,1); ctx.fillText(e,0,0); ctx.restore(); }
+  function shuffle(a){ for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
+  function pick(n){ return shuffle(POOL.slice()).slice(0,n); }
+  const dir=()=> cfg.useDir ? (Math.random()<0.5?-1:1) : 1;
+
+  function stopLoop(){ if(st.raf){cancelAnimationFrame(st.raf);st.raf=0;} }
+  function start(){ stopLoop(); const items=pick(cfg.k).map(it=>({it, d:dir()}));
+    st.items=items; st.qi=0; st.ans=[]; st.phase='show'; st.t0=performance.now(); st.dur=cfg.sec*1000; toolbar(); loop(); }
+  function loop(){ if(st.phase!=='show'||!st.alive) return; const el=performance.now()-st.t0;
+    if(el>=st.dur){ toQuiz(); return; } draw(); st.raf=requestAnimationFrame(loop); }
+  function toQuiz(){ stopLoop(); st.phase='quiz'; st.qi=0; buildChoices(); toolbar(); draw(); }
+  function buildChoices(){ const cur=st.items[st.qi]; const list=[{it:cur.it,d:cur.d,correct:true}]; const seen=new Set([cur.it.e+cur.d]);
+    if(cfg.useDir){ const k=cur.it.e+(-cur.d); if(!seen.has(k)){ seen.add(k); list.push({it:cur.it,d:-cur.d,correct:false}); } }
+    const others=shuffle(POOL.filter(p=>p.e!==cur.it.e));
+    for(const o of others){ if(list.length>=cfg.choices) break; const d=dir(); const k=o.e+d; if(!seen.has(k)){ seen.add(k); list.push({it:o,d,correct:false}); } }
+    st.choices=shuffle(list); st.feedback=null; }
+  function answer(i){ if(st.feedback) return; const c=st.choices[i]; st.feedback={i, correct:c.correct};
+    st.ans[st.qi]={chosen:c, correct:c.correct}; draw();
+    setTimeout(()=>{ if(!st.alive) return; if(st.qi<st.items.length-1){ st.qi++; buildChoices(); draw(); } else { st.phase='result'; toolbar(); draw(); } }, 850); }
+
+  function draw(){ ctx.clearRect(0,0,W,H);
+    if(st.phase==='idle'){ ctx.textAlign='center'; ctx.fillStyle='#334'; ctx.font='bold 26px sans-serif';
+      ctx.fillText('🧠 きおくゲーム', cx, cy-40); ctx.font='16px sans-serif'; ctx.fillStyle='#678';
+      ctx.fillText(`${cfg.k}この 絵と むき を おぼえて、あとで あてよう`, cx, cy);
+      ctx.fillText('「▶ スタート」で はじまるよ', cx, cy+28); return; }
+    if(st.phase==='show'){ const n=st.items.length, cellW=Math.min(W/(n+1),160), sz=cellW*0.7, y=cy;
+      const sx=cx-n*cellW/2;
+      ctx.textAlign='center'; ctx.fillStyle='#334'; ctx.font='bold 22px sans-serif'; ctx.fillText('よく おぼえてね！', cx, cy-cellW*0.9);
+      st.items.forEach((m,i)=>{ const x=sx+i*cellW+cellW/2; glyphF(m.it.e,x,y,sz,m.d);
+        ctx.fillStyle='#8090a2'; ctx.font='14px sans-serif'; ctx.fillText(`${i+1}`, x, y+cellW*0.55); });
+      // タイムバー
+      const rem=Math.max(0,1-(performance.now()-st.t0)/st.dur); const bw=Math.min(W*0.6,420);
+      ctx.fillStyle='#e6ebf2'; ctx.fillRect(cx-bw/2, cy+cellW*0.95, bw, 12);
+      ctx.fillStyle='#2b6cb0'; ctx.fillRect(cx-bw/2, cy+cellW*0.95, bw*rem, 12); return; }
+    if(st.phase==='quiz'){ ctx.textAlign='center'; ctx.fillStyle='#334'; ctx.font='bold 22px sans-serif';
+      ctx.fillText(`${st.qi+1}ばんめ は どれ？（${st.qi+1}/${st.items.length}）`, cx, H*0.16);
+      const n=st.choices.length, cellW=Math.min(W/(n+0.5),190), gap=cellW*0.12, sz=cellW-gap*2, oy=cy-sz/2, sx=cx-n*cellW/2; st.rects=[];
+      st.choices.forEach((c,i)=>{ const ox=sx+i*cellW+gap;
+        ctx.fillStyle='#fff'; ctx.strokeStyle='#c8d2e0'; ctx.lineWidth=2; roundRect(ox,oy,sz,sz,14); ctx.fill(); ctx.stroke();
+        glyphF(c.it.e, ox+sz/2, oy+sz/2, sz*0.6, c.d);
+        if(st.feedback&&st.feedback.i===i){ ctx.font='40px sans-serif'; ctx.fillText(c.correct?'⭕️':'❌', ox+sz/2, oy+sz/2); }
+        st.rects.push({x:ox,y:oy,w:sz,h:sz,i}); });
+      const done=st.ans.filter(a=>a&&a.correct).length; setStatus(`せいかい ${done} ／ ${st.items.length}`); return; }
+    if(st.phase==='result'){ const score=st.ans.filter(a=>a&&a.correct).length;
+      ctx.textAlign='center'; ctx.fillStyle='#334'; ctx.font='bold 28px sans-serif';
+      ctx.fillText(`${st.items.length}もん中 ${score}もん せいかい！`, cx, H*0.2);
+      const n=st.items.length, cellW=Math.min(W/(n+1),150), sz=cellW*0.52, y=cy; const sx=cx-n*cellW/2;
+      ctx.font='14px sans-serif'; ctx.fillStyle='#678'; ctx.fillText('でた絵（上）と えらんだ絵（下）', cx, y-cellW*0.7);
+      st.items.forEach((m,i)=>{ const x=sx+i*cellW+cellW/2; glyphF(m.it.e,x,y-cellW*0.35,sz,m.d);
+        const a=st.ans[i]; if(a) glyphF(a.chosen.it.e,x,y+cellW*0.35,sz,a.chosen.d);
+        ctx.font='26px sans-serif'; ctx.fillText(a&&a.correct?'⭕️':'❌', x, y); });
+      setStatus('「🔄 もう一度」で あたらしい もんだい'); return; }
+  }
+  function roundRect(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+
+  function pointerdown(e){ if(st.phase!=='quiz'||st.feedback) return; const p=pt(e);
+    for(const r of st.rects){ if(p.x>=r.x&&p.x<=r.x+r.w&&p.y>=r.y&&p.y<=r.y+r.h){ answer(r.i); break; } } }
+
+  function toolbar(){ let btns='';
+    if(st.phase==='idle') btns=`<button class="btn small primary" id="m_start">▶ スタート</button>`;
+    else if(st.phase==='show') btns=`<button class="btn small" id="m_hide">🙈 かくす</button>`;
+    else if(st.phase==='result') btns=`<button class="btn small primary" id="m_again">🔄 もう一度</button>`;
+    else btns=`<button class="btn small" id="m_again2">やめる</button>`;
+    setToolbar(`${btns}<button class="btn small primary" id="m_menu">⚙️ せってい</button>`);
+    if($('m_start'))$('m_start').onclick=start;
+    if($('m_hide'))$('m_hide').onclick=toQuiz;
+    if($('m_again'))$('m_again').onclick=start;
+    if($('m_again2'))$('m_again2').onclick=()=>{stopLoop();st.phase='idle';toolbar();setStatus('');draw();};
+    $('m_menu').onclick=drawer; }
+  function drawer(){ openDrawer(`<h2>⚙️ きおくゲーム</h2>
+    <h3>おぼえる数</h3><div class="row"><input type="range" id="m_k" min="2" max="6" value="${cfg.k}"><span id="m_kv">${cfg.k}</span></div>
+    <h3>見る時間（びょう）</h3><div class="row"><input type="range" id="m_s" min="2" max="12" value="${cfg.sec}"><span id="m_sv">${cfg.sec}</span></div>
+    <h3>えらぶ数（選択肢）</h3><div class="row"><input type="range" id="m_c" min="2" max="4" value="${cfg.choices}"><span id="m_cv">${cfg.choices}</span></div>
+    <h3>向き（右/左）も かえる</h3><div class="row"><button class="btn small ${cfg.useDir?'on':''}" id="m_dir">${cfg.useDir?'ON':'OFF'}</button></div>
+    <p class="hint">絵＋向きを覚えて、同じ絵を当てるゲーム（正誤つき・毎回ランダム）。あとで画像を追加して問題を増やせます。</p>`);
+    $('m_k').oninput=e=>{cfg.k=+e.target.value;$('m_kv').textContent=cfg.k;save('kuru_mem',cfg);};
+    $('m_s').oninput=e=>{cfg.sec=+e.target.value;$('m_sv').textContent=cfg.sec;save('kuru_mem',cfg);};
+    $('m_c').oninput=e=>{cfg.choices=+e.target.value;$('m_cv').textContent=cfg.choices;save('kuru_mem',cfg);};
+    $('m_dir').onclick=()=>{cfg.useDir=!cfg.useDir;save('kuru_mem',cfg);drawer();}; }
+  return { draw, pointerdown, mount(){ st.alive=true; st.phase='idle'; toolbar(); draw(); }, unmount(){ st.alive=false; stopLoop(); } };
+}
+
+/* =========================================================================
+   モジュール11: おかね  テスト5（数量）
+   コインを置く/動かす/薄くする(使った)/両替、ペン書き込み、のこり自動集計
+   ========================================================================= */
+function MoneyModule(){
+  const YEN={
+    1:{c:'#d0d3d5', edge:'#a7abad', hole:false, txt:'#555', r:0.82},
+    5:{c:'#d8b36a', edge:'#a9863f', hole:true, txt:'#6b4e1e', r:0.94},
+    10:{c:'#c47c46', edge:'#8f5a2e', hole:false, txt:'#fff', r:1.0},
+    50:{c:'#d6d9db', edge:'#a7abad', hole:true, txt:'#555', r:0.92},
+    100:{c:'#d6d9db', edge:'#a7abad', hole:false, txt:'#444', r:1.06},
+    500:{c:'#e0c05a', edge:'#b0913e', hole:false, txt:'#5f4a12', r:1.18},
+  };
+  const DENOMS=[1,5,10,50,100,500];
+  const PENCOL=['#e0322e','#222','#2b6cb0'];
+  const saved=load('kuru_money')||{};
+  let st={coins:saved.coins||[], pen:saved.pen||[], tool:'move', drag:null, hd:null, penColor:'#e0322e', nextId:saved.nextId||1};
+  function baseR(){ return Math.min(W,H)*0.05; }
+  function persist(){ save('kuru_money',{coins:st.coins, pen:st.pen, nextId:st.nextId}); }
+
+  function drawCoin(co){ const d=YEN[co.v], r=baseR()*d.r; ctx.save(); if(co.spent) ctx.globalAlpha=0.22;
+    ctx.beginPath(); ctx.arc(co.x,co.y,r,0,7); ctx.fillStyle=d.c; ctx.fill();
+    ctx.lineWidth=Math.max(2,r*0.09); ctx.strokeStyle=d.edge; ctx.stroke();
+    if(d.hole){ ctx.beginPath(); ctx.arc(co.x,co.y,r*0.34,0,7); ctx.fillStyle='#eef2f7'; ctx.fill(); ctx.lineWidth=1.5; ctx.strokeStyle=d.edge; ctx.stroke(); }
+    ctx.fillStyle=d.txt; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.font=`bold ${Math.round(r*0.58)}px sans-serif`;
+    ctx.fillText(String(co.v), co.x, co.y + (d.hole? r*0.5 : 0)); ctx.restore(); }
+
+  function total(){ let rem=0,used=0,n=0; st.coins.forEach(c=>{ if(c.spent) used+=c.v; else { rem+=c.v; n++; } }); return {rem,used,n}; }
+  function drawPanel(){ const t=total(); ctx.textAlign='left'; ctx.fillStyle='#233'; ctx.font='bold 26px sans-serif';
+    ctx.fillText(`のこり ${t.rem} 円`, 20, 34); ctx.font='14px sans-serif'; ctx.fillStyle='#8090a2';
+    ctx.fillText(`つかった ${t.used} 円 ／ コイン ${t.n} こ（うすいのは「つかった」）`, 20, 58); }
+
+  function draw(){ ctx.clearRect(0,0,W,H); st.coins.forEach(drawCoin);
+    st.pen.forEach(s=>{ ctx.strokeStyle=s.color; ctx.lineWidth=4; ctx.lineCap='round'; ctx.lineJoin='round';
+      if(s.pts.length===1){ ctx.fillStyle=s.color; ctx.beginPath(); ctx.arc(s.pts[0].x,s.pts[0].y,2,0,7); ctx.fill(); return; }
+      ctx.beginPath(); s.pts.forEach((p,i)=> i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y)); ctx.stroke(); });
+    drawPanel(); }
+
+  function addCoin(v){ st.coins.push({id:st.nextId++, v, x:cx+(Math.random()-0.5)*180, y:cy+(Math.random()-0.4)*140, spent:false}); persist(); draw(); }
+
+  function pointerdown(e){ cv.setPointerCapture(e.pointerId); const p=pt(e);
+    if(st.tool==='pen'){ const s={color:st.penColor, pts:[{x:p.x,y:p.y}]}; st.pen.push(s); st.hd=s; draw(); return; }
+    for(let i=st.coins.length-1;i>=0;i--){ const co=st.coins[i], r=baseR()*YEN[co.v].r;
+      if(Math.hypot(p.x-co.x,p.y-co.y)<=r){ st.drag={co,ox:co.x-p.x,oy:co.y-p.y,dx0:p.x,dy0:p.y,moved:false};
+        st.coins.splice(i,1); st.coins.push(co); draw(); return; } } }
+  function pointermove(e){ const p=pt(e);
+    if(st.hd){ const l=st.hd.pts[st.hd.pts.length-1]; if(Math.hypot(p.x-l.x,p.y-l.y)>2){ st.hd.pts.push({x:p.x,y:p.y}); draw(); } return; }
+    if(!st.drag) return; if(Math.hypot(p.x-st.drag.dx0,p.y-st.drag.dy0)>5) st.drag.moved=true;
+    st.drag.co.x=p.x+st.drag.ox; st.drag.co.y=p.y+st.drag.oy; draw(); }
+  function up(){ if(st.hd){ st.hd=null; persist(); return; }
+    if(st.drag){ if(!st.drag.moved){ st.drag.co.spent=!st.drag.co.spent; } persist(); draw(); } st.drag=null; }
+  const pointerup=up,pointercancel=up,pointerleave=up;
+
+  function toolbar(){ setToolbar(`
+    ${DENOMS.map(v=>`<button class="btn small" data-add="${v}" style="font-weight:bold">${v}円</button>`).join('')}
+    <div class="seg"><button class="btn small ${st.tool==='move'?'on':''}" id="mo_move">✋ うごかす</button><button class="btn small ${st.tool==='pen'?'on':''}" id="mo_pen">✏️ かきこみ</button></div>
+    ${st.tool==='pen'?PENCOL.map(c=>`<button class="btn small" data-pc="${c}" style="width:32px;padding:0;background:${c};${st.penColor===c?'outline:3px solid #233;outline-offset:1px':''}">&nbsp;</button>`).join('')+'<button class="btn small" id="mo_pclr">🧽 ペン消す</button>':''}
+    <button class="btn small" id="mo_clr">🗑️ ぜんぶ</button>`);
+    document.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>addCoin(+b.dataset.add));
+    $('mo_move').onclick=()=>{st.tool='move';toolbar();};
+    $('mo_pen').onclick=()=>{st.tool='pen';toolbar();};
+    document.querySelectorAll('[data-pc]').forEach(b=>b.onclick=()=>{st.penColor=b.dataset.pc;toolbar();});
+    if($('mo_pclr'))$('mo_pclr').onclick=()=>{st.pen=[];persist();draw();};
+    $('mo_clr').onclick=()=>{ if(st.coins.length||st.pen.length){ st.coins=[];st.pen=[];persist();draw(); } }; }
+  return { draw, pointerdown, pointermove, pointerup, pointercancel, pointerleave,
+    mount(){ toolbar(); setStatus('上のボタンでコインを出す→ドラッグで動かす／タップで「うすく（使った）」。のこりは自動で計算'); draw(); }, unmount(){} };
+}
+
+/* =========================================================================
+   モジュール12: おはなしづくり（絵を見てお話）  口頭試問・絵の説明
+   場面×人物(ポーズ/表情)×小物 をランダム生成。質問プロンプト付き。
+   ========================================================================= */
+function StoryModule(){
+  // 絵カード（ChatGPT等で作った実画像）。app/scenes に同梱＋端末へ追加も可
+  const BUNDLED=Array.from({length:12},(_,i)=>`scenes/scene${String(i+1).padStart(2,'0')}.jpg`);
+  const QS=['① これは どんな ばしょ？','② だれが いる？','③ なにを して いる？','④ どうして そう なった？','⑤ どんな きもち／この あと どう なる？'];
+  let st={list:[], order:[], pos:0, cache:{}, fileInput:null};
+  function loadCustom(){ return load('kuru_story_custom')||[]; }
+  function rebuild(keepSrc){ st.list=BUNDLED.concat(loadCustom());
+    st.order=st.list.map((_,i)=>i); for(let i=st.order.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[st.order[i],st.order[j]]=[st.order[j],st.order[i]];}
+    st.pos=0; if(keepSrc){ const k=st.order.findIndex(i=>st.list[i]===keepSrc); if(k>=0)st.pos=k; } }
+  function curSrc(){ return st.list[st.order[st.pos]]; }
+  function getImg(src){ if(st.cache[src])return st.cache[src]; const im=new Image(); im.onload=()=>{ if(curSrc()===src) draw(); }; im.src=src; st.cache[src]=im; return im; }
+
+  function pic(){ const bw=Math.min(W-40,(H-150)*1.32); const bh=Math.min(H-150,bw/1.32); return {x:cx-bw/2,y:16,w:bw,h:bh}; }
+  function draw(){ ctx.clearRect(0,0,W,H); const b=pic();
+    ctx.fillStyle='#fff'; ctx.fillRect(b.x,b.y,b.w,b.h);
+    const src=curSrc(); const im=src?getImg(src):null;
+    if(im&&im.complete&&im.naturalWidth){ const ar=im.naturalWidth/im.naturalHeight, br=b.w/b.h; let dw,dh;
+      if(ar>br){ dw=b.w; dh=b.w/ar; } else { dh=b.h; dw=b.h*ar; }
+      ctx.drawImage(im, b.x+(b.w-dw)/2, b.y+(b.h-dh)/2, dw, dh); }
+    else { ctx.fillStyle='#8090a2'; ctx.font='16px sans-serif'; ctx.textAlign='center'; ctx.fillText('よみこみ中…', cx, b.y+b.h/2); }
+    ctx.save(); ctx.strokeStyle='#334'; ctx.lineWidth=3; ctx.strokeRect(b.x,b.y,b.w,b.h); ctx.restore();
+    // 番号
+    ctx.fillStyle='#8090a2'; ctx.font='13px sans-serif'; ctx.textAlign='right';
+    ctx.fillText(`${st.pos+1} / ${st.list.length}`, b.x+b.w, b.y+b.h+16);
+    // 質問
+    const qy=b.y+b.h+16; ctx.textAlign='left'; ctx.fillStyle='#233'; ctx.font='bold 15px sans-serif';
+    ctx.fillText('この えを みて、おはなし してね：', b.x, qy);
+    ctx.font='14px sans-serif'; ctx.fillStyle='#456';
+    QS.forEach((q,i)=>{ ctx.fillText(q, b.x+(i%2)*b.w*0.5, qy+22+Math.floor(i/2)*22); });
+    setStatus('「これはどんな場？」「何をしている？」「どうしてそうなった？」を自分の言葉で話そう。📷で保存・印刷も');
+  }
+  function next(d){ st.pos=(st.pos+d+st.order.length)%st.order.length; draw(); }
+
+  function addImages(files){ let left=files.length; if(!left) return;
+    Array.from(files).forEach(f=>{ const r=new FileReader(); r.onload=()=>{ const im=new Image(); im.onload=()=>{
+      const max=900, sc=Math.min(1,max/Math.max(im.naturalWidth,im.naturalHeight));
+      const c=document.createElement('canvas'); c.width=Math.round(im.naturalWidth*sc); c.height=Math.round(im.naturalHeight*sc);
+      c.getContext('2d').drawImage(im,0,0,c.width,c.height); const data=c.toDataURL('image/jpeg',0.82);
+      const cus=loadCustom(); cus.push(data); save('kuru_story_custom',cus);
+      if(--left===0){ rebuild(); draw(); toolbar(); } }; im.src=r.result; }; r.readAsDataURL(f); }); }
+
+  function toolbar(){ const nCus=loadCustom().length; setToolbar(`
+    <button class="btn small" id="s_prev">◀ まえ</button>
+    <button class="btn small primary" id="s_next">つぎ ▶</button>
+    <button class="btn small" id="s_add">➕ 絵をついか</button>
+    ${nCus?`<button class="btn small" id="s_del">🗑️ ついかを消す(${nCus})</button>`:''}`);
+    $('s_prev').onclick=()=>next(-1); $('s_next').onclick=()=>next(1);
+    $('s_add').onclick=()=>{ if(!st.fileInput){ st.fileInput=document.createElement('input'); st.fileInput.type='file'; st.fileInput.accept='image/*'; st.fileInput.multiple=true; st.fileInput.style.display='none'; document.body.appendChild(st.fileInput);
+      st.fileInput.onchange=e=>{ addImages(e.target.files); e.target.value=''; }; } st.fileInput.click(); };
+    if($('s_del'))$('s_del').onclick=()=>{ if(confirm('ついかした絵を全部消しますか？')){ save('kuru_story_custom',[]); rebuild(); draw(); toolbar(); } }; }
+  return { draw, mount(){ rebuild(); toolbar(); draw(); }, unmount(){} };
+}
+
+/* =========================================================================
+   モジュール定義（ホーム表示）
+   ========================================================================= */
+const MODULES={
+  wheel:{ title:'回転盤', icon:'🎡', desc:'円ばんを回して、だれの前に何がくるか。観覧車・二重円に対応。', make:WheelModule, tag:'回転推理' },
+  rotate:{ title:'回転図形', icon:'🔄', desc:'図形を指でぐりぐり回して、90°・180°でどう変わるか見る。裏返しも。', make:RotateModule, tag:'回転' },
+  overlay:{ title:'かさねてみよう', icon:'🔲', desc:'2枚の透明な形をドラッグして重ね、合わさった形を見る。', make:OverlayModule, tag:'重ね' },
+  roll:{ title:'タイル転がし', icon:'🎲', desc:'模様のタイルを1マスずつ転がして、向きの変化を見る。', make:RollModule, tag:'回転' },
+  view4:{ title:'積み木3D', icon:'🧊', desc:'つみ木を指で自由にぐりぐり回す本物の3D。三面図も表示。自分で組める。', make:View4Module, tag:'立体' },
+  grid:{ title:'マス目の回転', icon:'⬛', desc:'記号を置いた盤面をぐりぐり回して位置を追う。', make:GridRotModule, tag:'位置' },
+  compose:{ title:'図形構成', icon:'🧩', desc:'パーツをドラッグ＆回転して形を作る。', make:ComposeModule, tag:'構成' },
+  divide:{ title:'線で分ける', icon:'〰️', desc:'ペンで線を引いて両がわの数をくらべる。', make:DivideModule, tag:'数量' },
+  draw:{ title:'ホワイトボード', icon:'🖊️', desc:'じゆうにお絵かき。ペン対応・保存・画像書き出し・共有。板書にも。', make:DrawModule, tag:'えがく' },
+  memory:{ title:'きおくゲーム', icon:'🧠', desc:'絵と向き（右/左）を覚えて、同じものを当てる。正誤つき・ランダム出題。', make:MemoryModule, tag:'記憶' },
+  money:{ title:'おかね', icon:'🪙', desc:'コインを置く・動かす・薄くする（使った）・両替。ペン書き込み。のこりを自動集計。', make:MoneyModule, tag:'数量' },
+  story:{ title:'おはなしづくり', icon:'🖼️', desc:'絵を見てお話しする練習（口頭試問）。12場面の絵カード＋自分の絵を追加。質問つき・📷保存/印刷。', make:StoryModule, tag:'口頭試問' },
+};
+/* おぼえる表・プリント（静的HTML。全画面ビューアで表示＋印刷） */
+const SHEETS=[
+  {file:'uku-shizumu.html',      icon:'🛟', title:'うくもの・しずむもの', desc:'水にうく／しずむの分類とひっかけ'},
+  {file:'tsuchi-yasai.html',     icon:'🥕', title:'つちのうえ・つちのなか', desc:'土の上／中で育つ野菜'},
+  {file:'kisetsu-hana.html',     icon:'🌸', title:'きせつのはな（表）', desc:'春夏秋冬の花のまとめ'},
+  {file:'kisetsu-hana-svg.html', icon:'🌼', title:'きせつのはな（絵つき）', desc:'花びらの形つきイラスト'},
+  {file:'tamago-akachan.html',   icon:'🥚', title:'たまご・あかちゃん', desc:'卵で生まれる／赤ちゃんで生まれる'},
+  {file:'nyushi-4set.html',      icon:'📚', title:'入試プリント4枚セット', desc:'おぼえよう！4枚まとめ'},
+];
+function buildHome(){ const g=$('moduleGrid'); g.innerHTML='';
+  Object.entries(MODULES).forEach(([id,m])=>{ const c=document.createElement('div');
+    c.className='card'+(m.soon?' soon':''); c.innerHTML=`<div class="ico">${m.icon}</div>
+      <h3>${m.title}</h3><p>${m.desc}</p>
+      <span class="badge ${m.soon?'soon':''}">${m.soon?'じゅんび中':m.tag}</span>`;
+    if(!m.soon) c.onclick=()=>openModule(id); g.appendChild(c); });
+  const sg=$('sheetGrid'); sg.innerHTML='';
+  SHEETS.forEach(s=>{ const c=document.createElement('div'); c.className='card';
+    c.innerHTML=`<div class="ico">${s.icon}</div><h3>${s.title}</h3><p>${s.desc}</p><span class="badge">プリント</span>`;
+    c.onclick=()=>openSheet(s); sg.appendChild(c); });
+}
+function openSheet(s){ $('sheetTitle').textContent=s.title; $('sheetFrame').src='sheets/'+s.file;
+  $('sheetView').classList.add('show'); }
+function closeSheet(){ $('sheetView').classList.remove('show'); $('sheetFrame').src='about:blank'; }
+$('sheetBack').onclick=closeSheet;
+$('sheetPrint').onclick=()=>{ const f=$('sheetFrame'); try{ f.contentWindow.focus(); f.contentWindow.print(); }catch(_){ window.print(); } };
+
+/* ---------- 保存 ---------- */
+function save(k,v){ try{localStorage.setItem(k,JSON.stringify(v));}catch(_){}}
+function load(k){ try{const t=localStorage.getItem(k);return t?JSON.parse(t):null;}catch(_){return null;}}
+
+/* ---------- 起動 ---------- */
+buildHome();
+resize();
+
+/* ---------- PWA: Service Worker 登録（file://では無効・httpsで有効） ---------- */
+if('serviceWorker' in navigator && location.protocol.startsWith('http') && !window.KidsHome){
+  window.addEventListener('load', ()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); });
+}
+</script>
+</body>
+</html>

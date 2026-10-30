@@ -1,6 +1,17 @@
 package com.theta.kidshome.media
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.animateFloat
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.Job
+import com.theta.kidshome.ui.RetroButton
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.foundation.clickable
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -88,6 +99,13 @@ fun InstrumentScreen(onBack: () -> Unit) {
     var voice by remember { mutableStateOf(Voice.PIANO) }
     var kit by remember { mutableStateOf(Kit.DRUMS) }
     var octave by remember { mutableIntStateOf(0) }
+    var practice by remember { mutableStateOf(false) }
+    val songs = Songs.builtIn + Store.config.songs
+    var song by remember { mutableStateOf(songs.first()) }
+    val notes = remember(song) { Songs.parse(song.notes) }
+    var pos by remember { mutableIntStateOf(0) }
+    var demo by remember { mutableStateOf<Job?>(null) }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(voice, kit) { synth.prepare(voice, kit) }
     DisposableEffect(Unit) {
@@ -106,23 +124,62 @@ fun InstrumentScreen(onBack: () -> Unit) {
             Spacer(Modifier.height(10.dp))
 
             // ---- けんばん
-            RetroWindow(theme, Modifier.weight(1.15f).fillMaxWidth().padding(end = 6.dp, bottom = 6.dp), title = "けんばん　${voice.emoji} ${voice.label}", titleColor = theme.titleBars[0]) {
+            RetroWindow(
+                theme, Modifier.weight(if (practice) 2.2f else 1.15f).fillMaxWidth().padding(end = 6.dp, bottom = 6.dp),
+                title = if (practice) "れんしゅう　🎓 ${song.title}" else "けんばん　${voice.emoji} ${voice.label}",
+                titleColor = theme.titleBars[0],
+            ) {
                 Row(
                     Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 6.dp, vertical = 2.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Voice.entries.forEach { v -> RetroIconButton(v.emoji, theme, voice == v, 46.dp) { voice = v } }
                     Spacer(Modifier.width(16.dp))
-                    RetroIconButton("⬇️", theme, size = 46.dp) { octave = (octave - 1).coerceAtLeast(-1) }
-                    DotText(when (octave) { -1 -> "ひくい"; 1 -> "たかい"; else -> "ふつう" }, theme, 16)
-                    RetroIconButton("⬆️", theme, size = 46.dp) { octave = (octave + 1).coerceAtMost(1) }
+                    if (!practice) {
+                        RetroIconButton("⬇️", theme, size = 46.dp) { octave = (octave - 1).coerceAtLeast(-1) }
+                        DotText(when (octave) { -1 -> "ひくい"; 1 -> "たかい"; else -> "ふつう" }, theme, 16)
+                        RetroIconButton("⬆️", theme, size = 46.dp) { octave = (octave + 1).coerceAtMost(1) }
+                        Spacer(Modifier.width(16.dp))
+                    }
+                    RetroButton(if (practice) "おわる" else "🎓 れんしゅう", theme, theme.titleBars[1], fontSize = 16) {
+                        practice = !practice
+                        demo?.cancel()
+                        pos = 0
+                        octave = 0
+                    }
                 }
-                Keyboard(theme, Modifier.weight(1f).fillMaxWidth().padding(8.dp)) { key -> synth.playKey(voice, key, octave) }
+                if (practice) {
+                    PracticeBar(
+                        theme, songs, song, notes, pos, done = pos >= notes.size,
+                        onSong = { song = it; pos = 0; demo?.cancel() },
+                        onRestart = { pos = 0; demo?.cancel() },
+                        onDemo = {
+                            demo?.cancel()
+                            demo = scope.launch {
+                                pos = 0
+                                for ((i, n) in notes.withIndex()) {
+                                    pos = i
+                                    synth.playKey(voice, n.key)
+                                    delay(380L * n.beats)
+                                }
+                                pos = 0
+                            }
+                        },
+                    )
+                }
+                Keyboard(
+                    theme, Modifier.weight(1f).fillMaxWidth().padding(8.dp),
+                    glow = if (practice) notes.getOrNull(pos)?.key else null,
+                ) { key ->
+                    synth.playKey(voice, key, octave)
+                    // 光っている けん を押したら つぎへ（まちがえても まってくれる）
+                    if (practice && demo?.isActive != true && notes.getOrNull(pos)?.key == key) pos++
+                }
             }
             Spacer(Modifier.height(12.dp))
 
-            // ---- ドラムパッド
-            RetroWindow(theme, Modifier.weight(1f).fillMaxWidth().padding(end = 6.dp, bottom = 6.dp), title = "ドラム　${kit.emoji} ${kit.label}", titleColor = theme.titleBars[2]) {
+            // ---- ドラムパッド（れんしゅう中は けんばん を大きく）
+            if (!practice) RetroWindow(theme, Modifier.weight(1f).fillMaxWidth().padding(end = 6.dp, bottom = 6.dp), title = "ドラム　${kit.emoji} ${kit.label}", titleColor = theme.titleBars[2]) {
                 Row(Modifier.padding(horizontal = 6.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
                     Kit.entries.forEach { k -> RetroIconButton(k.emoji, theme, kit == k, 46.dp) { kit = k } }
                 }
@@ -171,10 +228,12 @@ private fun Pad(theme: KidTheme, emoji: String, label: String, color: Color, mod
 
 /** 2 オクターブのけんばん。いくつ同時に押しても、指をすべらせても鳴る */
 @Composable
-private fun Keyboard(theme: KidTheme, modifier: Modifier, onKey: (Int) -> Unit) {
+private fun Keyboard(theme: KidTheme, modifier: Modifier, glow: Int? = null, onKey: (Int) -> Unit) {
     val pressed = remember { mutableStateMapOf<PointerId, Int>() }
     val measurer = rememberTextMeasurer()
     val whiteCount = 15
+    val blink = rememberInfiniteTransition(label = "glow")
+    val glowAlpha by blink.animateFloat(0.35f, 1f, infiniteRepeatable(tween(450), RepeatMode.Reverse), label = "a")
 
     fun keyAt(o: Offset, size: Size): Int? {
         if (o.x < 0 || o.y < 0 || o.x > size.width || o.y > size.height) return null
@@ -221,6 +280,7 @@ private fun Keyboard(theme: KidTheme, modifier: Modifier, onKey: (Int) -> Unit) 
             val rect = Rect(i * w + 2, 0f, (i + 1) * w - 2, size.height)
             val c = NOTE_COLORS[i % 7]
             drawRoundRect(if (semi in down) c else Color.White, rect.topLeft, rect.size, r)
+            if (semi == glow && semi !in down) drawRoundRect(Color(0xFFFFE066).copy(alpha = glowAlpha), rect.topLeft, rect.size, r)
             drawRoundRect(theme.outline, rect.topLeft, rect.size, r, style = Stroke(line))
             // 下に ドレミ と色の丸
             drawCircle(c, w * 0.2f, Offset(rect.center.x, size.height - w * 1.0f))
@@ -232,7 +292,50 @@ private fun Keyboard(theme: KidTheme, modifier: Modifier, onKey: (Int) -> Unit) 
             val cx = (oct * 7 + after + 1) * w
             val rect = Rect(cx - w * 0.3f, 0f, cx + w * 0.3f, size.height * 0.6f)
             drawRoundRect(if (oct * 12 + semi in down) Color(0xFF8A7BFF) else Color(0xFF3A3150), rect.topLeft, rect.size, r)
+            if (oct * 12 + semi == glow) drawRoundRect(Color(0xFFFFC94D).copy(alpha = glowAlpha), rect.topLeft, rect.size, r)
             drawRoundRect(theme.outline, rect.topLeft, rect.size, r, style = Stroke(line))
+        }
+    }
+}
+
+/** れんしゅう：曲えらび、ドレミの ならび（いまの音が大きく光る）、おてほん・はじめから */
+@Composable
+private fun PracticeBar(
+    theme: KidTheme, songs: List<Song>, song: Song, notes: List<Note>, pos: Int, done: Boolean,
+    onSong: (Song) -> Unit, onRestart: () -> Unit, onDemo: () -> Unit,
+) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
+        Row(Modifier.horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
+            songs.forEach { s ->
+                val on = s == song
+                Box(
+                    Modifier.padding(end = 6.dp, top = 2.dp, bottom = 2.dp).clip(RoundedCornerShape(12.dp))
+                        .background(if (on) theme.titleBars[2] else Color.White)
+                        .border(2.5.dp, theme.outline, RoundedCornerShape(12.dp))
+                        .clickable { onSong(s) }.padding(horizontal = 12.dp, vertical = 4.dp)
+                ) { DotText(s.title, theme, 15) }
+            }
+        }
+        val scroll = rememberScrollState()
+        LaunchedEffect(pos) { scroll.animateScrollTo((pos - 3).coerceAtLeast(0) * 120) }
+        Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            RetroIconButton("▶️", theme, size = 44.dp, onClick = onDemo)
+            RetroIconButton("↩️", theme, size = 44.dp, onClick = onRestart)
+            if (done) {
+                DotText("できた！ 🎉 すごい！", theme, 26, modifier = Modifier.padding(start = 12.dp))
+            } else {
+                Row(Modifier.weight(1f).horizontalScroll(scroll), verticalAlignment = Alignment.CenterVertically) {
+                    notes.forEachIndexed { i, n ->
+                        val c = NOTE_COLORS[WHITE.indexOfFirst { it == n.key % 12 }.coerceAtLeast(0)]
+                        Box(
+                            Modifier.padding(horizontal = 3.dp).clip(RoundedCornerShape(10.dp))
+                                .background(if (i == pos) c else if (i < pos) Color(0xFFEDEDED) else Color.White)
+                                .border(if (i == pos) 3.dp else 1.5.dp, theme.outline, RoundedCornerShape(10.dp))
+                                .padding(horizontal = if (i == pos) 12.dp else 7.dp, vertical = 4.dp)
+                        ) { DotText(n.name + "ー".repeat(n.beats - 1), theme, if (i == pos) 24 else 16, if (i < pos) Color.Gray else theme.outline) }
+                    }
+                }
+            }
         }
     }
 }

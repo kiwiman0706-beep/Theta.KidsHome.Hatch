@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>つちの うえ／つちの なか</title>
+<style>
+  :root{
+    --up-bg:#EFF9E6; --up-line:#8CC63F; --up-deep:#3E7A16;
+    --dn-bg:#F7EFE3; --dn-line:#C69A5E; --dn-deep:#7A4E1D;
+    --ink:#403A33; --paper:#FFFFFF; --warn:#E8843C; --warn-bg:#FFF3EA;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{background:#eee;}
+  body{
+    font-family:"Zen Maru Gothic","Hiragino Maru Gothic ProN","BIZ UDGothic",sans-serif;
+    color:var(--ink);
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+  .page{
+    width:210mm; min-height:297mm; margin:10px auto; background:var(--paper);
+    padding:9mm 9mm 7mm; display:flex; flex-direction:column;
+  }
+  header{text-align:center; margin-bottom:4mm;}
+  h1{
+    font-size:21pt; font-weight:900; letter-spacing:.04em;
+    display:inline-block; padding:1mm 6mm 1.5mm; border-radius:20px;
+    background:linear-gradient(180deg,var(--up-bg) 0 50%,var(--dn-bg) 50% 100%);
+    border:1.2mm solid var(--ink);
+  }
+  h1 .u{color:var(--up-deep);}
+  h1 .d{color:var(--dn-deep);}
+  header p{font-size:9.5pt; font-weight:700; margin-top:1.5mm;}
+  .columns{display:flex; gap:5mm;}
+  .col{
+    flex:1; border-radius:6mm; padding:3.5mm 3.5mm 3mm; border:1mm solid;
+    display:flex; flex-direction:column;
+  }
+  .col.u{background:var(--up-bg); border-color:var(--up-line);}
+  .col.d{background:var(--dn-bg); border-color:var(--dn-line);}
+  .col-title{text-align:center; font-size:14.5pt; font-weight:900; margin-bottom:.5mm;}
+  .u .col-title{color:var(--up-deep);}
+  .d .col-title{color:var(--dn-deep);}
+  .col-sub{text-align:center; font-size:8pt; font-weight:700; margin-bottom:2.5mm;}
+  .group{margin-bottom:2mm;}
+  .group-label{
+    display:inline-block; font-size:8.5pt; font-weight:900; color:#fff;
+    padding:.3mm 3mm .6mm; border-radius:10px; margin-bottom:1.2mm;
+  }
+  .u .group-label{background:var(--up-deep);}
+  .d .group-label{background:var(--dn-deep);}
+  .cards{display:flex; flex-wrap:wrap; gap:1.6mm;}
+  .card{
+    background:#fff; border-radius:3mm; text-align:center;
+    width:15.8mm; padding:1.2mm 0 .8mm; border:.45mm solid rgba(0,0,0,.13);
+  }
+  .card .pic{font-size:17pt; line-height:1.1; display:block;}
+  .card .name{font-size:7.3pt; font-weight:700; display:block; margin-top:.2mm; line-height:1.25;}
+  .hint{
+    margin-top:auto; background:#fff; border-radius:3mm; padding:1.6mm 2.5mm;
+    font-size:8.2pt; font-weight:700; line-height:1.45; border:.6mm dashed;
+  }
+  .u .hint{border-color:var(--up-line);}
+  .d .hint{border-color:var(--dn-line);}
+  .u .hint b{color:var(--up-deep);}
+  .d .hint b{color:var(--dn-deep);}
+  .rule{
+    margin-top:4mm; background:#fff; border:.8mm solid var(--ink); border-radius:4mm;
+    padding:2mm 3mm; font-size:8.6pt; font-weight:700; line-height:1.5; text-align:center;
+  }
+  .rule b{font-size:9.4pt;}
+  .trap{
+    margin-top:4mm; border:1mm solid var(--warn); border-radius:6mm;
+    background:var(--warn-bg); padding:3mm 3.5mm;
+  }
+  .trap-title{text-align:center; font-size:12.5pt; font-weight:900; color:#b4531a; margin-bottom:2mm;}
+  .trap-cards{display:flex; gap:2mm;}
+  .trap-card{
+    background:#fff; border-radius:3.5mm; text-align:center; flex:1;
+    padding:1.6mm 1mm 1.4mm; border:.5mm solid rgba(0,0,0,.12);
+  }
+  .trap-card .pic{font-size:15pt; display:block; line-height:1.1;}
+  .trap-card .name{font-size:7.8pt; font-weight:900; display:block; margin:.4mm 0;}
+  .trap-card .ans{
+    display:inline-block; font-size:7.2pt; font-weight:900; color:#fff;
+    border-radius:8px; padding:.2mm 2.2mm .5mm;
+  }
+  .ans.a-u{background:var(--up-deep);}
+  .ans.a-d{background:var(--dn-deep);}
+  .trap-card .why{font-size:6.6pt; font-weight:700; display:block; margin-top:.6mm; line-height:1.35; color:#555;}
+  footer{text-align:center; font-size:7.5pt; font-weight:700; color:#888; margin-top:3mm;}
+  @page{size:A4 portrait; margin:0;}
+  @media print{
+    html,body{background:#fff;}
+    .page{margin:0; width:auto; min-height:auto;}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <h1><span class="u">つちの うえ</span>？　<span class="d">つちの なか</span>？</h1>
+    <p>やさい・くだものは どこに できるかな？</p>
+  </header>
+
+  <div class="columns">
+
+    <!-- ===== 土の上 ===== -->
+    <section class="col u">
+      <div class="col-title">🌿 つちの うえ に できる</div>
+      <div class="col-sub">めに みえる ところに なる</div>
+
+      <div class="group">
+        <span class="group-label">きに なる</span>
+        <div class="cards">
+          <div class="card"><span class="pic">🍎</span><span class="name">りんご</span></div>
+          <div class="card"><span class="pic">🍊</span><span class="name">みかん</span></div>
+          <div class="card"><span class="pic">🍐</span><span class="name">なし</span></div>
+          <div class="card"><span class="pic">🍑</span><span class="name">もも</span></div>
+          <div class="card"><span class="pic">🌰</span><span class="name">くり</span></div>
+          <div class="card"><span class="pic">🍇</span><span class="name">ぶどう</span></div>
+        </div>
+      </div>
+
+      <div class="group">
+        <span class="group-label">じめんを はう（つる）</span>
+        <div class="cards">
+          <div class="card"><span class="pic">🍉</span><span class="name">すいか</span></div>
+          <div class="card"><span class="pic">🎃</span><span class="name">かぼちゃ</span></div>
+          <div class="card"><span class="pic">🍈</span><span class="name">メロン</span></div>
+          <div class="card"><span class="pic">🍓</span><span class="name">いちご</span></div>
+        </div>
+      </div>
+
+      <div class="group">
+        <span class="group-label">たって そだつ</span>
+        <div class="cards">
+          <div class="card"><span class="pic">🍅</span><span class="name">トマト</span></div>
+          <div class="card"><span class="pic">🍆</span><span class="name">なす</span></div>
+          <div class="card"><span class="pic">🥒</span><span class="name">きゅうり</span></div>
+          <div class="card"><span class="pic">🫑</span><span class="name">ピーマン</span></div>
+          <div class="card"><span class="pic">🌽</span><span class="name">とうもろこし</span></div>
+          <div class="card"><span class="pic">🫛</span><span class="name">えだまめ</span></div>
+        </div>
+      </div>
+
+      <div class="group">
+        <span class="group-label">はっぱを たべる</span>
+        <div class="cards">
+          <div class="card"><span class="pic">🥬</span><span class="name">キャベツ</span></div>
+          <div class="card"><span class="pic">🥗</span><span class="name">はくさい</span></div>
+          <div class="card"><span class="pic">🥦</span><span class="name">ブロッコリー</span></div>
+          <div class="card"><span class="pic">🌱</span><span class="name">ほうれんそう</span></div>
+        </div>
+      </div>
+
+      <div class="hint">💡 <b>おぼえかた</b>：とるとき <b>てを のばす</b>もの・<b>はさみで きる</b>ものは つちの うえ！</div>
+    </section>
+
+    <!-- ===== 土の中 ===== -->
+    <section class="col d">
+      <div class="col-title">🥔 つちの なか に できる</div>
+      <div class="col-sub">ほらないと でてこない</div>
+
+      <div class="group">
+        <span class="group-label">ながい ね</span>
+        <div class="cards">
+          <div class="card"><span class="pic">🥕</span><span class="name">にんじん</span></div>
+          <div class="card"><span class="pic">🥬</span><span class="name">だいこん</span></div>
+          <div class="card"><span class="pic">🍢</span><span class="name">ごぼう</span></div>
+          <div class="card"><span class="pic">🥔</span><span class="name">かぶ</span></div>
+        </div>
+      </div>
+
+      <div class="group">
+        <span class="group-label">いも</span>
+        <div class="cards">
+          <div class="card"><span class="pic">🥔</span><span class="name">じゃがいも</span></div>
+          <div class="card"><span class="pic">🍠</span><span class="name">さつまいも</span></div>
+          <div class="card"><span class="pic">🍡</span><span class="name">さといも</span></div>
+          <div class="card"><span class="pic">🍶</span><span class="name">ながいも</span></div>
+        </div>
+      </div>
+
+      <div class="group">
+        <span class="group-label">そのほか</span>
+        <div class="cards">
+          <div class="card"><span class="pic">🧅</span><span class="name">たまねぎ</span></div>
+          <div class="card"><span class="pic">🧄</span><span class="name">にんにく</span></div>
+          <div class="card"><span class="pic">🫚</span><span class="name">しょうが</span></div>
+          <div class="card"><span class="pic">🕳️</span><span class="name">れんこん</span></div>
+          <div class="card"><span class="pic">🥜</span><span class="name">らっかせい</span></div>
+        </div>
+      </div>
+
+      <div class="hint">💡 <b>おぼえかた</b>：とるとき <b>ひっぱって ぬく</b>もの・<b>ほる</b>ものは つちの なか！</div>
+    </section>
+  </div>
+
+  <div class="rule">
+    🔑 <b>いちばんの きまり</b>：<b style="color:var(--up-deep)">み・はな・はっぱ</b>を たべる → つちの うえ　／　<b style="color:var(--dn-deep)">ね・くき（いも）</b>を たべる → つちの なか
+  </div>
+
+  <section class="trap">
+    <div class="trap-title">⚠️ まちがえやすい ものたち</div>
+    <div class="trap-cards">
+      <div class="trap-card">
+        <span class="pic">🥜</span><span class="name">らっかせい</span>
+        <span class="ans a-d">つちの なか</span>
+        <span class="why">はなは うえに さいて<br>みは <b>じめんの した</b>に！</span>
+      </div>
+      <div class="trap-card">
+        <span class="pic">🍓</span><span class="name">いちご</span>
+        <span class="ans a-u">つちの うえ</span>
+        <span class="why">きに ならず<br>じめんの ちかくに なる</span>
+      </div>
+      <div class="trap-card">
+        <span class="pic">🍉</span><span class="name">すいか</span>
+        <span class="ans a-u">つちの うえ</span>
+        <span class="why">きには ならない。<br>つるで じめんを はう</span>
+      </div>
+      <div class="trap-card">
+        <span class="pic">🧅</span><span class="name">たまねぎ</span>
+        <span class="ans a-d">つちの なか</span>
+        <span class="why">はっぱが かさなって<br>まるく なったもの</span>
+      </div>
+      <div class="trap-card">
+        <span class="pic">🕳️</span><span class="name">れんこん</span>
+        <span class="ans a-d">つちの なか</span>
+        <span class="why">いけの <b>どろの なか</b>。<br>はなは みずの うえ</span>
+      </div>
+      <div class="trap-card">
+        <span class="pic">🌰</span><span class="name">くり</span>
+        <span class="ans a-u">つちの うえ</span>
+        <span class="why">たかい きの うえ。<br>おちて じめんに ある</span>
+      </div>
+    </div>
+  </section>
+
+  <footer>おうちの かたへ：ブラウザの「印刷」から A4・カラーで印刷してください（背景の色を印刷する設定を ON に）</footer>
+</div>
+</body>
+</html>

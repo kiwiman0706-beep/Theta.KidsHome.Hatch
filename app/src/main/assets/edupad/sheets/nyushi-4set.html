@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>おぼえよう！ 4まいセット</title>
+<style>
+  :root{
+    --egg-bg:#FFF8E1; --egg-line:#F5C542; --egg-deep:#B8860B;
+    --baby-bg:#FFF0F4; --baby-line:#F48FB1; --baby-deep:#C2185B;
+    --float-bg:#E9F6FF; --float-line:#5FB8E8; --float-deep:#0B6FA4;
+    --sink-bg:#EFEDF8; --sink-line:#8E86C6; --sink-deep:#3B3384;
+    --up-bg:#EFF9E6; --up-line:#8CC63F; --up-deep:#3E7A16;
+    --dn-bg:#F7EFE3; --dn-line:#C69A5E; --dn-deep:#7A4E1D;
+    --sp-bg:#FDEEF4; --sp-line:#F191B7; --sp-deep:#C2185B;
+    --sm-bg:#E7F5FC; --sm-line:#57B6E0; --sm-deep:#0B6FA4;
+    --au-bg:#FCF1E0; --au-line:#DFA24C; --au-deep:#A85D0B;
+    --wi-bg:#EEF1F6; --wi-line:#93A3BE; --wi-deep:#3C4F70;
+    --ink:#3E3A40; --paper:#FFFFFF;
+    --warn:#E8843C; --warn-bg:#FFF3EA;
+    --warn2:#7E57C2; --warn2-bg:#F3EFFA;
+    --sky:#7EC8E3;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{background:#e8e8e8;}
+  body{font-family:"Zen Maru Gothic","Hiragino Maru Gothic ProN","BIZ UDGothic",sans-serif; color:var(--ink);
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;}
+  .page{width:210mm; min-height:297mm; margin:10px auto; background:var(--paper);
+    padding:8mm 8mm 6mm; display:flex; flex-direction:column;}
+  header{text-align:center; margin-bottom:3.2mm;}
+  h1{font-size:20pt; font-weight:900; letter-spacing:.04em; display:inline-block;
+    padding:1mm 6mm 1.5mm; border-radius:20px; border:1.2mm solid var(--ink);}
+  header p{font-size:9pt; font-weight:700; margin-top:1.2mm;}
+  .columns{display:flex; gap:4mm;}
+  .col{flex:1; border-radius:5mm; padding:2.6mm 2.8mm; border:1mm solid; display:flex; flex-direction:column;}
+  .col-title{text-align:center; font-size:13.5pt; font-weight:900; margin-bottom:.3mm;}
+  .col-sub{text-align:center; font-size:7.6pt; font-weight:700; margin-bottom:2mm;}
+  .group{margin-bottom:1.8mm;}
+  .group-label{display:inline-block; font-size:8pt; font-weight:900; color:#fff;
+    padding:.3mm 3mm .6mm; border-radius:10px; margin-bottom:1mm;}
+  .cards{display:grid; grid-template-columns:repeat(5,1fr); gap:1.4mm;}
+  .cards.c4{grid-template-columns:repeat(4,1fr);}
+  .card{background:#fff; border-radius:2.5mm; text-align:center; padding:.7mm .3mm .5mm;
+    border:.4mm solid rgba(0,0,0,.13);}
+  .card svg{width:100%; height:auto; display:block;}
+  .card .name{font-size:6.6pt; font-weight:700; display:block; margin-top:.1mm; line-height:1.2;}
+  .card .tag{font-size:5.5pt; font-weight:700; color:#8a8590; display:block; line-height:1.15;}
+  .hint{margin-top:auto; background:#fff; border-radius:2.5mm; padding:1.3mm 2.2mm;
+    font-size:7.6pt; font-weight:700; line-height:1.42; border:.6mm dashed;}
+  .rule{margin-top:3mm; background:#fff; border:.8mm solid var(--ink); border-radius:4mm;
+    padding:1.8mm 3mm; font-size:8.2pt; font-weight:700; line-height:1.45; text-align:center;}
+  .rule.two{display:flex; gap:3mm; background:none; border:none; padding:0;}
+  .rule.two > div{flex:1; background:#fff; border:.8mm solid var(--ink); border-radius:4mm; padding:1.6mm 2.6mm; text-align:left;}
+  .rule .h{display:block; font-size:9pt; font-weight:900; margin-bottom:.6mm;}
+  .trap{margin-top:3mm; border:1mm solid; border-radius:5mm; padding:2.2mm 2.6mm;}
+  .trap-title{text-align:center; font-size:11.5pt; font-weight:900; margin-bottom:1.6mm;}
+  .trap-cards{display:grid; grid-template-columns:repeat(6,1fr); gap:1.8mm;}
+  .trap-cards.t5{grid-template-columns:repeat(5,1fr);}
+  .trap-card{background:#fff; border-radius:3mm; text-align:center; padding:1.1mm .8mm 1mm;
+    border:.5mm solid rgba(0,0,0,.12);}
+  .trap-card svg{width:56%; height:auto; margin:0 auto; display:block;}
+  .trap-card .name{font-size:7.2pt; font-weight:900; display:block; margin:.3mm 0; line-height:1.2;}
+  .trap-card .ans{display:inline-block; font-size:6.6pt; font-weight:900; color:#fff;
+    border-radius:8px; padding:.2mm 2mm .5mm;}
+  .trap-card .why{font-size:6.1pt; font-weight:700; display:block; margin-top:.5mm; line-height:1.3; color:#555;}
+  footer{text-align:center; font-size:7.2pt; font-weight:700; color:#999; margin-top:2.2mm;}
+  /* page-specific */
+  .p1 h1{background:linear-gradient(90deg,var(--egg-bg) 0 50%,var(--baby-bg) 50% 100%);}
+  .p2 h1{background:linear-gradient(180deg,var(--float-bg) 0 50%,var(--sink-bg) 50% 100%);}
+  .p3 h1{background:linear-gradient(180deg,var(--up-bg) 0 50%,var(--dn-bg) 50% 100%);}
+  .p4 h1{background:linear-gradient(90deg,var(--sp-bg) 0 25%,var(--sm-bg) 25% 50%,var(--au-bg) 50% 75%,var(--wi-bg) 75% 100%);}
+  .egg{background:var(--egg-bg); border-color:var(--egg-line);} .egg .col-title,.egg .hint b{color:var(--egg-deep);}
+  .egg .group-label{background:var(--egg-deep);} .egg .hint{border-color:var(--egg-line);}
+  .baby{background:var(--baby-bg); border-color:var(--baby-line);} .baby .col-title,.baby .hint b{color:var(--baby-deep);}
+  .baby .group-label{background:var(--baby-deep);} .baby .hint{border-color:var(--baby-line);}
+  .flo{background:var(--float-bg); border-color:var(--float-line);} .flo .col-title,.flo .hint b{color:var(--float-deep);}
+  .flo .group-label{background:var(--float-deep);} .flo .hint{border-color:var(--float-line);}
+  .snk{background:var(--sink-bg); border-color:var(--sink-line);} .snk .col-title,.snk .hint b{color:var(--sink-deep);}
+  .snk .group-label{background:var(--sink-deep);} .snk .hint{border-color:var(--sink-line);}
+  .up{background:var(--up-bg); border-color:var(--up-line);} .up .col-title,.up .hint b{color:var(--up-deep);}
+  .up .group-label{background:var(--up-deep);} .up .hint{border-color:var(--up-line);}
+  .dn{background:var(--dn-bg); border-color:var(--dn-line);} .dn .col-title,.dn .hint b{color:var(--dn-deep);}
+  .dn .group-label{background:var(--dn-deep);} .dn .hint{border-color:var(--dn-line);}
+  .tw{border-color:var(--sky); background:#EDF8FD;} .tw .trap-title{color:#02627e;}
+  .to{border-color:var(--warn); background:var(--warn-bg);} .to .trap-title{color:#b4531a;}
+  .tp{border-color:var(--warn2); background:var(--warn2-bg);} .tp .trap-title{color:#5b3ba3;}
+  .a-egg{background:var(--egg-deep);} .a-baby{background:var(--baby-deep);}
+  .a-flo{background:var(--float-deep);} .a-snk{background:var(--sink-deep);}
+  .a-up{background:var(--up-deep);} .a-dn{background:var(--dn-deep);}
+  .a-sp{background:var(--sp-deep);} .a-sm{background:var(--sm-deep);}
+  .a-au{background:var(--au-deep);} .a-wi{background:var(--wi-deep);}
+  /* season grid (page4) */
+  .grid{display:grid; grid-template-columns:1fr 1fr; gap:3mm;}
+  .season{border-radius:5mm; border:1mm solid; padding:2.2mm 2.6mm; display:flex; flex-direction:column;}
+  .sp{background:var(--sp-bg); border-color:var(--sp-line);} .sm{background:var(--sm-bg); border-color:var(--sm-line);}
+  .au{background:var(--au-bg); border-color:var(--au-line);} .wi{background:var(--wi-bg); border-color:var(--wi-line);}
+  .s-head{display:flex; align-items:baseline; gap:2mm; margin-bottom:1.5mm;}
+  .s-name{font-size:13pt; font-weight:900;}
+  .sp .s-name{color:var(--sp-deep);} .sm .s-name{color:var(--sm-deep);}
+  .au .s-name{color:var(--au-deep);} .wi .s-name{color:var(--wi-deep);}
+  .s-month{font-size:7.4pt; font-weight:900; color:#fff; padding:.3mm 2.4mm .6mm; border-radius:10px;}
+  .sp .s-month{background:var(--sp-deep);} .sm .s-month{background:var(--sm-deep);}
+  .au .s-month{background:var(--au-deep);} .wi .s-month{background:var(--wi-deep);}
+  .season .note{margin-top:1.6mm; background:#fff; border-radius:2.5mm; padding:1.2mm 2.2mm;
+    font-size:7.2pt; font-weight:700; line-height:1.38; border:.5mm dashed;}
+  .sp .note{border-color:var(--sp-line);} .sm .note{border-color:var(--sm-line);}
+  .au .note{border-color:var(--au-line);} .wi .note{border-color:var(--wi-line);}
+  .sp .note b{color:var(--sp-deep);} .sm .note b{color:var(--sm-deep);}
+  .au .note b{color:var(--au-deep);} .wi .note b{color:var(--wi-deep);}
+  @page{size:A4 portrait; margin:0;}
+  @media print{
+    html,body{background:#fff;}
+    .page{margin:0; width:auto; min-height:auto; page-break-after:always;}
+    .page:last-child{page-break-after:auto;}
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ PAGE 1 ============ -->
+<div class="page p1">
+  <header>
+    <h1>たまごで うまれる？　あかちゃんで うまれる？</h1>
+    <p>いきものの うまれかたを おぼえよう</p>
+  </header>
+  <div class="columns">
+    <section class="col egg">
+      <div class="col-title">🥚 たまごで うまれる</div>
+      <div class="col-sub">（らんせい）</div>
+      <div class="group"><span class="group-label">とり</span><div class="cards" id="g-tori"></div></div>
+      <div class="group"><span class="group-label">さかな</span><div class="cards" id="g-sakana"></div></div>
+      <div class="group"><span class="group-label">カエル・カメ・ヘビ</span><div class="cards" id="g-hachu"></div></div>
+      <div class="group"><span class="group-label">むし など</span><div class="cards" id="g-mushi"></div></div>
+      <div class="hint">💡 <b>ポイント</b>：とり・さかな・カエル・カメ・ヘビ・むしは みんな たまご！</div>
+    </section>
+    <section class="col baby">
+      <div class="col-title">👶 あかちゃんで うまれる</div>
+      <div class="col-sub">（たいせい・ほにゅうるい）</div>
+      <div class="group"><span class="group-label">みぢかな どうぶつ</span><div class="cards" id="g-pet"></div></div>
+      <div class="group"><span class="group-label">ぼくじょうの どうぶつ</span><div class="cards" id="g-farm"></div></div>
+      <div class="group"><span class="group-label">どうぶつえんの どうぶつ</span><div class="cards" id="g-zoo"></div></div>
+      <div class="group"><span class="group-label">にんげんも！</span><div class="cards" id="g-hito"></div></div>
+      <div class="hint">💡 <b>ポイント</b>：からだに <b>け</b>が はえていて おかあさんの <b>おっぱい</b>を のむ どうぶつは あかちゃんで うまれる！</div>
+    </section>
+  </div>
+  <section class="trap tw">
+    <div class="trap-title">⚠️ ひっかけに ちゅうい！</div>
+    <div class="trap-cards" id="t-p1"></div>
+  </section>
+  <footer>おうちの かたへ：A4・カラー印刷／「背景のグラフィック」を ON に</footer>
+</div>
+
+<!-- ============ PAGE 2 ============ -->
+<div class="page p2">
+  <header>
+    <h1>うくもの？　しずむもの？</h1>
+    <p>みずに いれたら どうなるかな</p>
+  </header>
+  <div class="columns">
+    <section class="col flo">
+      <div class="col-title">⬆️ うく もの</div>
+      <div class="col-sub">みずに ぷかぷか</div>
+      <div class="group"><span class="group-label">き・かみ</span><div class="cards c4" id="f-ki"></div></div>
+      <div class="group"><span class="group-label">くうきが はいって いる</span><div class="cards c4" id="f-air"></div></div>
+      <div class="group"><span class="group-label">つちの うえに できる やさい・くだもの</span><div class="cards c4" id="f-yasai"></div></div>
+      <div class="group"><span class="group-label">そのほか</span><div class="cards c4" id="f-etc"></div></div>
+      <div class="hint">💡 <b>おぼえかた</b>：かるいもの・なかに <b>くうき</b>が あるものは うく！</div>
+    </section>
+    <section class="col snk">
+      <div class="col-title">⬇️ しずむ もの</div>
+      <div class="col-sub">みずの そこへ ストン</div>
+      <div class="group"><span class="group-label">かなもの（てつ）</span><div class="cards c4" id="s-kana"></div></div>
+      <div class="group"><span class="group-label">いし・ガラス・やきもの</span><div class="cards c4" id="s-ishi"></div></div>
+      <div class="group"><span class="group-label">つちの なかに できる やさい</span><div class="cards c4" id="s-yasai"></div></div>
+      <div class="group"><span class="group-label">そのほか</span><div class="cards c4" id="s-etc"></div></div>
+      <div class="hint">💡 <b>おぼえかた</b>：おもいもの・<b>つちの なか</b>で できる やさいは しずむ！</div>
+    </section>
+  </div>
+  <div class="rule two">
+    <div><span class="h">🥕 やさいの きまり</span>つちの <b>うえ</b>に なる → <b style="color:var(--float-deep)">うく</b>　／　つちの <b>なか</b>に できる → <b style="color:var(--sink-deep)">しずむ</b></div>
+    <div><span class="h">🎈 かたちの きまり</span>おなじ ものでも <b>くうき</b>が はいると うく。ぺしゃんこに すると しずむ。</div>
+  </div>
+  <section class="trap to">
+    <div class="trap-title">⚠️ ひっかけ・じっけんもんだい</div>
+    <div class="trap-cards" id="t-p2"></div>
+  </section>
+  <footer>おうちの かたへ：A4・カラー印刷／「背景のグラフィック」を ON に</footer>
+</div>
+
+<!-- ============ PAGE 3 ============ -->
+<div class="page p3">
+  <header>
+    <h1>つちの うえ？　つちの なか？</h1>
+    <p>やさい・くだものは どこに できるかな</p>
+  </header>
+  <div class="columns">
+    <section class="col up">
+      <div class="col-title">🌿 つちの うえ に できる</div>
+      <div class="col-sub">めに みえる ところに なる</div>
+      <div class="group"><span class="group-label">きに なる</span><div class="cards c4" id="u-ki"></div></div>
+      <div class="group"><span class="group-label">じめんを はう（つる）</span><div class="cards c4" id="u-tsuru"></div></div>
+      <div class="group"><span class="group-label">たって そだつ</span><div class="cards c4" id="u-tate"></div></div>
+      <div class="group"><span class="group-label">はっぱを たべる</span><div class="cards c4" id="u-ha"></div></div>
+      <div class="hint">💡 <b>おぼえかた</b>：とるとき <b>てを のばす</b>もの・<b>はさみで きる</b>ものは つちの うえ！</div>
+    </section>
+    <section class="col dn">
+      <div class="col-title">🥔 つちの なか に できる</div>
+      <div class="col-sub">ほらないと でてこない</div>
+      <div class="group"><span class="group-label">ながい ね</span><div class="cards c4" id="d-ne"></div></div>
+      <div class="group"><span class="group-label">いも</span><div class="cards c4" id="d-imo"></div></div>
+      <div class="group"><span class="group-label">そのほか</span><div class="cards c4" id="d-etc"></div></div>
+      <div class="hint">💡 <b>おぼえかた</b>：とるとき <b>ひっぱって ぬく</b>もの・<b>ほる</b>ものは つちの なか！</div>
+    </section>
+  </div>
+  <div class="rule">🔑 <b>いちばんの きまり</b>：<b style="color:var(--up-deep)">み・はな・はっぱ</b>を たべる → つちの うえ　／　<b style="color:var(--dn-deep)">ね・くき（いも）</b>を たべる → つちの なか</div>
+  <section class="trap to">
+    <div class="trap-title">⚠️ まちがえやすい ものたち</div>
+    <div class="trap-cards" id="t-p3"></div>
+  </section>
+  <footer>おうちの かたへ：A4・カラー印刷／「背景のグラフィック」を ON に</footer>
+</div>
+
+<!-- ============ PAGE 4 ============ -->
+<div class="page p4">
+  <header>
+    <h1>きせつの はな</h1>
+    <p>はなびらの かたち・かずを よく みて おぼえよう</p>
+  </header>
+  <div class="grid">
+    <section class="season sp"><div class="s-head"><span class="s-name">はる</span><span class="s-month">3・4・5がつ</span></div>
+      <div class="cards" id="c-sp"></div>
+      <div class="note">🌱 <b>春の七草</b>：せり・なずな・ごぎょう・はこべら・ほとけのざ・すずな・すずしろ</div></section>
+    <section class="season sm"><div class="s-head"><span class="s-name">なつ</span><span class="s-month">6・7・8がつ</span></div>
+      <div class="cards" id="c-sm"></div>
+      <div class="note">🌅 <b>あさがお</b>は あさ さいて ひるに しぼむ。つるは <b>ひだりまき</b>。</div></section>
+    <section class="season au"><div class="s-head"><span class="s-name">あき</span><span class="s-month">9・10・11がつ</span></div>
+      <div class="cards" id="c-au"></div>
+      <div class="note">🌾 <b>秋の七草</b>：はぎ・すすき・ききょう・なでしこ・おみなえし・ふじばかま・くず</div></section>
+    <section class="season wi"><div class="s-head"><span class="s-name">ふゆ</span><span class="s-month">12・1・2がつ</span></div>
+      <div class="cards" id="c-wi"></div>
+      <div class="note">❄️ さむい なかで さく はなは すくない。<b>つばき・さざんか・すいせん</b>から。</div></section>
+  </div>
+  <section class="trap tp">
+    <div class="trap-title">⚠️ かたちで みわける ポイント</div>
+    <div class="trap-cards t5" id="t-p4"></div>
+  </section>
+  <footer>おうちの かたへ：A4・カラー印刷／「背景のグラフィック」を ON に</footer>
+</div>
+
+<script>
+/* ============================================================
+   共通ヘルパー
+   ============================================================ */
+const OL='#5A4A3C';
+const S=n=>Number(n.toFixed(2));
+const E=(cx,cy,rx,ry,f,st,w=1.3)=>`<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${f}"${st?` stroke="${st}" stroke-width="${w}"`:''}/>`;
+const C=(cx,cy,r,f,st,w=1.3)=>`<circle cx="${cx}" cy="${cy}" r="${r}" fill="${f}"${st?` stroke="${st}" stroke-width="${w}"`:''}/>`;
+const P=(d,f,st,w=1.3)=>`<path d="${d}" fill="${f||'none'}"${st?` stroke="${st}" stroke-width="${w}" stroke-linejoin="round" stroke-linecap="round"`:''}/>`;
+const R=(x,y,w,h,f,rd=0,st)=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rd}" fill="${f}"${st?` stroke="${st}" stroke-width="1.2"`:''}/>`;
+const L=(x1,y1,x2,y2,st,w=2)=>`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${st}" stroke-width="${w}" stroke-linecap="round"/>`;
+const G=(t,c)=>`<g transform="${t}">${c}</g>`;
+const eye=(x,y,r=2.4)=>C(x,y,r,'#2E2A28');
+const eyeW=(x,y,r=4)=>C(x,y,r,'#fff',OL,1)+C(x,y,r*0.5,'#2E2A28');
+
+/* ---- 四足動物ジェネレータ ---- */
+function quad(o){
+  const c=o.c, c2=o.c2||c, f=o.face||c, s=[];
+  // しっぽ
+  if(o.tail==='curl') s.push(P('M22,52 C10,46 12,30 24,34',null,c,5));
+  if(o.tail==='long') s.push(P('M22,54 C6,48 4,28 14,22',null,c,4.5));
+  if(o.tail==='tuft') s.push(P('M22,52 C10,54 8,68 12,76',null,c,3.5)+C(12,79,5.5,o.tuft||'#6B5B4A'));
+  if(o.tail==='curly') s.push(P('M22,48 C12,42 16,32 23,36 C27,38 24,44 19,41',null,c,3));
+  if(o.tail==='puff') s.push(C(19,52,8.5,'#FFFDF8',OL,1.2));
+  if(o.tail==='thin') s.push(P('M22,54 C6,52 2,34 12,28',null,'#D2B7A8',2.6));
+  if(o.tail==='短') s.push(C(21,52,4,c,OL,1));
+  // あし
+  const legc=o.leg||c2;
+  [[30,68],[43,70],[62,68],[74,70]].forEach(([x,y],i)=>{
+    s.push(R(x,y,9,24,legc,4,OL));
+    if(o.hoof) s.push(R(x,y+19,9,5,'#5A4A3C',2));
+  });
+  // からだ
+  s.push(E(52,54,30,20,c,OL,1.4));
+  if(o.woolly){
+    for(let i=0;i<9;i++){const a=i*40*Math.PI/180;s.push(C(52+Math.cos(a)*27,52+Math.sin(a)*17,8,c,OL,1));}
+    s.push(E(52,54,26,16,c));
+  }
+  if(o.spots) o.spots.forEach(p=>s.push(E(p[0],p[1],p[2],p[3],o.spotc||'#3A3330')));
+  // くび・あたま
+  const hx=o.hx||80, hy=o.hy||36, hr=o.hr||14;
+  s.push(P(`M64,42 C${hx-14},${hy+10} ${hx-10},${hy+14} ${hx},${hy+12} L${hx},${hy} Z`,c,OL,1.2));
+  // みみ
+  if(o.ear==='drop') s.push(P(`M${hx-8},${hy-8} C${hx-20},${hy-6} ${hx-18},${hy+10} ${hx-8},${hy+6} Z`,c2,OL,1.1));
+  if(o.ear==='point') s.push(P(`M${hx-10},${hy-8} L${hx-13},${hy-22} L${hx-1},${hy-13} Z`,c,OL,1.1)+P(`M${hx+5},${hy-11} L${hx+6},${hy-23} L${hx+15},${hy-10} Z`,c,OL,1.1));
+  if(o.ear==='long') s.push(P(`M${hx-8},${hy-8} C${hx-16},${hy-32} ${hx-6},${hy-38} ${hx-2},${hy-12} Z`,c,OL,1.1)+P(`M${hx+3},${hy-9} C${hx+2},${hy-34} ${hx+13},${hy-32} ${hx+8},${hy-10} Z`,c,OL,1.1));
+  if(o.ear==='round') s.push(C(hx-10,hy-11,7,c,OL,1.1)+C(hx+9,hy-12,6,c,OL,1.1));
+  if(o.ear==='big') s.push(C(hx-11,hy-10,8.5,c2,OL,1.1)+C(hx+10,hy-11,7.5,c2,OL,1.1));
+  if(o.ear==='tiny') s.push(C(hx-8,hy-12,4.5,c,OL,1)+C(hx+7,hy-12,4,c,OL,1));
+  s.push(C(hx,hy,hr,f,OL,1.4));
+  // つの
+  if(o.horn==='cow') s.push(P(`M${hx-11},${hy-9} C${hx-19},${hy-16} ${hx-16},${hy-20} ${hx-10},${hy-16}`,null,'#E8DCC0',3.4)+P(`M${hx+10},${hy-10} C${hx+18},${hy-17} ${hx+15},${hy-21} ${hx+9},${hy-17}`,null,'#E8DCC0',3.4));
+  if(o.horn==='goat') s.push(P(`M${hx-6},${hy-12} C${hx-12},${hy-26} ${hx-22},${hy-24} ${hx-20},${hy-14}`,null,'#CFC3A8',3)+P(`M${hx+4},${hy-13} C${hx-1},${hy-27} ${hx-11},${hy-26} ${hx-9},${hy-16}`,null,'#CFC3A8',3));
+  // かお
+  if(o.muzzle) s.push(E(hx+8,hy+5,8,6,o.muzzle,OL,1));
+  s.push(eye(hx+3,hy-3)+ (o.nose!==false ? C(hx+13,hy+3,2.2,'#3A2F2A') : ''));
+  if(o.beard) s.push(P(`M${hx+4},${hy+13} C${hx+2},${hy+24} ${hx+10},${hy+24} ${hx+9},${hy+12}`,'#EFEAE0',OL,1));
+  return s.join('');
+}
+/* ---- とりジェネレータ ---- */
+function bird(o){
+  const c=o.c, s=[];
+  s.push(P('M26,46 C34,26 60,24 70,40 C80,54 66,74 46,72 C30,70 20,60 26,46 Z',c,OL,1.4)); // body
+  if(o.tailF) s.push(P('M24,50 C10,40 6,52 8,60 C12,66 22,62 26,58 Z',o.tailc||c,OL,1.2));
+  s.push(P('M40,50 C52,44 62,50 58,60 C52,68 40,64 40,50 Z',o.wing||c,OL,1.1)); // wing
+  s.push(C(70,32,13,c,OL,1.4)); // head
+  if(o.comb) s.push(P('M62,20 C64,12 70,18 72,12 C76,8 80,18 78,22 Z','#E23B3B',OL,1));
+  if(o.wattle) s.push(P('M72,44 C68,52 76,52 76,44 Z','#E23B3B',OL,1));
+  s.push(o.bill==='flat'?P('M82,32 C96,28 96,38 82,38 Z','#F2A22C',OL,1.1):P('M82,29 L96,34 L82,39 Z',o.bc||'#F2A22C',OL,1.1));
+  s.push(eye(72,29));
+  s.push(L(44,70,42,86,o.fc||'#F2A22C',3)+L(56,70,58,86,o.fc||'#F2A22C',3)+L(38,86,48,86,o.fc||'#F2A22C',3)+L(54,86,64,86,o.fc||'#F2A22C',3));
+  return s.join('');
+}
+/* ---- さかなジェネレータ ---- */
+function fish(o){
+  const c=o.c,s=[];
+  s.push(P(o.tail||'M28,52 C14,38 8,44 10,52 C8,60 14,66 28,52 Z',o.tc||c,OL,1.2));
+  s.push(E(56,52,30,o.ry||18,c,OL,1.4));
+  s.push(P('M52,34 C58,24 68,28 66,36 Z',o.fin||c,OL,1.1));
+  s.push(P('M50,68 C56,78 66,74 64,66 Z',o.fin||c,OL,1.1));
+  s.push(eyeW(76,47,o.er||4.5));
+  s.push(P('M84,54 C80,58 80,60 84,62',null,OL,1.2));
+  return s.join('');
+}
+
+/* ============================================================
+   アイコン定義
+   ============================================================ */
+const I={};
+/* --- とり --- */
+I.niwatori=()=>bird({c:'#FBFBF7',comb:1,wattle:1,tailF:1,tailc:'#4C4842',wing:'#E8E4DA'});
+I.ahiru=()=>bird({c:'#FFFFFF',bill:'flat',tailF:1,wing:'#EFEDE6'});
+I.hato=()=>bird({c:'#9AA3B0',tailF:1,tailc:'#7E8794',wing:'#8892A0',bc:'#6E6A66',fc:'#D98C8C'});
+I.fukurou=()=>P('M22,26 L34,38 M78,26 L66,38',null,'#8A6E4E',3)+
+  E(50,56,30,32,'#A9855C',OL,1.4)+P('M28,34 L34,20 L44,32 Z','#A9855C',OL,1.1)+P('M72,34 L66,20 L56,32 Z','#A9855C',OL,1.1)+
+  C(38,48,11,'#F3E6CE',OL,1.1)+C(62,48,11,'#F3E6CE',OL,1.1)+C(38,48,6,'#3A2F2A')+C(62,48,6,'#3A2F2A')+C(40,46,2,'#fff')+C(64,46,2,'#fff')+
+  P('M50,54 L44,62 L56,62 Z','#F2A22C',OL,1)+P('M36,74 C42,80 58,80 64,74',null,'#8A6E4E',1.6);
+I.hakuchou=()=>R(0,74,100,26,'#CDE8F2')+P('M20,74 C10,60 24,56 40,62 C56,68 62,78 50,82 C38,86 26,84 20,74 Z','#FFFFFF',OL,1.4)+
+  P('M52,68 C68,66 74,44 66,30 C60,20 46,22 46,32',null,'#FFFFFF',9)+P('M52,68 C68,66 74,44 66,30 C60,20 46,22 46,32',null,OL,1.2)+
+  C(46,30,10,'#FFFFFF',OL,1.3)+P('M38,30 L26,34 L38,38 Z','#F2A22C',OL,1)+eye(42,27)+C(37,31,2.5,'#2E2A28');
+/* --- さかな --- */
+I.medaka=()=>R(0,0,0,0,'none')+fish({c:'#C9CEBE',ry:11,er:4});
+I.kingyo=()=>fish({c:'#F58220',tc:'#FBB040',ry:19,tail:'M30,52 C12,30 4,40 8,52 C4,64 12,74 30,52 Z',fin:'#FBB040'});
+I.fugu=()=>C(52,52,28,'#D9C79A',OL,1.4)+
+  Array.from({length:14},(_,i)=>{const a=i*Math.PI*2/14;return L(52+Math.cos(a)*27,52+Math.sin(a)*27,52+Math.cos(a)*34,52+Math.sin(a)*34,'#B49B66',2.2);}).join('')+
+  P('M80,52 C90,44 94,60 80,58 Z','#C9B487',OL,1.1)+eyeW(66,44,5)+P('M72,62 C68,66 68,68 72,70',null,OL,1.3);
+/* --- 両生・爬虫 --- */
+I.kaeru=()=>E(50,64,30,24,'#6FBF4A',OL,1.4)+C(34,36,13,'#6FBF4A',OL,1.3)+C(66,36,13,'#6FBF4A',OL,1.3)+
+  C(34,34,7,'#fff',OL,1)+C(66,34,7,'#fff',OL,1)+C(34,35,4,'#2E2A28')+C(66,35,4,'#2E2A28')+
+  E(50,52,26,18,'#6FBF4A',OL,1.2)+P('M36,64 C42,72 58,72 64,64',null,OL,1.6)+
+  P('M20,72 C10,76 12,88 24,84 Z','#5FAF3A',OL,1.1)+P('M80,72 C90,76 88,88 76,84 Z','#5FAF3A',OL,1.1)+
+  E(50,74,16,8,'#D9EFC8');
+I.kame=()=>P('M22,66 C24,42 76,42 78,66 Z','#7A9A3E',OL,1.5)+P('M22,66 C40,74 60,74 78,66 L78,70 C60,78 40,78 22,70 Z','#C8B27A',OL,1.2)+
+  [[36,58],[50,52],[64,58],[43,64],[57,64]].map(p=>P(`M${p[0]-7},${p[1]} L${p[0]},${p[1]-6} L${p[0]+7},${p[1]} L${p[0]},${p[1]+6} Z`,'#5E7A2E')).join('')+
+  C(86,62,10,'#8FAF52',OL,1.3)+eye(90,59)+R(28,70,10,10,'#8FAF52',4,OL)+R(58,70,10,10,'#8FAF52',4,OL)+P('M20,62 C12,60 12,68 20,68 Z','#8FAF52',OL,1);
+I.hebi=()=>P('M14,84 C40,84 30,62 50,60 C74,58 78,36 62,28 C50,22 38,30 42,40',null,'#7FA03E',11)+
+  P('M14,84 C40,84 30,62 50,60 C74,58 78,36 62,28 C50,22 38,30 42,40',null,OL,1.2)+
+  C(40,44,9,'#8FB04E',OL,1.2)+eye(37,41)+P('M34,48 L24,52',null,'#E23B3B',1.8)+P('M24,52 L20,50 M24,52 L20,55',null,'#E23B3B',1.6)+
+  [[52,62],[64,52],[70,36]].map(p=>C(p[0],p[1],3,'#5E7A2E')).join('');
+I.wani=()=>P('M6,60 C20,52 40,54 56,56 C72,58 88,56 96,62 C88,68 72,68 56,66 C40,64 20,68 6,60 Z','#6E8F46',OL,1.4)+
+  P('M56,56 C70,50 86,52 96,58 L96,62 C86,58 70,56 56,60 Z','#7FA055',OL,1)+
+  [[16,54],[28,52],[40,53],[52,55]].map(p=>P(`M${p[0]},${p[1]} L${p[0]+4},${p[1]-8} L${p[0]+8},${p[1]} Z`,'#5E7A2E')).join('')+
+  R(24,66,10,12,'#6E8F46',3,OL)+R(50,66,10,12,'#6E8F46',3,OL)+
+  C(84,54,3.5,'#F2E08A',OL,1)+C(84,54,1.8,'#2E2A28')+P('M62,62 L96,62',null,'#fff',1.6);
+I.tokage=()=>P('M12,76 C26,72 22,58 36,54 C52,50 60,56 72,52',null,'#7FA03E',9)+
+  P('M12,76 C26,72 22,58 36,54 C52,50 60,56 72,52',null,OL,1.1)+
+  E(80,50,13,9,'#8FB04E',OL,1.3)+eye(85,47)+
+  R(38,58,6,14,'#7FA03E',3,OL)+R(62,52,6,14,'#7FA03E',3,OL)+R(30,44,6,12,'#7FA03E',3,OL)+R(56,40,6,12,'#7FA03E',3,OL);
+/* --- むし --- */
+I.chou=()=>P('M50,58 C30,20 6,26 14,48 C20,64 40,64 50,58 Z','#F5A623',OL,1.2)+
+  P('M50,58 C70,20 94,26 86,48 C80,64 60,64 50,58 Z','#F5A623',OL,1.2)+
+  P('M50,58 C34,74 18,80 22,90 C28,96 44,80 50,66 Z','#E8802A',OL,1.1)+
+  P('M50,58 C66,74 82,80 78,90 C72,96 56,80 50,66 Z','#E8802A',OL,1.1)+
+  C(26,42,5,'#FFF3C4')+C(74,42,5,'#FFF3C4')+E(50,58,5,22,'#4A3F35')+C(50,32,6,'#4A3F35')+
+  P('M47,28 C40,18 34,16 32,10',null,OL,1.4)+P('M53,28 C60,18 66,16 68,10',null,OL,1.4);
+I.kabutomushi=()=>P('M50,30 C44,20 34,16 30,10 C40,12 48,18 50,24 C52,18 60,12 70,10 C66,16 56,20 50,30 Z','#4A2E14',OL,1.2)+
+  E(50,44,17,14,'#6B3E1A',OL,1.3)+E(50,68,24,24,'#5A3212',OL,1.4)+P('M50,46 L50,90',null,'#3A2008',1.6)+
+  E(38,64,9,16,'#6B3E1A')+[[22,50],[18,66],[24,82],[78,50],[82,66],[76,82]].map((p,i)=>L(50,60+((i%3)*6),p[0],p[1],'#3A2008',3.4)).join('');
+I.tentoumushi=()=>C(50,54,28,'#E23B3B',OL,1.4)+P('M50,26 L50,82',null,'#2E2A28',2)+
+  [[36,42],[64,42],[32,60],[68,60],[46,70],[56,70]].map(p=>C(p[0],p[1],5.5,'#2E2A28')).join('')+
+  P('M26,38 C30,26 70,26 74,38 Z','#2E2A28',OL,1)+C(38,32,2.6,'#fff')+C(62,32,2.6,'#fff')+
+  P('M40,24 C36,14 30,12 28,8',null,OL,1.4)+P('M60,24 C64,14 70,12 72,8',null,OL,1.4);
+I.batta=()=>P('M18,58 C34,44 62,42 84,50 C88,54 84,60 76,62 C58,66 32,68 18,58 Z','#7FA83E',OL,1.4)+
+  C(86,48,10,'#8FB84E',OL,1.2)+eye(90,45)+P('M92,42 C98,32 96,28 92,24',null,OL,1.3)+P('M88,42 C90,30 86,26 82,22',null,OL,1.3)+
+  P('M46,56 C40,72 52,84 62,86',null,'#6B9430',5)+P('M62,86 L78,90',null,'#6B9430',3.5)+
+  P('M32,62 L26,80 M50,64 L46,82',null,'#6B9430',3)+P('M30,50 C46,42 68,42 80,48',null,'#9BC85E',3);
+I.tako=()=>E(50,38,24,22,'#E2607A',OL,1.4)+
+  Array.from({length:6},(_,i)=>{const x=22+i*11.2;return P(`M${x},54 C${x-4},70 ${x+(i%2?6:-6)},82 ${x+(i%2?2:-2)},92`,null,'#E2607A',6.5);}).join('')+
+  Array.from({length:6},(_,i)=>{const x=22+i*11.2;return P(`M${x},54 C${x-4},70 ${x+(i%2?6:-6)},82 ${x+(i%2?2:-2)},92`,null,OL,1);}).join('')+
+  eyeW(40,34,5)+eyeW(60,34,5)+P('M44,46 C48,50 52,50 56,46',null,OL,1.4);
+I.katatsumuri=()=>P('M12,78 C20,70 34,68 50,70 C64,72 74,76 80,78 C74,84 20,86 12,78 Z','#E8D9A8',OL,1.3)+
+  P('M56,72 C34,72 26,52 40,40 C54,28 76,34 78,52 C80,68 68,76 58,74 C48,72 44,60 52,54 C60,48 70,54 68,60',null,'#C98A3C',9)+
+  P('M56,72 C34,72 26,52 40,40 C54,28 76,34 78,52 C80,68 68,76 58,74 C48,72 44,60 52,54 C60,48 70,54 68,60',null,OL,1.1)+
+  C(20,70,7,'#E8D9A8',OL,1.2)+P('M18,64 L14,50 M24,64 L26,50',null,'#E8D9A8',3)+C(14,48,2.6,'#3A2F2A')+C(26,48,2.6,'#3A2F2A');
+/* --- ほにゅうるい --- */
+I.inu=()=>quad({c:'#D9A05B',c2:'#C48C48',ear:'drop',tail:'curl',muzzle:'#F0DCC0'});
+I.neko=()=>quad({c:'#A9A6AE',c2:'#918E97',ear:'point',tail:'long',muzzle:'#EDE9EE'})+
+  P('M84,42 L96,40 M84,45 L96,48',null,OL,1);
+I.usagi=()=>quad({c:'#F5F0EA',c2:'#E6DFD6',ear:'long',tail:'puff',muzzle:'#FBEEF0'});
+I.nezumi=()=>quad({c:'#B5B0AA',c2:'#A09B95',ear:'round',tail:'thin',muzzle:'#EDD7D2',hr:12});
+I.hamster=()=>quad({c:'#E0B87A',c2:'#CFA463',ear:'round',tail:'短',muzzle:'#F7EBD8',hr:13});
+I.ushi=()=>quad({c:'#FBFBF7',c2:'#EDEAE2',ear:'drop',tail:'tuft',horn:'cow',muzzle:'#F5BFC6',hoof:1,
+  spots:[[36,48,10,8],[62,60,9,7],[74,44,6,5]],spotc:'#3A3330'})+E(46,74,10,6,'#F5BFC6',OL,1);
+I.uma=()=>quad({c:'#A9713F',c2:'#8E5C31',ear:'point',tail:'long',muzzle:'#7A4E28',hoof:1,hx:82,hy:30,hr:12})+
+  P('M68,34 C74,18 84,14 88,18',null,'#5A3B1E',6);
+I.buta=()=>quad({c:'#F2AEBB',c2:'#E399A8',ear:'point',tail:'curly',hoof:1,hr:13})+
+  C(92,38,7,'#E88EA0',OL,1.1)+C(90,36,1.8,'#8E5665')+C(94,40,1.8,'#8E5665');
+I.hitsuji=()=>quad({c:'#FAF6EE',c2:'#4A4038',woolly:1,ear:'drop',tail:'短',face:'#4A4038',leg:'#4A4038'});
+I.yagi=()=>quad({c:'#EFEAE0',c2:'#DCD5C8',ear:'drop',tail:'短',horn:'goat',beard:1,muzzle:'#E8E0D2',hoof:1});
+I.zou=()=>quad({c:'#A6A6AE',c2:'#93939B',ear:'none',tail:'thin',hx:80,hy:38,hr:16})+
+  P('M66,30 C50,26 46,46 56,56 C64,62 72,54 70,44 Z','#9A9AA2',OL,1.3)+
+  P('M88,48 C96,62 92,80 84,84 C80,80 82,64 80,52',null,'#A6A6AE',7)+
+  P('M88,48 C96,62 92,80 84,84',null,OL,1.1)+
+  P('M78,52 C74,62 76,68 82,70',null,'#F0EDE4',3)+eye(84,38);
+I.lion=()=>quad({c:'#D9A05B',c2:'#C48C48',tail:'tuft',tuft:'#6B4A22',hx:80,hy:38,hr:13})+
+  C(80,38,20,'#C98A3C',OL,1.4)+Array.from({length:14},(_,i)=>{const a=i*Math.PI*2/14;return C(80+Math.cos(a)*20,38+Math.sin(a)*20,6,'#B87A2C');}).join('')+
+  C(80,38,13,'#EFC98E',OL,1.2)+eye(76,35)+eye(86,35)+P('M81,42 L78,45 L84,45 Z','#7A4E28')+P('M76,50 C80,54 84,54 88,50',null,OL,1.2);
+I.kirin=()=>R(30,70,9,24,'#F2C14E',4,OL)+R(44,72,9,22,'#F2C14E',4,OL)+R(60,70,9,24,'#F2C14E',4,OL)+R(72,72,9,22,'#F2C14E',4,OL)+
+  E(50,58,28,18,'#F2C14E',OL,1.4)+
+  P('M68,52 C74,32 76,20 76,12',null,'#F2C14E',13)+P('M68,52 C74,32 76,20 76,12',null,OL,1.2)+
+  E(80,12,12,9,'#F2C14E',OL,1.3)+P('M72,4 L70,-2 M80,3 L80,-3',null,'#8A6A2E',2.6)+C(70,-3,2.6,'#8A6A2E')+C(80,-4,2.6,'#8A6A2E')+
+  eye(84,10)+[[36,52],[48,62],[60,54],[42,66],[56,68],[70,42],[74,28]].map(p=>E(p[0],p[1],5.5,4.5,'#B5762C')).join('');
+I.panda=()=>quad({c:'#FFFFFF',c2:'#2E2A28',ear:'round',tail:'短',hx:78,hy:38,hr:16,leg:'#2E2A28'})+
+  C(66,26,8,'#2E2A28')+C(90,26,8,'#2E2A28')+C(78,38,15,'#FFFFFF',OL,1.3)+
+  E(71,36,5,6,'#2E2A28')+E(85,36,5,6,'#2E2A28')+C(71,36,2,'#fff')+C(85,36,2,'#fff')+
+  C(78,45,3.4,'#2E2A28')+P('M74,50 C77,53 79,53 82,50',null,OL,1.2);
+I.saru=()=>E(50,64,24,22,'#A9764A',OL,1.4)+P('M26,66 C10,62 6,42 16,32',null,'#A9764A',5)+
+  C(50,36,17,'#A9764A',OL,1.4)+C(33,34,7,'#A9764A',OL,1.1)+C(67,34,7,'#A9764A',OL,1.1)+
+  E(50,40,12,12,'#F0C9A8',OL,1)+eye(45,36)+eye(55,36)+C(48,42,1.6,'#8E6444')+C(52,42,1.6,'#8E6444')+
+  P('M44,46 C48,50 52,50 56,46',null,'#8E6444',1.4)+
+  P('M32,74 C24,84 30,90 38,86',null,'#A9764A',5)+P('M68,74 C76,84 70,90 62,86',null,'#A9764A',5);
+I.koala=()=>P('M74,20 C78,44 76,70 72,92',null,'#8A6E4E',5)+
+  E(46,64,22,22,'#A8AEB4',OL,1.4)+C(46,38,17,'#A8AEB4',OL,1.4)+
+  C(28,34,10,'#BFC5CA',OL,1.2)+C(64,34,10,'#BFC5CA',OL,1.2)+C(28,34,5,'#8E959B')+C(64,34,5,'#8E959B')+
+  eye(40,36)+eye(52,36)+E(46,44,7,5.5,'#3A3330')+
+  P('M60,58 C72,54 76,64 66,68',null,'#A8AEB4',6)+P('M40,84 C44,92 56,90 56,82',null,'#969CA2',5);
+I.hito=()=>P('M50,52 C28,52 20,70 22,92 L78,92 C80,70 72,52 50,52 Z','#FBD9E4',OL,1.4)+
+  P('M50,52 C34,52 26,64 24,80 C40,72 60,72 76,80 C74,64 66,52 50,52 Z','#F7C2D4',OL,1)+
+  C(50,32,20,'#F7DCC4',OL,1.4)+P('M32,26 C36,10 64,10 68,26 C60,20 40,20 32,26 Z','#6B4A2E',OL,1)+
+  eye(42,32)+eye(58,32)+C(50,38,2.2,'#E0A08E')+P('M44,42 C48,46 52,46 56,42',null,'#C4736A',1.4)+
+  C(34,40,4,'#F5B7B0',null)+C(66,40,4,'#F5B7B0',null);
+/* --- ひっかけ動物 --- */
+I.iruka=()=>P('M8,62 C20,40 48,32 72,42 C86,48 92,58 96,64 C88,64 80,62 72,64 C56,70 24,74 8,62 Z','#8FB4C8',OL,1.4)+
+  P('M8,62 C22,58 46,58 70,62 C84,64 90,64 96,64 C88,64 80,62 72,64 C56,70 24,74 8,62 Z','#D8E8F0')+
+  P('M44,38 C48,22 60,22 58,38 Z','#7FA4B8',OL,1.2)+P('M40,64 C34,78 46,80 50,68 Z','#7FA4B8',OL,1.2)+
+  P('M8,62 C0,52 -2,72 8,66 Z','#7FA4B8',OL,1.2)+eye(80,52)+P('M88,58 C92,60 92,60 96,60',null,OL,1.2);
+I.kujira=()=>P('M10,54 C22,34 54,30 76,42 C90,50 94,60 96,68 C86,66 76,62 66,64 C48,70 20,70 10,54 Z','#5E8FB0',OL,1.4)+
+  P('M14,58 C30,64 56,66 76,62 C86,60 92,64 96,68 C86,66 76,62 66,64 C48,70 22,68 14,58 Z','#CFE2EE')+
+  P('M96,68 C104,58 106,80 96,72 Z','#4E7F9E',OL,1.2)+P('M40,64 C34,78 46,80 50,68 Z','#4E7F9E',OL,1.2)+
+  eye(78,50)+P('M62,34 C60,22 56,16 52,10',null,'#9FC8DE',3.4)+P('M60,32 C64,20 70,16 74,12',null,'#9FC8DE',3)+
+  [[52,8],[74,10],[62,4]].map(p=>C(p[0],p[1],3.4,'#BEDCEC')).join('');
+I.azarashi=()=>P('M10,72 C10,50 34,38 56,42 C76,46 86,58 84,72 Z','#A8AEB4',OL,1.4)+
+  P('M14,72 C16,58 34,50 54,52 C70,54 80,62 80,72 Z','#D6DADE')+
+  P('M84,72 C96,66 98,80 84,78 Z','#969CA2',OL,1.2)+P('M18,44 C6,42 6,56 18,52 Z','#969CA2',OL,1.2)+
+  C(28,50,3,'#2E2A28')+C(42,48,3,'#2E2A28')+C(34,56,3.4,'#3A3330')+
+  P('M20,58 L8,56 M20,61 L8,64',null,OL,1)+P('M48,58 L60,56 M48,61 L60,64',null,OL,1)+R(0,74,100,26,'#CDE8F2');
+I.koumori=()=>P('M50,50 C34,32 12,30 4,42 C16,42 14,56 24,54 C22,64 34,64 38,58 C42,66 50,62 50,54 Z','#5A4A6E',OL,1.3)+
+  P('M50,50 C66,32 88,30 96,42 C84,42 86,56 76,54 C78,64 66,64 62,58 C58,66 50,62 50,54 Z','#5A4A6E',OL,1.3)+
+  E(50,52,11,16,'#4A3A5E',OL,1.3)+C(50,32,12,'#4A3A5E',OL,1.3)+
+  P('M40,26 L38,10 L50,22 Z','#4A3A5E',OL,1.1)+P('M60,26 L62,10 L50,22 Z','#4A3A5E',OL,1.1)+
+  C(45,31,2.6,'#F5C93F')+C(55,31,2.6,'#F5C93F')+P('M46,38 L48,42 L44,42 Z','#fff')+P('M54,38 L56,42 L52,42 Z','#fff');
+I.pengin=()=>P('M50,16 C72,16 82,42 80,64 C78,84 66,92 50,92 C34,92 22,84 20,64 C18,42 28,16 50,16 Z','#2E3440',OL,1.4)+
+  P('M50,32 C64,32 70,50 68,66 C66,80 60,86 50,86 C40,86 34,80 32,66 C30,50 36,32 50,32 Z','#FBFBF7',OL,1)+
+  P('M20,50 C10,58 12,78 24,74 Z','#2E3440',OL,1.2)+P('M80,50 C90,58 88,78 76,74 Z','#2E3440',OL,1.2)+
+  C(42,34,3,'#fff')+C(58,34,3,'#fff')+C(42,34,1.8,'#2E2A28')+C(58,34,1.8,'#2E2A28')+
+  P('M44,40 L56,40 L50,50 Z','#F2A22C',OL,1)+
+  P('M34,92 C28,98 44,98 46,92 Z','#F2A22C',OL,1)+P('M66,92 C72,98 56,98 54,92 Z','#F2A22C',OL,1);
+I.umigame=()=>R(0,70,100,30,'#CDE8F2')+
+  P('M22,58 C24,34 76,34 78,58 C76,74 24,74 22,58 Z','#5E8A4A',OL,1.5)+
+  [[38,48],[50,44],[62,48],[44,60],[56,60],[50,68]].map(p=>P(`M${p[0]-7},${p[1]} L${p[0]},${p[1]-6} L${p[0]+7},${p[1]} L${p[0]},${p[1]+6} Z`,'#456E36')).join('')+
+  P('M22,50 C6,42 2,58 18,62 Z','#6E9A5A',OL,1.2)+P('M78,50 C94,42 98,58 82,62 Z','#6E9A5A',OL,1.2)+
+  P('M30,70 C22,82 34,86 40,74 Z','#6E9A5A',OL,1.2)+P('M70,70 C78,82 66,86 60,74 Z','#6E9A5A',OL,1.2)+
+  E(50,32,11,9,'#6E9A5A',OL,1.3)+eye(46,30)+eye(54,30);
+
+/* ============ もの（うく・しずむ） ============ */
+I.ki=()=>G('rotate(-12 50 50)',R(16,38,68,26,'#C89A5E',3,OL)+P('M16,44 C40,42 60,48 84,44 M16,54 C40,58 60,50 84,56',null,'#A87A3E',1.6)+E(84,51,5,13,'#DDB47E',OL,1.2));
+I.waribashi=()=>G('rotate(18 50 50)',R(20,42,60,7,'#E8CFA0',2,OL)+R(20,54,60,7,'#E8CFA0',2,OL)+R(66,40,16,23,'#F2E2C0',2,OL));
+I.kami=()=>P('M24,20 L70,20 L80,32 L80,84 L24,84 Z','#FFFFFF',OL,1.5)+P('M70,20 L70,32 L80,32',null,OL,1.3)+
+  P('M32,44 L72,44 M32,54 L72,54 M32,64 L60,64',null,'#B9BDC4',2);
+I.happa=()=>P('M50,86 C20,74 14,34 50,12 C86,34 80,74 50,86 Z','#5FA83E',OL,1.4)+P('M50,86 L50,14',null,'#3E7A16',2)+
+  [[-1,1]].flatMap(()=>Array.from({length:5},(_,i)=>{const y=26+i*12;return P(`M50,${y} L${34-i*1},${y+8} M50,${y} L${66+i*1},${y+8}`,null,'#3E7A16',1.4);})).join('');
+I.fuusen=()=>P('M50,70 C28,66 22,40 34,24 C46,10 66,14 70,32 C74,50 66,66 50,70 Z','#E2455A',OL,1.4)+
+  P('M44,68 L56,68 L50,78 Z','#C93548',OL,1.1)+P('M50,78 C58,84 42,88 50,96',null,OL,1.4)+
+  P('M38,30 C40,22 48,18 54,20',null,'#FBC9CF',3);
+I.ball=()=>C(50,52,32,'#FFFFFF',OL,1.5)+P('M50,30 L64,40 L58,58 L42,58 L36,40 Z','#2E3440')+
+  [[50,20],[24,44],[36,74],[64,74],[76,44]].map(p=>C(p[0],p[1],7,'#2E3440')).join('')+
+  P('M50,30 L50,20 M64,40 L76,44 M58,58 L64,74 M42,58 L36,74 M36,40 L24,44',null,OL,1.4)+C(50,52,32,'none',OL,1.5);
+I.sponge=()=>R(16,30,68,44,'#F5D33F',5,OL)+R(16,30,68,12,'#EFC020',5)+
+  [[28,54],[44,60],[60,52],[72,62],[36,46],[56,44],[68,44],[24,66],[50,68]].map(p=>C(p[0],p[1],4,'#E0AE10')).join('');
+I.pet=()=>P('M38,22 L62,22 L62,32 C74,38 72,54 72,72 C72,84 66,88 50,88 C34,88 28,84 28,72 C28,54 26,38 38,32 Z','#EAF6FB',OL,1.5)+
+  R(36,12,28,12,'#3E8AC4',3,OL)+P('M30,50 L70,50 M30,62 L70,62',null,'#BFD9E6',1.6);
+I.petw=()=>I.pet()+P('M29,50 C40,46 60,54 71,50 L71,72 C71,84 66,88 50,88 C34,88 29,84 29,72 Z','#7EC8E3',null)+
+  P('M38,22 L62,22 L62,32 C74,38 72,54 72,72 C72,84 66,88 50,88 C34,88 28,84 28,72 C28,54 26,38 38,32 Z','none',OL,1.5);
+I.rousoku=()=>R(38,32,24,58,'#F7EFD8',3,OL)+P('M50,32 L50,22',null,'#8A7A5A',2.2)+
+  P('M50,22 C58,14 54,4 50,0 C46,6 42,14 50,22 Z','#F5A623',OL,1)+P('M50,18 C54,13 52,8 50,6 C48,9 46,14 50,18 Z','#FBE08A')+
+  P('M42,40 L42,84 M58,40 L58,84',null,'#E8DCC0',1.6);
+I.koori=()=>R(0,58,100,42,'#CDE8F2')+P('M24,26 L74,20 L84,58 L34,66 Z','#DFF3FA',OL,1.4)+
+  P('M24,26 L34,66 L84,58 L74,20 Z','none',OL,1.4)+P('M34,66 L28,72 L78,64 L84,58',null,'#B9E0EE',1.4)+
+  P('M32,32 L44,30 M40,44 L56,42',null,'#FFFFFF',2.4)+P('M0,58 L100,58',null,'#8FC8DE',1.4);
+I.hane=()=>P('M74,14 C42,26 22,54 20,84 C34,72 40,74 48,68 C42,68 40,64 44,60 C54,58 60,52 62,44 C56,46 52,44 54,40 C64,34 72,26 74,14 Z','#EFF3F7',OL,1.4)+
+  P('M74,14 C50,34 32,58 22,82',null,'#B9BDC4',1.6);
+I.kugi=()=>G('rotate(20 50 50)',P('M50,18 L50,86 L46,92 L42,86 L42,18 Z','#B9BDC4',OL,1.4)+
+  E(46,18,20,6,'#CFD3D8',OL,1.4)+P('M36,16 C42,20 56,20 60,16',null,'#96A0A8',1.4));
+I.hasami=()=>P('M28,84 C40,64 52,44 62,24',null,'#B9BDC4',7)+P('M62,84 C50,64 38,44 28,24',null,'#CFD3D8',7)+
+  P('M28,84 C40,64 52,44 62,24 M62,84 C50,64 38,44 28,24',null,OL,1.2)+
+  C(26,20,10,'none','#E2455A',6)+C(64,20,10,'none','#E2455A',6)+C(45,54,3.4,'#7A8288');
+I.kagi=()=>C(30,44,18,'none','#D9A82C',9)+C(30,44,18,'none',OL,1.2)+C(30,44,8,'#fff',OL,1.2)+
+  P('M46,50 L84,74',null,'#D9A82C',9)+P('M46,50 L84,74',null,OL,1.2)+
+  P('M66,64 L62,76 M76,70 L72,82',null,'#D9A82C',7)+P('M66,64 L62,76 M76,70 L72,82',null,OL,1.1);
+I.spoon=()=>G('rotate(24 50 50)',E(50,26,16,20,'#D6DADE',OL,1.4)+E(50,24,11,14,'#EFF2F4')+
+  P('M50,46 C46,62 46,76 50,90',null,'#D6DADE',8)+P('M50,46 C46,62 46,76 50,90',null,OL,1.2));
+I.coin=()=>C(50,54,30,'#D9A82C',OL,1.5)+C(50,54,24,'#EFC24E',OL,1.2)+C(50,54,9,'#D9A82C',OL,1.2)+
+  P('M50,32 L50,40 M50,68 L50,76 M28,54 L36,54 M64,54 L72,54',null,'#B98A16',2.2)+P('M42,44 C46,40 54,40 58,44',null,'#B98A16',1.6);
+I.ishi=()=>P('M18,74 C10,58 22,34 44,26 C66,18 84,32 84,52 C84,68 72,80 52,82 C36,84 24,82 18,74 Z','#9AA0A6',OL,1.5)+
+  P('M30,44 C40,36 56,34 68,40',null,'#B6BCC2',3)+P('M28,64 C40,68 56,68 70,60',null,'#7E858B',2.4);
+I.biidama=()=>C(50,52,30,'#BFE6F5',OL,1.5)+P('M34,36 C46,26 60,28 68,38 C58,34 44,32 34,36 Z','#FFFFFF')+
+  P('M38,66 C34,50 46,34 62,32 C52,44 46,58 50,72 Z','#5FB8E8')+P('M60,70 C68,60 70,48 66,40 C74,52 72,66 60,70 Z','#8ED0EE')+
+  C(40,42,5,'#FFFFFF',null);
+I.chawan=()=>P('M18,42 C18,72 34,84 50,84 C66,84 82,72 82,42 Z','#F7F3EA',OL,1.5)+
+  E(50,42,32,9,'#FFFFFF',OL,1.4)+E(50,42,25,6,'#E6EEF2')+
+  P('M22,54 C34,60 66,60 78,54',null,'#3E6EA8',2.6)+R(40,86,20,6,'#E8E2D4',2,OL);
+I.nendo=()=>P('M20,72 C14,52 28,34 50,34 C72,34 86,52 80,72 C70,82 30,82 20,72 Z','#C4A882',OL,1.5)+
+  P('M32,50 C40,44 52,42 62,46',null,'#D9C2A2',3.4)+P('M30,64 C44,70 60,70 72,62',null,'#A88E68',2.4)+
+  P('M46,36 C48,30 56,30 58,36',null,'#B59A74',3);
+I.suna=()=>P('M12,86 C20,58 38,44 50,44 C62,44 80,58 88,86 Z','#E0C88E',OL,1.4)+
+  [[34,72],[46,64],[58,70],[42,80],[62,80],[52,54],[70,80]].map(p=>C(p[0],p[1],2.4,'#C2A868')).join('')+
+  P('M50,44 C46,32 54,24 50,14',null,'#E0C88E',3)+[[46,28],[54,20],[50,10]].map(p=>C(p[0],p[1],2,'#E0C88E')).join('');
+I.binw=()=>P('M40,14 L60,14 L60,32 C74,40 74,58 74,74 C74,86 68,90 50,90 C32,90 26,86 26,74 C26,58 26,40 40,32 Z','#DCEAE2',OL,1.5)+
+  P('M27,46 C40,42 60,50 73,46 L73,74 C73,86 68,90 50,90 C32,90 27,86 27,74 Z','#7EC8E3')+
+  P('M40,14 L60,14 L60,32 C74,40 74,58 74,74 C74,86 68,90 50,90 C32,90 26,86 26,74 C26,58 26,40 40,32 Z','none',OL,1.5)+
+  R(38,6,24,10,'#C4966E',2,OL);
+I.fune=()=>R(0,66,100,34,'#BFE2F0')+P('M8,64 L92,64 L78,84 L22,84 Z','#D8433C',OL,1.5)+
+  R(20,44,60,20,'#F7F3EA',2,OL)+[[30,54],[46,54],[62,54]].map(p=>C(p[0],p[1],5,'#5FB8E8',OL,1)).join('')+
+  R(46,18,6,26,'#8A6E4E',2,OL)+P('M52,20 L78,32 L52,40 Z','#F5D33F',OL,1.2)+
+  P('M0,72 C12,68 20,76 32,72 M68,72 C80,68 88,76 100,72',null,'#FFFFFF',2)
+;
+I.tamago=()=>P('M50,14 C68,14 80,40 80,58 C80,78 66,90 50,90 C34,90 20,78 20,58 C20,40 32,14 50,14 Z','#FBF3E4',OL,1.5)+
+  P('M34,34 C38,26 46,22 52,22',null,'#FFFFFF',4);
+/* ============ やさい・くだもの ============ */
+I.ringo=()=>P('M50,30 C34,22 18,32 18,52 C18,72 34,90 50,90 C66,90 82,72 82,52 C82,32 66,22 50,30 Z','#E2455A',OL,1.5)+
+  P('M50,30 L50,16',null,'#6B4A2E',3)+P('M52,20 C64,10 76,14 74,24 C72,32 58,30 52,20 Z','#5FA83E',OL,1.2)+
+  P('M30,44 C28,56 32,66 38,74',null,'#F79AA8',3.4);
+I.mikan=()=>C(50,56,32,'#F79020',OL,1.5)+
+  Array.from({length:8},(_,i)=>{const a=i*Math.PI/4;return L(50,56,50+Math.cos(a)*31,56+Math.sin(a)*31,'#D97706',1.4);}).join('')+
+  P('M50,24 C48,18 52,16 54,20',null,'#5FA83E',3)+E(56,20,9,5,'#5FA83E',OL,1.1)+C(50,26,4,'#C96A06');
+I.nashi=()=>P('M50,26 C38,26 34,40 38,50 C28,58 26,76 40,86 C50,92 60,90 66,84 C78,72 72,56 62,50 C66,40 62,26 50,26 Z','#C9A85E',OL,1.5)+
+  P('M50,26 L50,14',null,'#6B4A2E',2.6)+[[42,62],[56,70],[48,76],[62,60]].map(p=>C(p[0],p[1],1.8,'#A88A44')).join('');
+I.momo=()=>P('M50,28 C32,28 20,44 22,62 C24,80 38,90 50,90 C62,90 76,80 78,62 C80,44 68,28 50,28 Z','#F79AB0',OL,1.5)+
+  P('M50,28 C46,52 46,70 50,90',null,'#E0748E',2)+P('M50,26 C58,14 72,14 76,22 C68,26 56,28 50,26 Z','#5FA83E',OL,1.2)+
+  P('M32,44 C28,54 30,64 34,72',null,'#FBC9D4',3.4);
+I.kuri=()=>P('M50,26 C28,26 16,50 20,70 C24,84 76,84 80,70 C84,50 72,26 50,26 Z','#8A5A28',OL,1.5)+
+  P('M22,72 C36,80 64,80 78,72 C74,82 26,82 22,72 Z','#F0E2C4',OL,1.2)+
+  P('M50,26 L50,16',null,'#6B4A2E',2.6)+P('M34,44 C32,54 34,62 38,68',null,'#B58A50',3);
+I.budou=()=>P('M50,20 C56,12 68,10 74,14',null,'#5FA83E',3)+E(76,12,10,5,'#5FA83E',OL,1.1)+
+  [[50,30],[38,42],[62,42],[28,54],[50,52],[72,54],[38,64],[62,64],[50,76]].map(p=>C(p[0],p[1],11,'#7A57BC',OL,1.2)).join('')+
+  [[50,30],[38,42],[62,42],[50,52]].map(p=>C(p[0]-3,p[1]-3,3,'#A98CD8')).join('');
+I.suika=()=>C(50,56,34,'#2F7A34',OL,1.5)+
+  [[-28,-14],[-10,-20],[10,-20],[28,-14]].map(([dx,dy])=>P(`M${50+dx},${56+dy-14} C${50+dx-4},${56} ${50+dx-4},${56+10} ${50+dx},${56+22}`,null,'#1E5A22',3.4)).join('')+
+  P('M20,44 C34,36 66,36 80,44',null,'#5FA83E',3)+P('M50,20 C48,14 54,12 56,16',null,'#5FA83E',3);
+I.kabocha=()=>[[50,0,30],[50,-14,20],[50,14,20]].map(()=>'').join('')+
+  E(50,58,32,28,'#2F7A34',OL,1.5)+E(50,58,20,28,'#3F8A3A',OL,1.1)+E(50,58,9,28,'#4F9A45',OL,1.1)+
+  P('M50,30 L50,18 C50,12 58,12 58,18',null,'#6B8E3E',4);
+I.melon=()=>C(50,56,32,'#C8D48E',OL,1.5)+
+  Array.from({length:5},(_,i)=>P(`M${24+i*13},26 C${20+i*13},46 ${28+i*13},68 ${24+i*13},86`,null,'#EFF3D8',2.4)).join('')+
+  Array.from({length:4},(_,i)=>P(`M20,${34+i*13} C42,${30+i*13} 62,${40+i*13} 82,${34+i*13}`,null,'#EFF3D8',2.4)).join('')+
+  C(50,56,32,'none',OL,1.5)+P('M50,24 L50,14 L58,10',null,'#6B8E3E',3.4);
+I.ichigo=()=>P('M50,32 C30,32 22,48 26,64 C30,82 42,92 50,92 C58,92 70,82 74,64 C78,48 70,32 50,32 Z','#E2455A',OL,1.5)+
+  [[38,50],[52,46],[64,54],[44,64],[58,66],[50,78],[34,64],[66,40]].map(p=>P(`M${p[0]},${p[1]-3} L${p[0]+2.6},${p[1]+2} L${p[0]-2.6},${p[1]+2} Z`,'#FBE08A')).join('')+
+  P('M50,32 L50,20',null,'#3E7A16',2.6)+[[0,-22],[-34,20],[34,20],[-20,-10],[20,-10]].map(()=>'').join('')+
+  P('M50,30 L30,18 L44,30 L26,32 L46,36 L34,48 L50,38 L66,48 L54,36 L74,32 L56,30 L70,18 Z','#3E7A16',OL,1);
+I.tomato=()=>C(50,58,30,'#E2455A',OL,1.5)+P('M34,42 C30,52 32,62 36,70',null,'#F79AA8',3.4)+
+  P('M50,28 L36,20 L46,28 L32,32 L48,34 L38,44 L50,36 L62,44 L52,34 L68,32 L54,28 L64,20 Z','#3E7A16',OL,1)+
+  P('M50,28 L50,16',null,'#3E7A16',2.6);
+I.nasu=()=>P('M56,32 C78,36 84,62 68,80 C54,94 30,90 24,74 C18,58 34,34 56,32 Z','#6B3FA0',OL,1.5)+
+  P('M36,50 C30,60 30,70 34,78',null,'#9A6ED0',3.4)+
+  P('M50,30 C46,22 52,14 60,12 C64,20 60,30 50,30 Z','#3E7A16',OL,1.2)+
+  P('M56,32 L58,14',null,'#3E7A16',3)+P('M44,32 C50,24 62,24 66,28',null,'#3E7A16',3);
+I.kyuri=()=>G('rotate(-24 50 50)',P('M50,10 C60,10 64,24 64,50 C64,76 60,90 50,90 C40,90 36,76 36,50 C36,24 40,10 50,10 Z','#4F9A45',OL,1.5)+
+  P('M44,20 C42,40 42,62 44,80',null,'#7FBF4D',3)+
+  [[46,30],[54,42],[46,54],[56,66],[48,74]].map(p=>C(p[0],p[1],1.8,'#3A7A32')).join('')+
+  P('M50,10 L50,2',null,'#6B8E3E',2.6));
+I.piman=()=>P('M50,30 C26,30 20,50 24,68 C28,84 42,90 50,86 C58,90 72,84 76,68 C80,50 74,30 50,30 Z','#3F8A3A',OL,1.5)+
+  P('M34,48 C30,58 32,68 36,76',null,'#6FBF4A',3.4)+P('M50,30 L50,16',null,'#2F6A2A',3.4)+
+  P('M40,24 C44,18 56,18 60,24 C56,30 44,30 40,24 Z','#2F6A2A',OL,1.1);
+I.tomorokoshi=()=>P('M50,16 C64,16 70,34 70,54 C70,76 62,90 50,90 C38,90 30,76 30,54 C30,34 36,16 50,16 Z','#F5D33F',OL,1.5)+
+  Array.from({length:5},(_,i)=>P(`M${34+i*8},22 C${32+i*8},46 ${34+i*8},70 ${36+i*8},86`,null,'#E0B720',1.6)).join('')+
+  Array.from({length:7},(_,i)=>P(`M31,${24+i*9} C44,${20+i*9} 58,${28+i*9} 69,${24+i*9}`,null,'#E0B720',1.6)).join('')+
+  P('M30,40 C14,30 10,60 26,72 Z','#5FA83E',OL,1.2)+P('M70,40 C86,30 90,60 74,72 Z','#5FA83E',OL,1.2)+
+  P('M50,16 C48,8 54,4 58,4',null,'#C9A82C',3);
+I.edamame=()=>G('rotate(-16 50 50)',P('M22,58 C22,42 78,42 78,58 C78,74 22,74 22,58 Z','#7FBF4D',OL,1.5)+
+  [[36,58],[50,58],[64,58]].map(p=>C(p[0],p[1],9,'#5FA83E',OL,1)).join('')+
+  P('M22,58 C22,48 78,48 78,58',null,'#9BD46E',2.4)+P('M78,58 L88,52',null,'#3E7A16',3));
+I.kyabetsu=()=>C(50,56,32,'#9BD46E',OL,1.5)+
+  P('M22,50 C34,34 66,34 78,50',null,'#5FA83E',2.4)+P('M28,68 C40,58 60,58 72,68',null,'#5FA83E',2.4)+
+  P('M50,26 C40,40 40,70 50,86',null,'#5FA83E',2.4)+P('M50,26 C60,40 60,70 50,86',null,'#5FA83E',2.4)+
+  C(50,56,32,'none',OL,1.5)+E(50,56,11,14,'#C8E8A0',OL,1.1);
+I.hakusai=()=>P('M50,14 C34,14 26,40 30,64 C34,84 42,90 50,90 C58,90 66,84 70,64 C74,40 66,14 50,14 Z','#EFF3D8',OL,1.5)+
+  P('M38,20 C30,42 32,70 40,86',null,'#9BD46E',3)+P('M62,20 C70,42 68,70 60,86',null,'#9BD46E',3)+
+  P('M50,14 L50,88',null,'#C8E8A0',2.4)+P('M30,32 C40,26 60,26 70,32',null,'#7FBF4D',2);
+I.brocoli=()=>[[50,34],[32,44],[68,44],[40,58],[60,58],[50,50]].map(p=>C(p[0],p[1],15,'#3F8A3A',OL,1.2)).join('')+
+  [[42,30],[58,32],[28,42],[72,44],[36,54],[64,54],[50,44]].map(p=>C(p[0],p[1],6,'#4F9A45')).join('')+
+  P('M50,64 L50,90',null,'#9BD46E',12)+P('M50,64 L50,90',null,OL,1.2)+P('M40,72 C46,78 54,78 60,72',null,'#7FBF4D',2);
+I.hourensou=()=>P('M50,90 L50,54',null,'#C4526A',4)+
+  [[-1,0],[1,0],[-1,-14],[1,-14]].map((_,i)=>'').join('')+
+  P('M50,54 C28,46 18,26 26,14 C42,16 52,34 50,54 Z','#3F8A3A',OL,1.3)+
+  P('M50,54 C72,46 82,26 74,14 C58,16 48,34 50,54 Z','#4F9A45',OL,1.3)+
+  P('M50,58 C36,58 26,48 26,38 C40,40 50,48 50,58 Z','#5FA83E',OL,1.2)+
+  P('M50,58 C64,58 74,48 74,38 C60,40 50,48 50,58 Z','#5FA83E',OL,1.2)+
+  P('M44,92 C48,84 52,84 56,92',null,'#C4526A',3);
+/* --- 土の中 --- */
+const soil=()=>R(0,30,100,70,'#C9A87E')+P('M0,30 C14,26 28,34 42,30 C56,26 70,34 84,30 C92,28 96,30 100,30 L100,34 L0,34 Z','#A88A5E');
+I.ninjin=()=>soil()+P('M40,26 C36,10 44,4 50,4 C56,4 62,10 58,26',null,'#3F8A3A',5)+
+  P('M50,4 C44,-4 40,-2 38,4 M50,4 C56,-4 60,-2 62,4',null,'#3F8A3A',4)+
+  P('M36,30 L64,30 C62,54 56,80 50,92 C44,80 38,54 36,30 Z','#F0761E',OL,1.4)+
+  P('M40,42 L60,40 M42,54 L58,52 M44,66 L56,64',null,'#C95A0E',1.6);
+I.daikon=()=>soil()+P('M38,26 C30,8 44,2 50,6 C56,2 70,8 62,26',null,'#3F8A3A',5)+
+  P('M34,30 L66,30 C64,58 58,84 50,94 C42,84 36,58 34,30 Z','#FBFBF7',OL,1.4)+
+  P('M42,44 C48,42 54,44 58,42 M44,60 C48,58 54,60 56,58',null,'#D8DCE0',1.6)+
+  P('M50,94 C52,98 54,98 56,96',null,'#D8DCE0',2);
+I.gobou=()=>soil()+P('M44,26 C40,12 48,6 52,8 C56,6 62,14 58,26',null,'#3F8A3A',4.5)+
+  P('M42,30 L58,30 C58,58 54,84 50,96 C46,84 42,58 42,30 Z','#9A7A4E',OL,1.4)+
+  P('M44,44 L40,56 M58,50 L62,62 M46,66 L42,76',null,'#7A5E36',2)+
+  P('M46,40 C50,42 54,40 56,42',null,'#B59A6E',1.6);
+I.kabu=()=>soil()+P('M38,24 C30,6 44,0 50,4 C56,0 70,6 62,24',null,'#3F8A3A',5)+
+  C(50,52,24,'#FBFBF7',OL,1.4)+P('M50,76 C50,86 48,92 46,96',null,'#FBFBF7',4)+
+  P('M50,76 C50,86 48,92 46,96',null,OL,1.1)+P('M34,44 C40,38 48,36 54,38',null,'#EAEDF0',3);
+I.jagaimo=()=>soil()+P('M22,60 C18,42 34,34 52,36 C72,38 84,50 80,66 C76,82 54,88 38,82 C28,78 24,70 22,60 Z','#C9A46E',OL,1.5)+
+  [[38,52],[58,48],[46,68],[68,64],[30,70]].map(p=>C(p[0],p[1],3.4,'#A8814C')).join('')+
+  P('M32,48 C42,42 56,42 66,46',null,'#DDBE8E',3)+
+  P('M50,36 C50,26 44,20 38,18',null,'#8A7A5A',2.4);
+I.satsumaimo=()=>soil()+G('rotate(-18 50 60)',P('M18,60 C18,44 36,38 54,40 C74,42 86,52 84,62 C82,76 60,84 40,80 C26,77 18,70 18,60 Z','#B8407A',OL,1.5)+
+  P('M28,50 C42,44 62,46 76,54',null,'#D4749E',3.4)+[[38,64],[58,62],[70,66]].map(p=>C(p[0],p[1],2.6,'#8E2A5A')).join('')+
+  P('M84,58 C92,56 96,60 98,64',null,'#8E2A5A',3)+P('M18,58 C10,56 8,60 6,62',null,'#8E2A5A',3));
+I.satoimo=()=>soil()+P('M40,22 C34,10 44,4 50,6 C56,4 66,10 60,22',null,'#3F8A3A',4.5)+
+  P('M32,52 C32,36 68,36 68,52 C68,74 58,88 50,88 C42,88 32,74 32,52 Z','#8A6A46',OL,1.5)+
+  P('M32,50 C42,46 58,46 68,50 M33,60 C43,56 57,56 67,60 M35,70 C44,67 56,67 65,70',null,'#6B4E2E',1.8);
+I.nagaimo=()=>soil()+P('M42,24 C36,10 46,4 50,6',null,'#3F8A3A',4)+
+  P('M40,30 C40,26 60,26 60,30 C62,54 58,80 50,94 C42,80 38,54 40,30 Z','#E8DCC0',OL,1.4)+
+  [[46,46],[54,58],[46,70]].map(p=>C(p[0],p[1],2.2,'#B59A74')).join('')+
+  P('M44,38 C48,36 54,38 56,36',null,'#CFBE9A',2);
+I.tamanegi=()=>soil()+P('M44,24 C40,8 48,2 52,6 C56,2 64,10 58,24',null,'#5FA83E',5)+P('M50,6 C46,-2 42,0 40,6',null,'#5FA83E',4)+
+  P('M50,26 C74,30 84,48 80,64 C76,82 62,90 50,90 C38,90 24,82 20,64 C16,48 26,30 50,26 Z','#E8C88E',OL,1.5)+
+  P('M50,26 C44,46 42,70 50,90 M50,26 C56,46 58,70 50,90 M30,36 C34,54 34,74 40,88 M70,36 C66,54 66,74 60,88',null,'#C9A462',1.8)+
+  P('M50,90 C50,94 48,96 46,98',null,'#C9A462',2.4);
+I.ninniku=()=>soil()+P('M46,26 C42,12 50,6 54,10',null,'#5FA83E',4)+
+  P('M50,28 C70,32 78,50 74,66 C70,82 60,90 50,90 C40,90 30,82 26,66 C22,50 30,32 50,28 Z','#F5F0E6',OL,1.5)+
+  P('M50,28 C42,48 40,72 50,90 M50,28 C58,48 60,72 50,90 M32,42 C34,60 36,78 42,88 M68,42 C66,60 64,78 58,88',null,'#D8D2C4',1.8)+
+  P('M50,28 L50,16',null,'#C4BEB0',3);
+I.shouga=()=>soil()+P('M26,58 C22,46 34,40 46,44 C50,34 66,36 68,48 C82,48 86,62 76,70 C64,80 34,78 26,58 Z','#E0C08E',OL,1.5)+
+  P('M46,44 C48,54 52,60 60,62 M68,48 C64,56 62,62 62,68',null,'#C4A468',2.2)+
+  P('M46,42 C46,32 42,26 38,22 M68,46 C70,36 74,32 78,28',null,'#8FBF5E',3);
+I.renkon=()=>R(0,26,100,74,'#8A7A5E')+P('M0,26 C16,22 32,30 48,26 C64,22 84,30 100,26 L100,32 L0,32 Z','#6B5E46')+
+  P('M20,58 C20,42 80,42 80,58 C80,76 20,76 20,58 Z','#F0E8D8',OL,1.5)+
+  [[34,52],[50,48],[66,52],[38,66],[54,66],[70,64],[50,60]].map(p=>C(p[0],p[1],5,'#C9BFA8',OL,1)).join('')+
+  P('M20,58 C20,68 40,72 50,72',null,'#DCD2BE',2)+P('M50,42 C50,30 48,24 44,18',null,'#5FA83E',3)+
+  P('M44,18 C34,10 30,16 32,22',null,'#5FA83E',3);
+I.rakkasei=()=>soil()+P('M40,22 C34,8 46,0 52,4 C58,0 68,8 60,22',null,'#5FA83E',5)+
+  P('M50,26 L50,40',null,'#6B8E3E',3)+
+  [[34,60],[64,64]].map(([x,y],i)=>G(`rotate(${i?18:-16} ${x} ${y})`,
+    P(`M${x},${y-18} C${x+13},${y-18} ${x+13},${y-4} ${x},${y-2} C${x-13},${y-4} ${x-13},${y-18} ${x},${y-18} Z`,'#D9C08E',OL,1.3)+
+    P(`M${x},${y-2} C${x+14},${y} ${x+14},${y+16} ${x},${y+18} C${x-14},${y+16} ${x-14},${y} ${x},${y-2} Z`,'#D9C08E',OL,1.3)+
+    P(`M${x-9},${y-12} L${x+9},${y-12} M${x-10},${y+6} L${x+10},${y+6} M${x-8},${y-2} L${x+8},${y-2}`,null,'#B59A64',1.4))).join('')+
+  P('M40,44 C36,50 34,54 34,58 M58,46 C62,52 64,58 64,62',null,'#8A7A5A',2);
+
+/* ============ 花（前回のジェネレータ） ============ */
+function petalPath(type,l,w){
+  switch(type){
+    case 'round':  return `M0,0 C${-w},${-l*.35} ${-w*.92},${-l} 0,${-l} C${w*.92},${-l} ${w},${-l*.35} 0,0 Z`;
+    case 'wide':   return `M0,0 C${-w*1.15},${-l*.3} ${-w},${-l*1.02} 0,${-l} C${w},${-l*1.02} ${w*1.15},${-l*.3} 0,0 Z`;
+    case 'point':  return `M0,0 C${-w},${-l*.5} ${-w*.5},${-l*.88} 0,${-l} C${w*.5},${-l*.88} ${w},${-l*.5} 0,0 Z`;
+    case 'notch':  return `M0,0 C${-w},${-l*.4} ${-w*.95},${-l*.97} ${-w*.4},${-l*.9} L0,${-l*.68} L${w*.4},${-l*.9} C${w*.95},${-l*.97} ${w},${-l*.4} 0,0 Z`;
+    case 'ray':    return `M${-w*.5},${-l*.12} L${-w*.5},${-l*.88} Q0,${-l*1.12} ${w*.5},${-l*.88} L${w*.5},${-l*.12} Z`;
+    case 'raynotch':return `M${-w*.62},${-l*.15} L${-w*.72},${-l*.8} L${-w*.3},${-l*.74} L0,${-l*.95} L${w*.3},${-l*.74} L${w*.72},${-l*.8} L${w*.62},${-l*.15} Z`;
+    case 'strap':  return `M${-w*.35},0 C${-w*.6},${-l*.5} ${-w*1.5},${-l*.75} ${-w*.9},${-l} C${-w*.45},${-l*.8} ${w*.45},${-l*.45} ${w*.35},0 Z`;
+    case 'lily':   return `M0,0 C${-w},${-l*.45} ${-w*.75},${-l*.95} ${-w*.15},${-l} C${w*.1},${-l*.8} ${w},${-l*.4} 0,0 Z`;
+    case 'fringe':{
+      let p=`M0,0 C${-w},${-l*.4} ${-w*.95},${-l*.8} ${-w*.8},${-l*.85}`;
+      for(let i=0;i<7;i++){const x=-w*.8+(w*1.6/6)*i; p+=` L${S(x+w*.13)},${-l*(i%2?.99:.86)}`;}
+      p+=` C${w*.95},${-l*.8} ${w},${-l*.4} 0,0 Z`; return p;
+    }
+    default: return petalPath('round',l,w);
+  }
+}
+function ring({n,type,l,w,fill,stroke,rot=0}){
+  let s='';
+  for(let i=0;i<n;i++) s+=`<path d="${petalPath(type,l,w)}" transform="rotate(${S(rot+i*360/n)})" fill="${fill}" stroke="${stroke||'#00000022'}" stroke-width="1.1" stroke-linejoin="round"/>`;
+  return s;
+}
+function stamens(n,len,col){
+  let s='';
+  for(let i=0;i<n;i++){const a=(i*360/n-90)*Math.PI/180,x=Math.cos(a)*len,y=Math.sin(a)*len;
+    s+=`<line x1="0" y1="0" x2="${S(x)}" y2="${S(y)}" stroke="${col}" stroke-width="1.4" stroke-linecap="round"/><circle cx="${S(x)}" cy="${S(y)}" r="1.8" fill="${col}"/>`;}
+  return s;
+}
+const LEAF=(x,y,sc,rot,col='#5FA83E')=>`<g transform="translate(${x},${y}) rotate(${rot}) scale(${sc})"><path d="M0,0 C10,-6 24,-4 30,0 C24,4 10,6 0,0 Z" fill="${col}" stroke="#3E7A16" stroke-width="1"/><path d="M2,0 L28,0" stroke="#3E7A16" stroke-width=".8"/></g>`;
+const STEM=d=>`<path d="${d}" fill="none" stroke="#5FA83E" stroke-width="3" stroke-linecap="round"/>`;
+Object.assign(I,{
+ ume:()=>`${STEM('M14,86 C34,78 52,70 82,66')}<g transform="translate(50,44)">${ring({n:5,type:'round',l:26,w:15,fill:'#FBD3E0'})}${stamens(9,11,'#F2B705')}<circle r="4.5" fill="#F2B705"/></g><g transform="translate(24,66)">${ring({n:5,type:'round',l:11,w:6.5,fill:'#FBD3E0'})}<circle r="2" fill="#F2B705"/></g>`,
+ sakura:()=>`${STEM('M12,84 C32,80 56,74 86,74')}<g transform="translate(48,42)">${ring({n:5,type:'notch',l:27,w:16,fill:'#FFC6D5'})}${stamens(10,12,'#E88AA6')}<circle r="4" fill="#F7A6BC"/></g><g transform="translate(80,60)">${ring({n:5,type:'notch',l:12,w:7,fill:'#FFC6D5'})}<circle r="2" fill="#F7A6BC"/></g>`,
+ momoF:()=>`${STEM('M14,88 C36,80 56,74 84,72')}<g transform="translate(48,42)">${ring({n:5,type:'point',l:27,w:15,fill:'#F589AE'})}${stamens(10,12,'#C2185B')}<circle r="4" fill="#E85C8A"/></g>${LEAF(66,64,.55,20,'#69A83E')}`,
+ tulip:()=>`${STEM('M50,96 L50,52')}${LEAF(40,92,.9,-118)}${LEAF(60,92,.9,-62)}<g transform="translate(50,40)"><path d="M-20,4 C-22,-16 -14,-28 0,-28 C14,-28 22,-16 20,4 C12,12 -12,12 -20,4 Z" fill="#E33C4A" stroke="#B3202D" stroke-width="1.2"/><path d="M-20,2 C-14,-4 -8,-24 -6,-28" fill="none" stroke="#B3202D" stroke-width="1.2"/><path d="M20,2 C14,-4 8,-24 6,-28" fill="none" stroke="#B3202D" stroke-width="1.2"/></g>`,
+ tanpopo:()=>`${STEM('M50,96 L50,54')}<g transform="translate(50,44)">${ring({n:22,type:'ray',l:26,w:8,fill:'#FFCE2E',rot:8})}${ring({n:14,type:'ray',l:16,w:7,fill:'#FFE07A'})}<circle r="4.5" fill="#F2A20C"/></g><path d="M50,86 C34,86 26,80 24,72 C34,70 44,76 50,86 Z" fill="#4E9331"/>`,
+ nanohana:()=>`${STEM('M50,96 L50,50')}${LEAF(46,78,.5,170)}<g transform="translate(50,36)">${ring({n:4,type:'wide',l:20,w:12,fill:'#FFD028',rot:45})}<circle r="3.5" fill="#E8A300"/></g><g transform="translate(24,52)">${ring({n:4,type:'wide',l:11,w:7,fill:'#FFD028',rot:45})}</g><g transform="translate(76,54)">${ring({n:4,type:'wide',l:11,w:7,fill:'#FFD028',rot:45})}</g>`,
+ sumire:()=>`${STEM('M50,96 C46,78 48,68 50,58')}${LEAF(40,88,.55,-160)}<g transform="translate(50,46)"><path d="${petalPath('round',22,14)}" transform="rotate(-52)" fill="#8E6CC8"/><path d="${petalPath('round',22,14)}" transform="rotate(52)" fill="#8E6CC8"/><path d="${petalPath('round',20,12)}" transform="rotate(-104)" fill="#7A57BC"/><path d="${petalPath('round',20,12)}" transform="rotate(104)" fill="#7A57BC"/><path d="${petalPath('wide',22,13)}" transform="rotate(180)" fill="#6B47AE"/><path d="M-5,6 L5,6" stroke="#F5E14B" stroke-width="4" stroke-linecap="round"/></g>`,
+ renge:()=>`${STEM('M50,96 L50,58')}${LEAF(40,84,.5,-170)}<g transform="translate(50,42)">${[0,60,120,180,240,300].map(a=>`<g transform="rotate(${a}) translate(0,-16)"><path d="M-9,4 C-9,-8 9,-8 9,4 C4,8 -4,8 -9,4 Z" fill="#F07CA8" stroke="#C2185B" stroke-width=".9"/></g>`).join('')}<circle r="8" fill="#FFF" stroke="#E4A0BC" stroke-width="1"/></g>`,
+ fuji:()=>`${STEM('M10,16 C34,10 62,14 92,12')}${[26,44,62,78].map((x,i)=>{const h=[46,58,40,34][i];let s=`<line x1="${x}" y1="18" x2="${x}" y2="${18+h}" stroke="#6B8E3E" stroke-width="2"/>`;for(let k=0;k<h/8;k++){const y=24+k*8,w=8-k*.7;s+=`<ellipse cx="${x-w*.7}" cy="${y}" rx="${w*.75}" ry="4" fill="#9B7BD4"/><ellipse cx="${x+w*.7}" cy="${y}" rx="${w*.75}" ry="4" fill="#8464C8"/>`;}return s;}).join('')}`,
+ tsutsuji:()=>`${LEAF(20,80,.6,-30)}${LEAF(80,80,.6,210)}<g transform="translate(50,46)">${ring({n:5,type:'point',l:30,w:17,fill:'#EE5A7A'})}<circle r="7" fill="#F9C6D2"/>${stamens(7,20,'#C2185B')}<circle r="3" fill="#D33A5C"/></g>`,
+ himawari:()=>`${STEM('M50,98 L50,60')}${LEAF(44,82,.7,175)}${LEAF(56,88,.7,5)}<g transform="translate(50,46)">${ring({n:20,type:'point',l:32,w:9,fill:'#FFC61A',rot:9})}${ring({n:20,type:'point',l:26,w:8,fill:'#FFD84D'})}<circle r="15" fill="#7A4A1E"/>${Array.from({length:14},(_,i)=>{const a=i*2.4,r=2+i*.95;return `<circle cx="${S(Math.cos(a)*r)}" cy="${S(Math.sin(a)*r)}" r="1.5" fill="#5A3413"/>`;}).join('')}</g>`,
+ asagao:()=>`<path d="M12,96 C22,72 14,52 26,34" fill="none" stroke="#4E9331" stroke-width="2.6"/>${LEAF(18,72,.55,-40)}<g transform="translate(56,46)"><ellipse rx="30" ry="27" fill="#6E7BD0" stroke="#4A57B0" stroke-width="1.2"/>${[0,72,144,216,288].map(a=>`<line x1="0" y1="0" x2="${S(Math.cos((a-90)*Math.PI/180)*30)}" y2="${S(Math.sin((a-90)*Math.PI/180)*27)}" stroke="#FFFFFF" stroke-width="2.4" opacity=".85"/>`).join('')}<circle r="9" fill="#FFFFFF"/><circle r="3.5" fill="#F7E08A"/></g><path d="M56,72 C48,80 44,86 42,92" fill="none" stroke="#4E9331" stroke-width="2.4"/>`,
+ ajisai:()=>`${LEAF(14,86,.8,-15)}${LEAF(86,86,.8,195)}${[[50,26],[32,40],[68,40],[24,60],[50,52],[76,60],[38,72],[62,72]].map((p,i)=>{const cols=['#6FA8DC','#8FB8E8','#5B8FD4','#9AC0EA','#6FA8DC','#7FAEE0','#5B8FD4','#8FB8E8'];return `<g transform="translate(${p[0]},${p[1]}) rotate(${i*17})">${ring({n:4,type:'wide',l:13,w:8,fill:cols[i],rot:45})}<circle r="2.2" fill="#EAF3FB"/></g>`;}).join('')}`,
+ yuri:()=>`${STEM('M50,98 L50,58')}${LEAF(46,84,.6,180)}<g transform="translate(50,46)">${[0,60,120,180,240,300].map(a=>`<path d="${petalPath('lily',30,13)}" transform="rotate(${a})" fill="${a%120===0?'#FFFFFF':'#FDF5F7'}" stroke="#D9B7C2" stroke-width="1.1"/>`).join('')}${stamens(6,20,'#C97F2E')}<circle r="4" fill="#E8C07A"/></g>`,
+ hasu:()=>`<rect x="0" y="74" width="100" height="26" fill="#CDE8F2"/><ellipse cx="20" cy="76" rx="22" ry="7" fill="#5FA83E"/><g transform="translate(56,40)">${ring({n:8,type:'point',l:30,w:12,fill:'#F6B8CE',rot:22})}${ring({n:8,type:'point',l:22,w:10,fill:'#FBD7E4'})}<circle r="8" fill="#C9D96B" stroke="#9CB03F" stroke-width="1"/></g><path d="M56,64 L56,80" stroke="#5FA83E" stroke-width="3"/>`,
+ suiren:()=>`<rect x="0" y="56" width="100" height="44" fill="#BFE2F0"/><path d="M6,80 A20,13 0 1,1 44,80 L34,80 L28,72 L20,80 Z" fill="#4E9331"/><path d="M62,88 A16,10 0 1,1 96,88 Z" fill="#4E9331"/><g transform="translate(50,54)">${ring({n:12,type:'point',l:26,w:8,fill:'#FFFFFF',rot:15})}${ring({n:12,type:'point',l:18,w:7,fill:'#FCF7FA'})}<circle r="6.5" fill="#F5D33F"/></g>`,
+ housenka:()=>`${STEM('M50,98 L50,44')}${LEAF(40,80,.55,-165)}${LEAF(60,68,.55,-15)}<g transform="translate(50,36)">${ring({n:5,type:'round',l:22,w:14,fill:'#F0619B'})}<circle r="4" fill="#FBD7E4"/></g><g transform="translate(24,60)">${ring({n:5,type:'round',l:12,w:8,fill:'#F0619B'})}</g>`,
+ hechima:()=>`<path d="M8,96 C16,70 10,48 22,30" fill="none" stroke="#4E9331" stroke-width="2.6"/>${LEAF(16,70,.6,-35)}<g transform="translate(52,40)">${ring({n:5,type:'wide',l:26,w:16,fill:'#FBD424'})}<circle r="5" fill="#E0A100"/></g><path d="M74,58 C86,60 90,74 84,90 C78,96 70,92 72,80 Z" fill="#6FA83E" stroke="#4E7F26" stroke-width="1"/>`,
+ oshiroi:()=>`${STEM('M50,98 L50,56')}${LEAF(40,82,.55,-165)}<g transform="translate(50,42)"><path d="M-24,2 C-26,-14 -14,-22 0,-22 C14,-22 26,-14 24,2 C14,10 -14,10 -24,2 Z" fill="#F2637E" stroke="#C43C58" stroke-width="1.1"/>${[0,72,144,216,288].map(a=>`<line x1="0" y1="0" x2="${S(Math.cos((a-90)*Math.PI/180)*24)}" y2="${S(Math.sin((a-90)*Math.PI/180)*20)}" stroke="#C43C58" stroke-width="1" opacity=".6"/>`).join('')}${stamens(5,16,'#F7D774')}</g>`,
+ sarusuberi:()=>`${STEM('M50,98 L50,66')}<g transform="translate(50,42)">${ring({n:6,type:'fringe',l:28,w:14,fill:'#E4538E',rot:12})}${ring({n:6,type:'fringe',l:19,w:11,fill:'#F07CA8'})}${stamens(8,10,'#F5D33F')}<circle r="4" fill="#F5D33F"/></g><g transform="translate(22,66)">${ring({n:6,type:'fringe',l:13,w:7,fill:'#E4538E'})}</g>`,
+ cosmos:()=>`${STEM('M50,98 L50,58')}<path d="M44,84 l-10,-6 M44,74 l-10,-5 M56,80 l10,-6" stroke="#5FA83E" stroke-width="1.6" fill="none"/><g transform="translate(50,44)">${ring({n:8,type:'raynotch',l:30,w:15,fill:'#F292BE',rot:22})}<circle r="8" fill="#F5C93F"/>${Array.from({length:7},(_,i)=>`<circle cx="${S(Math.cos(i*.9)*4)}" cy="${S(Math.sin(i*.9)*4)}" r="1.3" fill="#D9A81E"/>`).join('')}</g>`,
+ kiku:()=>`${STEM('M50,98 L50,60')}${LEAF(42,82,.55,-165)}<g transform="translate(50,44)">${ring({n:20,type:'ray',l:30,w:7,fill:'#FFC61A',rot:9})}${ring({n:20,type:'ray',l:23,w:6.5,fill:'#FFD54F'})}${ring({n:14,type:'ray',l:15,w:6,fill:'#FFE79A',rot:12})}<circle r="5" fill="#E8A300"/></g>`,
+ higanbana:()=>`${STEM('M50,98 L50,58')}<g transform="translate(50,46)">${[0,60,120,180,240,300].map(a=>`<path d="${petalPath('strap',30,11)}" transform="rotate(${a})" fill="#E0302C" stroke="#B01A18" stroke-width="1"/>`).join('')}${Array.from({length:6},(_,i)=>{const a=(i*60-90)*Math.PI/180;return `<line x1="0" y1="0" x2="${S(Math.cos(a)*34)}" y2="${S(Math.sin(a)*34)}" stroke="#E0302C" stroke-width="1.3"/><circle cx="${S(Math.cos(a)*34)}" cy="${S(Math.sin(a)*34)}" r="1.8" fill="#8E1210"/>`;}).join('')}</g>`,
+ kikyou:()=>`${STEM('M50,98 L50,60')}${LEAF(42,82,.5,-165)}<g transform="translate(50,44)"><path d="${Array.from({length:5},(_,i)=>{const a=(i*72-90)*Math.PI/180,b=((i+.5)*72-90)*Math.PI/180;return `${i?'L':'M'}${S(Math.cos(a)*30)},${S(Math.sin(a)*30)} Q${S(Math.cos(b)*20)},${S(Math.sin(b)*20)} `;}).join('')} Z" fill="#7A63C4" stroke="#5A45A0" stroke-width="1.1"/><circle r="5" fill="#EDE7F8"/></g>`,
+ nadeshiko:()=>`${STEM('M50,98 L50,58')}<g transform="translate(50,44)">${ring({n:5,type:'fringe',l:28,w:15,fill:'#F07CA8'})}<circle r="6" fill="#FBD7E4"/>${stamens(5,10,'#D14C82')}</g>`,
+ hagi:()=>`<path d="M6,10 C26,26 40,54 52,96" fill="none" stroke="#6B8E3E" stroke-width="2.6"/><path d="M6,10 C34,18 58,36 76,70" fill="none" stroke="#6B8E3E" stroke-width="2.2"/>${[[24,30],[36,46],[46,64],[54,82],[44,26],[60,44],[70,62]].map((p,i)=>`<g transform="translate(${p[0]},${p[1]}) rotate(${-30+i*8})"><path d="M-8,3 C-8,-7 8,-7 8,3 C4,7 -4,7 -8,3 Z" fill="#C2568E" stroke="#8E2E62" stroke-width=".8"/></g>`).join('')}`,
+ ominaeshi:()=>`${STEM('M50,98 L50,44')}<path d="M50,60 L30,44 M50,58 L70,44 M50,50 L38,36 M50,50 L62,36" stroke="#6B8E3E" stroke-width="1.8" fill="none"/>${[[30,40],[70,40],[38,32],[62,32],[50,28],[22,34],[78,34]].map(p=>`<g transform="translate(${p[0]},${p[1]})">${ring({n:5,type:'round',l:8,w:5,fill:'#FFD028'})}<circle r="1.8" fill="#E0A000"/></g>`).join('')}`,
+ susuki:()=>`${[[30,-18],[50,0],[70,16]].map(([x,r])=>`<g transform="translate(${x},96) rotate(${r})"><line x1="0" y1="0" x2="0" y2="-56" stroke="#C4A96A" stroke-width="2.2"/><g transform="translate(0,-56)">${Array.from({length:11},(_,i)=>{const a=-70+i*14;return `<path d="M0,0 Q${S(Math.sin(a*Math.PI/180)*10)},-14 ${S(Math.sin(a*Math.PI/180)*22)},${S(-24+Math.abs(a)/9)}" fill="none" stroke="#D8C08A" stroke-width="2.6" stroke-linecap="round"/>`;}).join('')}</g></g>`).join('')}`,
+ rindou:()=>`${STEM('M50,98 L50,66')}${LEAF(42,84,.5,-165)}${[[34,52],[50,40],[66,54]].map(([x,y],i)=>`<g transform="translate(${x},${y}) rotate(${(i-1)*18})"><path d="M-13,16 C-16,-4 -10,-18 0,-18 C10,-18 16,-4 13,16 Z" fill="#5A63C0" stroke="#3E45A0" stroke-width="1"/><path d="M-13,-12 C-6,-18 6,-18 13,-12" fill="#7A82D4"/></g>`).join('')}`,
+ kinmokusei:()=>`<path d="M50,98 L50,20" stroke="#8B5E3C" stroke-width="4"/><path d="M50,60 L24,40 M50,52 L74,34 M50,74 L28,62 M50,68 L76,56" stroke="#8B5E3C" stroke-width="2.4" fill="none"/>${[[24,38],[74,32],[28,60],[76,54],[50,22],[38,48],[62,46],[40,74],[62,72]].map((p,i)=>`<g transform="translate(${p[0]},${p[1]}) rotate(${i*23})">${ring({n:4,type:'round',l:8,w:5.5,fill:'#F79020',rot:45})}<circle r="1.6" fill="#D96E06"/></g>`).join('')}`,
+ tsubaki:()=>`${LEAF(12,80,.75,-18,'#2F7A34')}${LEAF(88,82,.75,198,'#2F7A34')}<g transform="translate(50,44)">${ring({n:5,type:'round',l:30,w:19,fill:'#D8202E'})}${ring({n:5,type:'round',l:21,w:14,fill:'#E5424E',rot:36})}<circle r="9" fill="#F7D774"/>${stamens(11,14,'#F0C23A')}<circle r="5" fill="#FBE9A8"/></g>`,
+ sazanka:()=>`${LEAF(12,80,.75,-18,'#2F7A34')}${LEAF(88,82,.75,198,'#2F7A34')}<g transform="translate(50,44)">${[0,72,144,216,288].map(a=>`<path d="${petalPath('wide',29,16)}" transform="rotate(${a+6})" fill="#F0679B" stroke="#C43C6E" stroke-width="1.1"/>`).join('')}<circle r="8" fill="#F7D774"/>${stamens(9,13,'#F0C23A')}</g><path d="M20,66 l6,4 M78,68 l-6,4" stroke="#F0679B" stroke-width="4" stroke-linecap="round"/>`,
+ suisen:()=>`${STEM('M50,98 L50,54')}${LEAF(38,96,1.05,-96)}${LEAF(62,96,1.05,-84)}<g transform="translate(50,42)">${ring({n:6,type:'point',l:28,w:13,fill:'#FFFFFF'})}<circle r="11" fill="#FFD028" stroke="#E0A000" stroke-width="1.4"/><circle r="6" fill="#FFE79A"/></g>`,
+ cyclamen:()=>`${STEM('M50,98 C46,80 48,68 50,58')}<path d="M28,92 A14,10 0 1,1 56,92 Z" fill="#2F7A34"/><g transform="translate(50,44)">${[[-14,0],[-5,-4],[5,-4],[14,0],[0,-2]].map((p,i)=>`<path d="M${p[0]},${p[1]} C${p[0]-9},${p[1]-14} ${p[0]-6},${p[1]-32} ${p[0]+(i-2)*2},${p[1]-34} C${p[0]+7},${p[1]-30} ${p[0]+8},${p[1]-12} ${p[0]},${p[1]} Z" fill="#E0355F" stroke="#B01A3E" stroke-width=".9"/>`).join('')}</g>`,
+ poinsettia:()=>`<g transform="translate(50,50)">${ring({n:7,type:'point',l:34,w:11,fill:'#3F8A3A',rot:26})}${ring({n:7,type:'point',l:31,w:13,fill:'#D8202E'})}${ring({n:5,type:'point',l:20,w:10,fill:'#E5424E',rot:36})}${Array.from({length:6},(_,i)=>{const a=i*60*Math.PI/180;return `<circle cx="${S(Math.cos(a)*4.5)}" cy="${S(Math.sin(a)*4.5)}" r="2.6" fill="#F5D33F" stroke="#C9A21E" stroke-width=".6"/>`;}).join('')}</g>`,
+ roubai:()=>`<path d="M14,96 C26,64 34,40 40,14" stroke="#8B5E3C" stroke-width="3.4" fill="none"/><path d="M30,58 L58,44 M24,76 L52,66 M36,36 L62,28" stroke="#8B5E3C" stroke-width="2.2" fill="none"/>${[[58,42],[52,64],[62,26],[40,14],[34,44],[30,72]].map((p,i)=>`<g transform="translate(${p[0]},${p[1]}) rotate(${i*29})">${ring({n:9,type:'point',l:11,w:5,fill:'#F5D33F'})}<circle r="2.4" fill="#C98A12"/></g>`).join('')}`,
+ fukujusou:()=>`${STEM('M50,98 L50,62')}<path d="M34,86 l-12,-8 M34,76 l-12,-6 M66,86 l12,-8" stroke="#5FA83E" stroke-width="1.6" fill="none"/><g transform="translate(50,46)">${ring({n:16,type:'point',l:29,w:8,fill:'#FFC61A',rot:11})}${ring({n:16,type:'point',l:22,w:7,fill:'#FFD84F'})}<circle r="7" fill="#C9A21E"/></g>`,
+ pansy:()=>`${STEM('M50,98 L50,64')}${LEAF(40,88,.5,-165)}<g transform="translate(50,46)"><path d="${petalPath('wide',26,17)}" transform="rotate(-40)" fill="#7A57BC"/><path d="${petalPath('wide',26,17)}" transform="rotate(40)" fill="#7A57BC"/><path d="${petalPath('wide',24,15)}" transform="rotate(-100)" fill="#F5C93F"/><path d="${petalPath('wide',24,15)}" transform="rotate(100)" fill="#F5C93F"/><path d="${petalPath('wide',26,16)}" transform="rotate(180)" fill="#F5C93F"/><path d="M-11,10 C-6,2 6,2 11,10 C6,16 -6,16 -11,10 Z" fill="#3A2A5E"/><circle cy="4" r="3" fill="#FFF06B"/></g>`
+});
+
+/* ============================================================
+   データ定義
+   ============================================================ */
+const svg=k=>`<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">${I[k]?I[k]():''}</svg>`;
+const fill=(id,arr)=>{const el=document.getElementById(id); if(el) el.innerHTML=arr.map(([k,n,t])=>
+  `<div class="card">${svg(k)}<span class="name">${n}</span>${t?`<span class="tag">${t}</span>`:''}</div>`).join('');};
+const fillTrap=(id,arr)=>{const el=document.getElementById(id); if(el) el.innerHTML=arr.map(([k,n,c,a,w])=>
+  `<div class="trap-card">${svg(k)}<span class="name">${n}</span><span class="ans ${c}">${a}</span><span class="why">${w}</span></div>`).join('');};
+
+/* --- P1 --- */
+fill('g-tori',[['niwatori','ニワトリ'],['ahiru','アヒル'],['hato','ハト'],['fukurou','フクロウ'],['hakuchou','ハクチョウ']]);
+fill('g-sakana',[['medaka','メダカ'],['kingyo','キンギョ'],['fugu','フグ']]);
+fill('g-hachu',[['kaeru','カエル'],['kame','カメ'],['hebi','ヘビ'],['wani','ワニ'],['tokage','トカゲ']]);
+fill('g-mushi',[['chou','チョウ'],['kabutomushi','カブトムシ'],['tentoumushi','テントウムシ'],['batta','バッタ'],['tako','タコ'],['katatsumuri','カタツムリ']]);
+fill('g-pet',[['inu','イヌ'],['neko','ネコ'],['usagi','ウサギ'],['nezumi','ネズミ'],['hamster','ハムスター']]);
+fill('g-farm',[['ushi','ウシ'],['uma','ウマ'],['buta','ブタ'],['hitsuji','ヒツジ'],['yagi','ヤギ']]);
+fill('g-zoo',[['zou','ゾウ'],['lion','ライオン'],['kirin','キリン'],['panda','パンダ'],['saru','サル'],['koala','コアラ']]);
+fill('g-hito',[['hito','ヒト']]);
+fillTrap('t-p1',[
+ ['iruka','イルカ','a-baby','あかちゃん','うみに いるけど ほにゅうるい'],
+ ['kujira','クジラ','a-baby','あかちゃん','さかなでは ない'],
+ ['azarashi','アザラシ','a-baby','あかちゃん','うみに いるけど ほにゅうるい'],
+ ['koumori','コウモリ','a-baby','あかちゃん','そらを とぶけど とりでは ない'],
+ ['pengin','ペンギン','a-egg','たまご','およぐけど とりの なかま'],
+ ['umigame','ウミガメ','a-egg','たまご','すなはまに たまごを うむ']]);
+/* --- P2 --- */
+fill('f-ki',[['ki','き'],['waribashi','わりばし'],['kami','かみ'],['happa','はっぱ']]);
+fill('f-air',[['fuusen','ふうせん'],['ball','ボール'],['sponge','スポンジ'],['pet','からの<br>ペットボトル']]);
+fill('f-yasai',[['ringo','りんご'],['mikan','みかん'],['kyuri','きゅうり'],['kabocha','かぼちゃ']]);
+fill('f-etc',[['rousoku','ろうそく'],['koori','こおり'],['hane','はね'],['piman','ピーマン']]);
+fill('s-kana',[['kugi','くぎ'],['hasami','はさみ'],['kagi','かぎ'],['spoon','スプーン']]);
+fill('s-ishi',[['ishi','いし'],['biidama','ビーだま'],['chawan','おちゃわん'],['nendo','ねんど']]);
+fill('s-yasai',[['jagaimo','じゃがいも'],['satsumaimo','さつまいも'],['ninjin','にんじん'],['daikon','だいこん']]);
+fill('s-etc',[['coin','こうか'],['suna','すな'],['binw','みずいりの<br>びん'],['tamago','たまご']]);
+fillTrap('t-p2',[
+ ['mikan','みかん','a-flo','かわつき＝うく','かわを むくと <b>しずむ</b>'],
+ ['tamago','たまご','a-snk','みず＝しずむ','しおみずでは <b>うく</b>'],
+ ['fune','ふね','a-flo','うく','てつでも なかが くうどう'],
+ ['koori','こおり','a-flo','うく','みずより かるい'],
+ ['petw','みずいりの ボトル','a-snk','しずむ','からなら <b>うく</b>'],
+ ['nendo','ねんど','a-snk','まるめる＝しずむ','ふねの かたちで <b>うく</b>']]);
+/* --- P3 --- */
+fill('u-ki',[['ringo','りんご'],['mikan','みかん'],['nashi','なし'],['kuri','くり']]);
+fill('u-tsuru',[['suika','すいか'],['kabocha','かぼちゃ'],['melon','メロン'],['ichigo','いちご']]);
+fill('u-tate',[['tomato','トマト'],['nasu','なす'],['kyuri','きゅうり'],['tomorokoshi','とうもろこし']]);
+fill('u-ha',[['kyabetsu','キャベツ'],['hakusai','はくさい'],['brocoli','ブロッコリー'],['hourensou','ほうれんそう']]);
+fill('d-ne',[['ninjin','にんじん'],['daikon','だいこん'],['gobou','ごぼう'],['kabu','かぶ']]);
+fill('d-imo',[['jagaimo','じゃがいも'],['satsumaimo','さつまいも'],['satoimo','さといも'],['nagaimo','ながいも']]);
+fill('d-etc',[['tamanegi','たまねぎ'],['ninniku','にんにく'],['shouga','しょうが'],['renkon','れんこん']]);
+fillTrap('t-p3',[
+ ['rakkasei','らっかせい','a-dn','つちの なか','はなは うえ、みは <b>した</b>に'],
+ ['ichigo','いちご','a-up','つちの うえ','きに ならず じめんの ちかく'],
+ ['suika','すいか','a-up','つちの うえ','つるで じめんを はう'],
+ ['tamanegi','たまねぎ','a-dn','つちの なか','はっぱが かさなった もの'],
+ ['renkon','れんこん','a-dn','つちの なか','いけの <b>どろの なか</b>'],
+ ['kuri','くり','a-up','つちの うえ','たかい きの うえに なる']]);
+/* --- P4 --- */
+fill('c-sp',[['ume','うめ','5まい・まるい'],['sakura','さくら','さきが われる'],['momoF','もも','5まい・とがる'],['tulip','チューリップ','コップの かたち'],['tanpopo','たんぽぽ','ほそい はなびら'],
+ ['nanohana','なのはな','4まい・じゅうじ'],['sumire','すみれ','よこむき'],['renge','れんげそう','まるく あつまる'],['fuji','ふじ','たれさがる'],['tsutsuji','つつじ','ラッパがた']]);
+fill('c-sm',[['himawari','ひまわり','まんなか ちゃいろ'],['asagao','あさがお','ラッパ＋ほし'],['ajisai','あじさい','4まいが たくさん'],['yuri','ゆり','6まい・おおきい'],['hasu','はす','みずの うえに たつ'],
+ ['suiren','すいれん','みずに うかぶ'],['housenka','ほうせんか','はの あいだに さく'],['hechima','へちま','つるに きいろ'],['oshiroi','おしろいばな','ゆうがた さく'],['sarusuberi','さるすべり','ちぢれた はなびら']]);
+fill('c-au',[['cosmos','コスモス','8まい・さきギザ'],['kiku','きく','ほそい はなびら'],['higanbana','ひがんばな','はっぱが ない'],['kikyou','ききょう','ほしの かたち'],['nadeshiko','なでしこ','さきが きれこむ'],
+ ['hagi','はぎ','えだが しなる'],['ominaeshi','おみなえし','ちいさい きいろ'],['susuki','すすき','ほが ふさふさ'],['rindou','りんどう','つつがた・あお'],['kinmokusei','きんもくせい','ちいさい オレンジ']]);
+fill('c-wi',[['tsubaki','つばき','まるごと おちる'],['sazanka','さざんか','1まいずつ ちる'],['suisen','すいせん','まんなか カップ'],['cyclamen','シクラメン','うえに そりかえる'],['poinsettia','ポインセチア','あかいのは はっぱ'],
+ ['roubai','ろうばい','ろうの ような きいろ'],['fukujusou','ふくじゅそう','おわんの かたち'],['pansy','パンジー','かおの もよう']]);
+fillTrap('t-p4',[
+ ['ume','うめ・もも・さくら','a-sp','はる','うめ→もも→さくら の じゅん'],
+ ['tsubaki','つばき','a-wi','ふゆ','はなが <b>まるごと</b> おちる'],
+ ['sazanka','さざんか','a-wi','ふゆ','はなびらが <b>1まいずつ</b> ちる'],
+ ['ajisai','あじさい','a-sm','なつ','つゆ（6がつ）の はな'],
+ ['higanbana','ひがんばな','a-au','あき','はっぱが なく はなだけ']]);
+</script>
+</body>
+</html>

@@ -109,8 +109,11 @@ object SelfUpdate {
         }
     }
 
-    private suspend fun latest(): Release? = withContext(Dispatchers.IO) {
-        val list = JSONArray(get("https://api.github.com/repos/$OWNER/$REPO/releases?per_page=10") ?: return@withContext null)
+    private suspend fun latest(): Release? = latestOf(REPO) { it.startsWith(ASSET_PREFIX) }
+
+    /** そのリポジトリの Releases で、いちばん新しい APK（下書きは除く） */
+    suspend fun latestOf(repo: String, isApk: (String) -> Boolean = { true }): Release? = withContext(Dispatchers.IO) {
+        val list = JSONArray(get("https://api.github.com/repos/$OWNER/$repo/releases?per_page=10") ?: return@withContext null)
         for (i in 0 until list.length()) {
             val r = list.getJSONObject(i)
             if (r.optBoolean("draft")) continue
@@ -120,7 +123,7 @@ object SelfUpdate {
             for (j in 0 until assets.length()) {
                 val a = assets.getJSONObject(j)
                 val name = a.optString("name")
-                if (name.startsWith(ASSET_PREFIX) && name.endsWith(".apk")) apk = name to a.optString("browser_download_url")
+                if (apk == null && name.endsWith(".apk") && isApk(name)) apk = name to a.optString("browser_download_url")
                 if (name.contains("SHA256", ignoreCase = true)) sums = a.optString("browser_download_url")
             }
             if (apk != null) return@withContext Release(r.optString("tag_name"), apk.first, apk.second, sums)
@@ -128,7 +131,7 @@ object SelfUpdate {
         null
     }
 
-    private suspend fun download(context: Context, release: Release, onProgress: (Float) -> Unit): File =
+    suspend fun download(context: Context, release: Release, onProgress: (Float) -> Unit): File =
         withContext(Dispatchers.IO) {
             val dir = File(context.cacheDir, "update").apply { mkdirs() }
             dir.listFiles()?.forEach { it.delete() }
@@ -164,11 +167,11 @@ object SelfUpdate {
             out
         }
 
-    private fun permissionIntent(context: Context): Intent? =
+    fun permissionIntent(context: Context): Intent? =
         if (context.packageManager.canRequestPackageInstalls()) null
         else Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}"))
 
-    private fun install(context: Context, apk: File) {
+    fun install(context: Context, apk: File) {
         val installer = context.packageManager.packageInstaller
         val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)
         // 自分自身の更新なら、Android 12 以降は確認を省ける場合がある
@@ -211,10 +214,10 @@ class InstallResultReceiver : BroadcastReceiver() {
                 val confirm = intent.getParcelableExtra<Intent>(Intent.EXTRA_INTENT) ?: return
                 context.startActivity(confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             }
-            PackageInstaller.STATUS_SUCCESS -> Toast.makeText(context, "アップデートしました", Toast.LENGTH_SHORT).show()
+            PackageInstaller.STATUS_SUCCESS -> Toast.makeText(context, "インストールしました", Toast.LENGTH_SHORT).show()
             else -> {
                 val msg = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE) ?: ""
-                Toast.makeText(context, "アップデートできませんでした $msg", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, "インストールできませんでした $msg", Toast.LENGTH_LONG).show()
             }
         }
     }

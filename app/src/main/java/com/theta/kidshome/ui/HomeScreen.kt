@@ -105,6 +105,7 @@ fun HomeScreen(
     onOpenDrawing: () -> Unit,
     onOpenParent: () -> Unit,
     onOpenInstrument: () -> Unit = {},
+    onOpenEdupad: () -> Unit = {},
     onPlayVideo: (List<com.theta.kidshome.data.MediaEntry>, Int) -> Unit = { _, _ -> },
 ) {
     val config = Store.config
@@ -131,6 +132,7 @@ fun HomeScreen(
 
     val installed = remember(config.appCategory, config.categories) { Launcher.listApps(context) }
     val media = buildList {
+        if (profile.hasTimetable) add(KidTab("timetable", TabKind.TIMETABLE, "📒", "じかんわり"))
         if (config.showVideos && visibleVideos().isNotEmpty()) add(KidTab("local:video", TabKind.LOCAL_VIDEO, "📼", "ビデオ"))
         if (config.showMusic && visibleMusic().isNotEmpty()) add(KidTab("local:music", TabKind.MUSIC, "🎵", "おんがく"))
         if (config.showBooks && visibleBooks().isNotEmpty()) add(KidTab("local:book", TabKind.BOOKS, "🎧", "おはなし"))
@@ -155,6 +157,7 @@ fun HomeScreen(
             tile.isVideo && locked -> showLockedDialog = true
             tile.type == TileType.DRAWING -> onOpenDrawing()
             tile.type == TileType.INSTRUMENT -> onOpenInstrument()
+            tile.type == TileType.EDUPAD -> onOpenEdupad()
             else -> Launcher.launch(context, tile)
         }
     }
@@ -185,6 +188,7 @@ fun HomeScreen(
                             TabKind.CLOCK -> ClockPage(theme, now, wide)
                             TabKind.VIDEO, TabKind.CATEGORY -> VideoPage(t, theme, locked, onTile) { showLockedDialog = true }
                             TabKind.WIDGETS -> WidgetPage(theme)
+                            TabKind.TIMETABLE -> TimetablePage(theme, profile, now)
                             TabKind.LOCAL_VIDEO -> VideoLibraryPage(theme, locked, onPlayVideo) { showLockedDialog = true }
                             TabKind.MUSIC -> AudioLibraryPage(theme, com.theta.kidshome.data.MediaKind.MUSIC)
                             TabKind.BOOKS -> AudioLibraryPage(theme, com.theta.kidshome.data.MediaKind.BOOK)
@@ -223,6 +227,7 @@ private fun HomePage(
             ) {
                 MascotWindow(config, theme, stars, playful, burst)
                 if (locked) LockWindow(config, theme, now)
+                if (config.currentProfile.hasTimetable) TimetableWindow(theme, config.currentProfile, now)
                 CalendarWindow(theme, now, compact = true, initialWeek = true)
                 MusicWindow(theme)
             }
@@ -272,7 +277,7 @@ private fun VideoPage(tab: KidTab, theme: KidTheme, locked: Boolean, onTile: (Ti
 
 // ---------------------------------------------------------------- タブ
 
-private enum class TabKind { HOME, CLOCK, LOCAL_VIDEO, MUSIC, BOOKS, CATEGORY, VIDEO, WIDGETS }
+private enum class TabKind { HOME, CLOCK, TIMETABLE, LOCAL_VIDEO, MUSIC, BOOKS, CATEGORY, VIDEO, WIDGETS }
 
 private data class KidTab(
     val key: String,
@@ -605,6 +610,7 @@ private fun TileWindow(tile: Tile, theme: KidTheme, index: Int, locked: Boolean,
         tile.type == TileType.DRAWING -> "おえかき"
         tile.type == TileType.CALL -> "でんわ"
         tile.type == TileType.INSTRUMENT -> "がっき"
+        tile.type == TileType.EDUPAD -> "べんきょう"
         tile.isVideo -> "どうが"
         else -> "アプリ"
     }

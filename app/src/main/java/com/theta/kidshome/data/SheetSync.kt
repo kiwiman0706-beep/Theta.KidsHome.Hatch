@@ -29,8 +29,10 @@ object SheetSync {
     val CATEGORIES = listOf("なまえ", "えもじ", "みせる", "どうが")
     val APPS = listOf("アプリ名", "パッケージ", "カテゴリー")
     val SETTINGS = listOf("こうもく", "あたい")
+    val TIMETABLE = listOf("こども", "ようび", "1", "2", "3", "4", "5", "6", "もちもの")
     val sheets = linkedMapOf(
         "こども" to CHILDREN, "ボタン" to BUTTONS, "カテゴリー" to CATEGORIES, "アプリ" to APPS, "せってい" to SETTINGS,
+        "じかんわり" to TIMETABLE,
     )
     private val everyone = setOf("ぜんいん", "みんな", "全員", "")
     private val yes = setOf("○", "◯", "はい", "yes", "true", "1", "o", "✓", "✔")
@@ -191,6 +193,7 @@ object SheetSync {
                         }
                         "おえかき" -> Tile(id = id, type = TileType.DRAWING, label = label.ifEmpty { "おえかき" }, emoji = emoji ?: "🎨")
                         "がっき" -> Tile(id = id, type = TileType.INSTRUMENT, label = label.ifEmpty { "がっき" }, emoji = emoji ?: "🎹")
+                        "くるくる" -> Tile(id = id, type = TileType.EDUPAD, label = label.ifEmpty { "くるくる思考パッド" }, emoji = emoji ?: "🧠")
                         "でんわ" -> if (target.isEmpty()) null else Tile(
                             id = id, type = TileType.CALL, label = label.ifEmpty { "でんわ" }, url = target, emoji = emoji ?: "📞",
                         )
@@ -198,6 +201,21 @@ object SheetSync {
                     }
                 }
                 p.copy(tiles = tiles)
+            })
+        }
+
+        data["じかんわり"]?.let { rows ->
+            c = c.copy(profiles = c.profiles.map { p ->
+                val table = MutableList(6) { emptyList<String>() }
+                val bring = MutableList(6) { "" }
+                rows.filter { it.at(0) == p.name || it.at(0) in everyone }.forEach { r ->
+                    val d = com.theta.kidshome.ui.SchoolDays.indexOf(r.at(1).removeSuffix("よう").removeSuffix("ようび"))
+                        .takeIf { it >= 0 } ?: listOf("月", "火", "水", "木", "金", "土").indexOf(r.at(1).take(1))
+                    if (d < 0) return@forEach
+                    table[d] = (2..7).map { r.at(it) }.dropLastWhile { it.isBlank() }
+                    bring[d] = r.at(8)
+                }
+                p.copy(timetable = table, belongings = bring)
             })
         }
 
@@ -256,7 +274,7 @@ object SheetSync {
                     listOf(
                         who(p),
                         when (t.type) {
-                            TileType.VIDEO -> "どうが"; TileType.APP -> "アプリ"; TileType.DRAWING -> "おえかき"; TileType.CALL -> "でんわ"; TileType.INSTRUMENT -> "がっき"
+                            TileType.VIDEO -> "どうが"; TileType.APP -> "アプリ"; TileType.DRAWING -> "おえかき"; TileType.CALL -> "でんわ"; TileType.INSTRUMENT -> "がっき"; TileType.EDUPAD -> "くるくる"
                         },
                         t.label,
                         when (t.type) { TileType.APP -> t.packageName.orEmpty(); else -> t.url.orEmpty() },
@@ -280,6 +298,11 @@ object SheetSync {
             "アプリ" to listOf(APPS) + apps.map { a ->
                 val id = config.appCategory[a.packageName]
                 listOf(a.label, a.packageName, if (id == Categories.HIDDEN) "かくす" else config.categories.firstOrNull { it.id == id }?.name.orEmpty())
+            },
+            "じかんわり" to listOf(TIMETABLE) + config.profiles.flatMap { p ->
+                com.theta.kidshome.ui.SchoolDays.indices.map { d ->
+                    listOf(p.name, com.theta.kidshome.ui.SchoolDays[d]) + (0 until 6).map { p.timetable[d].getOrNull(it).orEmpty() } + p.belongings[d]
+                }
             },
             "せってい" to listOf(
                 SETTINGS,

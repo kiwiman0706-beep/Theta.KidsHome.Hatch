@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>たまごでうまれる？あかちゃんでうまれる？</title>
+<style>
+  :root{
+    --egg-bg:#FFF8E1; --egg-line:#F5C542; --egg-deep:#B8860B;
+    --baby-bg:#FFF0F4; --baby-line:#F48FB1; --baby-deep:#C2185B;
+    --ink:#4A3F35; --paper:#FFFFFF; --sky:#7EC8E3;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{background:#eee;}
+  body{
+    font-family:"Zen Maru Gothic","Hiragino Maru Gothic ProN","BIZ UDGothic",sans-serif;
+    color:var(--ink);
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+  .page{
+    width:210mm; min-height:297mm; margin:10px auto; background:var(--paper);
+    padding:9mm 9mm 7mm; display:flex; flex-direction:column;
+  }
+  /* ---------- header ---------- */
+  header{text-align:center; margin-bottom:4mm;}
+  h1{
+    font-size:21pt; font-weight:900; letter-spacing:.04em;
+    display:inline-block; padding:1mm 6mm 1.5mm; border-radius:20px;
+    background:linear-gradient(90deg,var(--egg-bg) 0 50%,var(--baby-bg) 50% 100%);
+    border:1.2mm solid var(--ink);
+  }
+  h1 .egg-word{color:var(--egg-deep);}
+  h1 .baby-word{color:var(--baby-deep);}
+  header p{font-size:9.5pt; font-weight:700; margin-top:1.5mm;}
+  /* ---------- two columns ---------- */
+  .columns{display:flex; gap:5mm; flex:1;}
+  .col{
+    flex:1; border-radius:6mm; padding:3.5mm 3.5mm 3mm; border:1mm solid;
+    display:flex; flex-direction:column;
+  }
+  .col.egg{background:var(--egg-bg); border-color:var(--egg-line);}
+  .col.baby{background:var(--baby-bg); border-color:var(--baby-line);}
+  .col-title{
+    text-align:center; font-size:14.5pt; font-weight:900; margin-bottom:1mm;
+  }
+  .egg .col-title{color:var(--egg-deep);}
+  .baby .col-title{color:var(--baby-deep);}
+  .col-sub{text-align:center; font-size:8pt; font-weight:700; margin-bottom:2.5mm;}
+  .group{margin-bottom:2mm;}
+  .group-label{
+    display:inline-block; font-size:8.5pt; font-weight:900; color:#fff;
+    padding:.3mm 3mm .6mm; border-radius:10px; margin-bottom:1.2mm;
+  }
+  .egg .group-label{background:var(--egg-deep);}
+  .baby .group-label{background:var(--baby-deep);}
+  .cards{display:flex; flex-wrap:wrap; gap:1.6mm;}
+  .card{
+    background:#fff; border-radius:3mm; text-align:center;
+    width:15.8mm; padding:1.2mm 0 .8mm;
+    border:.45mm solid rgba(0,0,0,.13);
+  }
+  .card .pic{font-size:17pt; line-height:1.1; display:block;}
+  .card .name{font-size:7.6pt; font-weight:700; display:block; margin-top:.2mm;}
+  /* ---------- point box inside columns ---------- */
+  .hint{
+    margin-top:auto; background:#fff; border-radius:3mm; padding:1.6mm 2.5mm;
+    font-size:8.2pt; font-weight:700; line-height:1.45;
+    border:.6mm dashed;
+  }
+  .egg .hint{border-color:var(--egg-line);}
+  .baby .hint{border-color:var(--baby-line);}
+  .hint b{font-size:8.6pt;}
+  .egg .hint b{color:var(--egg-deep);}
+  .baby .hint b{color:var(--baby-deep);}
+  /* ---------- trap section ---------- */
+  .trap{
+    margin-top:4mm; border:1mm solid var(--sky); border-radius:6mm;
+    background:#EDF8FD; padding:3mm 3.5mm 3mm;
+  }
+  .trap-title{
+    text-align:center; font-size:12.5pt; font-weight:900; color:#02627e; margin-bottom:2mm;
+  }
+  .trap-cards{display:flex; gap:2mm; justify-content:center;}
+  .trap-card{
+    background:#fff; border-radius:3.5mm; text-align:center; flex:1;
+    padding:1.6mm 1mm 1.4mm; border:.5mm solid rgba(0,0,0,.12);
+  }
+  .trap-card .pic{font-size:16pt; display:block; line-height:1.1;}
+  .trap-card .name{font-size:8pt; font-weight:900; display:block; margin:.4mm 0;}
+  .trap-card .ans{
+    display:inline-block; font-size:7.6pt; font-weight:900; color:#fff;
+    border-radius:8px; padding:.2mm 2.4mm .5mm;
+  }
+  .ans.egg-ans{background:var(--egg-deep);}
+  .ans.baby-ans{background:var(--baby-deep);}
+  .trap-card .why{font-size:6.8pt; font-weight:700; display:block; margin-top:.6mm; line-height:1.35; color:#555;}
+  footer{text-align:center; font-size:7.5pt; font-weight:700; color:#888; margin-top:2.5mm;}
+  /* ---------- print ---------- */
+  @page{size:A4 portrait; margin:0;}
+  @media print{
+    html,body{background:#fff;}
+    .page{margin:0; width:auto; min-height:auto;}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <h1><span class="egg-word">たまご</span>でうまれる？　<span class="baby-word">あかちゃん</span>でうまれる？</h1>
+    <p>いきものの うまれかたを おぼえよう！</p>
+  </header>
+
+  <div class="columns">
+
+    <!-- ===== 卵 ===== -->
+    <section class="col egg">
+      <div class="col-title">🥚 たまごで うまれる</div>
+      <div class="col-sub">（らんせい）</div>
+
+      <div class="group">
+        <span class="group-label">とり</span>
+        <div class="cards">
+          <div class="card"><span class="pic">🐔</span><span class="name">ニワトリ</span></div>
+          <div class="card"><span class="pic">🦆</span><span class="name">アヒル</span></div>
+          <div class="card"><span class="pic">🦉</span><span class="name">フクロウ</span></div>
+          <div class="card"><span class="pic">🕊️</span><span class="name">ハト</span></div>
+          <div class="card"><span class="pic">🦢</span><span class="name">ハクチョウ</span></div>
+        </div>
+      </div>
+
+      <div class="group">
+        <span class="group-label">さかな</span>
+        <div class="cards">
+          <div class="card"><span class="pic">🐟</span><span class="name">メダカ</span></div>
+          <div class="card"><span class="pic">🐠</span><span class="name">キンギョ</span></div>
+          <div class="card"><span class="pic">🐡</span><span class="name">フグ</span></div>
+        </div>
+      </div>
+
+      <div class="group">
+        <span class="group-label">カエル・カメ・ヘビ</span>
+        <div class="cards">
+          <div class="card"><span class="pic">🐸</span><span class="name">カエル</span></div>
+          <div class="card"><span class="pic">🐢</span><span class="name">カメ</span></div>
+          <div class="card"><span class="pic">🐍</span><span class="name">ヘビ</span></div>
+          <div class="card"><span class="pic">🐊</span><span class="name">ワニ</span></div>
+          <div class="card"><span class="pic">🦎</span><span class="name">トカゲ</span></div>
+        </div>
+      </div>
+
+      <div class="group">
+        <span class="group-label">むし など</span>
+        <div class="cards">
+          <div class="card"><span class="pic">🦋</span><span class="name">チョウ</span></div>
+          <div class="card"><span class="pic">🪲</span><span class="name">カブトムシ</span></div>
+          <div class="card"><span class="pic">🐞</span><span class="name">テントウムシ</span></div>
+          <div class="card"><span class="pic">🦗</span><span class="name">バッタ</span></div>
+          <div class="card"><span class="pic">🐙</span><span class="name">タコ</span></div>
+          <div class="card"><span class="pic">🐌</span><span class="name">カタツムリ</span></div>
+        </div>
+      </div>
+
+      <div class="hint">💡 <b>ポイント</b>：とり・さかな・カエル・カメ・ヘビ・むしは みんな たまご！</div>
+    </section>
+
+    <!-- ===== 胎生 ===== -->
+    <section class="col baby">
+      <div class="col-title">👶 あかちゃんで うまれる</div>
+      <div class="col-sub">（たいせい・ほにゅうるい）</div>
+
+      <div class="group">
+        <span class="group-label">みぢかな どうぶつ</span>
+        <div class="cards">
+          <div class="card"><span class="pic">🐶</span><span class="name">イヌ</span></div>
+          <div class="card"><span class="pic">🐱</span><span class="name">ネコ</span></div>
+          <div class="card"><span class="pic">🐰</span><span class="name">ウサギ</span></div>
+          <div class="card"><span class="pic">🐭</span><span class="name">ネズミ</span></div>
+          <div class="card"><span class="pic">🐹</span><span class="name">ハムスター</span></div>
+        </div>
+      </div>
+
+      <div class="group">
+        <span class="group-label">ぼくじょうの どうぶつ</span>
+        <div class="cards">
+          <div class="card"><span class="pic">🐮</span><span class="name">ウシ</span></div>
+          <div class="card"><span class="pic">🐴</span><span class="name">ウマ</span></div>
+          <div class="card"><span class="pic">🐷</span><span class="name">ブタ</span></div>
+          <div class="card"><span class="pic">🐑</span><span class="name">ヒツジ</span></div>
+          <div class="card"><span class="pic">🐐</span><span class="name">ヤギ</span></div>
+        </div>
+      </div>
+
+      <div class="group">
+        <span class="group-label">どうぶつえんの どうぶつ</span>
+        <div class="cards">
+          <div class="card"><span class="pic">🐘</span><span class="name">ゾウ</span></div>
+          <div class="card"><span class="pic">🦁</span><span class="name">ライオン</span></div>
+          <div class="card"><span class="pic">🦒</span><span class="name">キリン</span></div>
+          <div class="card"><span class="pic">🐼</span><span class="name">パンダ</span></div>
+          <div class="card"><span class="pic">🐵</span><span class="name">サル</span></div>
+          <div class="card"><span class="pic">🐨</span><span class="name">コアラ</span></div>
+        </div>
+      </div>
+
+      <div class="group">
+        <span class="group-label">にんげんも！</span>
+        <div class="cards">
+          <div class="card"><span class="pic">👶</span><span class="name">ヒト</span></div>
+        </div>
+      </div>
+
+      <div class="hint">💡 <b>ポイント</b>：からだに <b>け（毛）</b>がはえていて、おかあさんの <b>おっぱい</b>をのむ どうぶつ（ほにゅうるい）は あかちゃんで うまれる！</div>
+    </section>
+  </div>
+
+  <!-- ===== ひっかけ ===== -->
+  <section class="trap">
+    <div class="trap-title">⚠️ ひっかけに ちゅうい！ よくでる もんだい</div>
+    <div class="trap-cards">
+      <div class="trap-card">
+        <span class="pic">🐬</span><span class="name">イルカ</span>
+        <span class="ans baby-ans">あかちゃん</span>
+        <span class="why">うみに いるけど<br>ほにゅうるい！</span>
+      </div>
+      <div class="trap-card">
+        <span class="pic">🐳</span><span class="name">クジラ</span>
+        <span class="ans baby-ans">あかちゃん</span>
+        <span class="why">さかなじゃ ないよ<br>ほにゅうるい！</span>
+      </div>
+      <div class="trap-card">
+        <span class="pic">🦭</span><span class="name">アザラシ</span>
+        <span class="ans baby-ans">あかちゃん</span>
+        <span class="why">うみに いるけど<br>ほにゅうるい！</span>
+      </div>
+      <div class="trap-card">
+        <span class="pic">🦇</span><span class="name">コウモリ</span>
+        <span class="ans baby-ans">あかちゃん</span>
+        <span class="why">そらを とぶけど<br>とりじゃ ない！</span>
+      </div>
+      <div class="trap-card">
+        <span class="pic">🐧</span><span class="name">ペンギン</span>
+        <span class="ans egg-ans">たまご</span>
+        <span class="why">およぐけど<br>とりの なかま！</span>
+      </div>
+      <div class="trap-card">
+        <span class="pic">🐢</span><span class="name">ウミガメ</span>
+        <span class="ans egg-ans">たまご</span>
+        <span class="why">すなはまに<br>たまごを うむよ</span>
+      </div>
+    </div>
+  </section>
+
+  <footer>おうちの かたへ：ブラウザの「印刷」から A4・カラーで印刷してください（背景の色を印刷する設定を ON に）</footer>
+</div>
+</body>
+</html>

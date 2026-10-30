@@ -5,7 +5,7 @@ import org.json.JSONObject
 import java.util.UUID
 
 /** CALL：Google Meet などの通話リンク（どうがロック中も押せる） */
-enum class TileType { APP, VIDEO, DRAWING, CALL, INSTRUMENT }
+enum class TileType { APP, VIDEO, DRAWING, CALL, INSTRUMENT, EDUPAD }
 
 /** ホーム画面に並ぶ1つのボタン */
 data class Tile(
@@ -26,7 +26,13 @@ data class Profile(
     val name: String,
     val themeId: String,
     val tiles: List<Tile>,
-)
+    /** じかんわり：[げつ, か, すい, もく, きん, ど] ごとの かもく（1 じかんめ から） */
+    val timetable: List<List<String>> = List(6) { emptyList() },
+    /** ようび ごとの もちもの */
+    val belongings: List<String> = List(6) { "" },
+) {
+    val hasTimetable get() = timetable.any { d -> d.any { it.isNotBlank() } }
+}
 
 enum class LockReason(val emoji: String, val title: String) {
     STUDY("📚", "べんきょうタイム"),
@@ -65,6 +71,8 @@ data class AppConfig(
     val showBooks: Boolean = true,
     /** 子どもに見せないフォルダ（カメラで撮った動画など） */
     val hiddenFolders: Set<String> = setOf("Camera", "Screenshots", "Screen recordings", "WhatsApp Video", "LINE"),
+    /** ピアノの れんしゅう に足した曲 */
+    val songs: List<com.theta.kidshome.media.Song> = emptyList(),
 ) {
     fun categoryOf(packageName: String): AppCategory? =
         appCategory[packageName]?.let { id -> categories.firstOrNull { it.id == id } }
@@ -77,10 +85,11 @@ data class AppConfig(
     companion object {
         fun drawingTile() = Tile(type = TileType.DRAWING, label = "おえかき", emoji = "🎨")
         fun instrumentTile() = Tile(type = TileType.INSTRUMENT, label = "がっき", emoji = "🎹")
+        fun edupadTile() = Tile(type = TileType.EDUPAD, label = "くるくる思考パッド", emoji = "🧠")
 
         fun default(): AppConfig {
-            val p1 = Profile(name = "おねえちゃん", themeId = "usagi", tiles = listOf(drawingTile(), instrumentTile()))
-            val p2 = Profile(name = "いもうと", themeId = "neko", tiles = listOf(drawingTile(), instrumentTile()))
+            val p1 = Profile(name = "おねえちゃん", themeId = "usagi", tiles = listOf(edupadTile(), drawingTile(), instrumentTile()))
+            val p2 = Profile(name = "いもうと", themeId = "neko", tiles = listOf(edupadTile(), drawingTile(), instrumentTile()))
             return AppConfig(profiles = listOf(p1, p2), currentProfileId = p1.id)
         }
     }
@@ -116,6 +125,8 @@ fun Profile.toJson(): JSONObject = JSONObject().apply {
     put("name", name)
     put("themeId", themeId)
     put("tiles", JSONArray(tiles.map { it.toJson() }))
+    put("timetable", JSONArray(timetable.map { JSONArray(it) }))
+    put("belongings", JSONArray(belongings))
 }
 
 fun profileFromJson(o: JSONObject): Profile {
@@ -125,6 +136,10 @@ fun profileFromJson(o: JSONObject): Profile {
         name = o.optString("name"),
         themeId = o.optString("themeId", "usagi"),
         tiles = (0 until arr.length()).map { tileFromJson(arr.getJSONObject(it)) },
+        timetable = List(6) { d ->
+            o.optJSONArray("timetable")?.optJSONArray(d)?.let { a -> (0 until a.length()).map { a.optString(it) } } ?: emptyList()
+        },
+        belongings = List(6) { d -> o.optJSONArray("belongings")?.optString(d).orEmpty() },
     )
 }
 
@@ -151,6 +166,7 @@ fun AppConfig.toJson(): JSONObject = JSONObject().apply {
     put("showMusic", showMusic)
     put("showBooks", showBooks)
     put("hiddenFolders", JSONArray(hiddenFolders.toList()))
+    put("songs", JSONArray(songs.map { JSONObject().put("title", it.title).put("notes", it.notes) }))
 }
 
 fun appConfigFromJson(o: JSONObject): AppConfig {
@@ -190,5 +206,8 @@ fun appConfigFromJson(o: JSONObject): AppConfig {
         showBooks = o.optBoolean("showBooks", true),
         hiddenFolders = o.optJSONArray("hiddenFolders")?.let { a -> (0 until a.length()).map { a.getString(it) }.toSet() }
             ?: AppConfig(emptyList(), "").hiddenFolders,
+        songs = o.optJSONArray("songs")?.let { a ->
+            (0 until a.length()).map { a.getJSONObject(it) }.map { com.theta.kidshome.media.Song(it.optString("title"), it.optString("notes")) }
+        } ?: emptyList(),
     )
 }

@@ -172,6 +172,10 @@ private fun SettingsTab(modifier: Modifier) {
 
         MediaSection(config)
 
+        SongSection(config)
+
+        HatchSection()
+
         CategorySection(config)
 
         VideoLockSection(config)
@@ -420,6 +424,8 @@ private fun ProfileEditor(profile: Profile, canDelete: Boolean, onDelete: () -> 
     Text("テーマ（キャラクター）", fontSize = 13.sp, color = Color.Gray)
     ThemePicker(profile.themeId) { id -> Store.updateProfile(profile.id) { it.copy(themeId = id) } }
 
+    TimetableEditor(profile)
+
     Spacer(Modifier.height(16.dp))
     Text("ボタン（上から順に並びます。どうがリンクはサービスごとのタブに入ります）", fontSize = 13.sp, color = Color.Gray)
     if (profile.tiles.isEmpty()) {
@@ -439,6 +445,9 @@ private fun ProfileEditor(profile: Profile, canDelete: Boolean, onDelete: () -> 
         Button(onClick = { addingVideo = true }) { Text("🎬 どうがリンクを追加") }
         Button(onClick = { showAppPicker = true }) { Text("📱 アプリを追加") }
         OutlinedButton(onClick = { addingCall = true }) { Text("📞 でんわボタンを追加") }
+        if (profile.tiles.none { it.type == TileType.EDUPAD }) {
+            OutlinedButton(onClick = { Store.addTiles(profile.id, listOf(AppConfig.edupadTile())) }) { Text("🧠 くるくる思考パッドを追加") }
+        }
         if (profile.tiles.none { it.type == TileType.INSTRUMENT }) {
             OutlinedButton(onClick = { Store.addTiles(profile.id, listOf(AppConfig.instrumentTile())) }) { Text("🎹 がっきを追加") }
         }
@@ -521,6 +530,7 @@ private fun TileRow(tile: Tile, onUp: (() -> Unit)?, onDown: (() -> Unit)?, onEd
                     TileType.DRAWING -> add("おえかき（内蔵）")
                     TileType.CALL -> add("でんわ（ロック中も使える）")
                     TileType.INSTRUMENT -> add("がっき（内蔵）")
+                    TileType.EDUPAD -> add("くるくる思考パッド（内蔵）")
                 }
                 if (tile.isVideo) add("🔒ロック対象")
                 if (missing) add("⚠️ アプリが見つかりません")

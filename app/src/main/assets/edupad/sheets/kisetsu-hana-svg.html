@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>きせつの はな（絵つき）</title>
+<style>
+  :root{
+    --sp-bg:#FDEEF4; --sp-line:#F191B7; --sp-deep:#C2185B;
+    --sm-bg:#E7F5FC; --sm-line:#57B6E0; --sm-deep:#0B6FA4;
+    --au-bg:#FCF1E0; --au-line:#DFA24C; --au-deep:#A85D0B;
+    --wi-bg:#EEF1F6; --wi-line:#93A3BE; --wi-deep:#3C4F70;
+    --ink:#3E3A40; --paper:#FFFFFF; --warn:#7E57C2; --warn-bg:#F3EFFA;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{background:#eee;}
+  body{
+    font-family:"Zen Maru Gothic","Hiragino Maru Gothic ProN","BIZ UDGothic",sans-serif;
+    color:var(--ink);
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+  .page{
+    width:210mm; min-height:297mm; margin:10px auto; background:var(--paper);
+    padding:8mm 8mm 6mm; display:flex; flex-direction:column;
+  }
+  header{text-align:center; margin-bottom:3mm;}
+  h1{
+    font-size:20pt; font-weight:900; letter-spacing:.05em;
+    display:inline-block; padding:1mm 7mm 1.5mm; border-radius:20px;
+    background:linear-gradient(90deg,var(--sp-bg) 0 25%,var(--sm-bg) 25% 50%,var(--au-bg) 50% 75%,var(--wi-bg) 75% 100%);
+    border:1.2mm solid var(--ink);
+  }
+  header p{font-size:9pt; font-weight:700; margin-top:1.2mm;}
+  .grid{display:grid; grid-template-columns:1fr 1fr; gap:3mm;}
+  .season{border-radius:5mm; border:1mm solid; padding:2.2mm 2.6mm; display:flex; flex-direction:column;}
+  .sp{background:var(--sp-bg); border-color:var(--sp-line);}
+  .sm{background:var(--sm-bg); border-color:var(--sm-line);}
+  .au{background:var(--au-bg); border-color:var(--au-line);}
+  .wi{background:var(--wi-bg); border-color:var(--wi-line);}
+  .s-head{display:flex; align-items:baseline; gap:2mm; margin-bottom:1.6mm;}
+  .s-name{font-size:13pt; font-weight:900;}
+  .sp .s-name{color:var(--sp-deep);} .sm .s-name{color:var(--sm-deep);}
+  .au .s-name{color:var(--au-deep);} .wi .s-name{color:var(--wi-deep);}
+  .s-month{font-size:7.6pt; font-weight:900; color:#fff; padding:.3mm 2.4mm .6mm; border-radius:10px;}
+  .sp .s-month{background:var(--sp-deep);} .sm .s-month{background:var(--sm-deep);}
+  .au .s-month{background:var(--au-deep);} .wi .s-month{background:var(--wi-deep);}
+  .cards{display:grid; grid-template-columns:repeat(5,1fr); gap:1.4mm;}
+  .card{
+    background:#fff; border-radius:2.5mm; text-align:center;
+    padding:.8mm .4mm .6mm; border:.4mm solid rgba(0,0,0,.13);
+  }
+  .card svg{width:100%; height:auto; display:block;}
+  .card .name{font-size:6.8pt; font-weight:700; display:block; margin-top:.2mm; line-height:1.2;}
+  .card .tag{font-size:5.6pt; font-weight:700; color:#8a8590; display:block; line-height:1.2;}
+  .note{
+    margin-top:1.8mm; background:#fff; border-radius:2.5mm; padding:1.2mm 2.2mm;
+    font-size:7.3pt; font-weight:700; line-height:1.4; border:.5mm dashed;
+  }
+  .sp .note{border-color:var(--sp-line);} .sm .note{border-color:var(--sm-line);}
+  .au .note{border-color:var(--au-line);} .wi .note{border-color:var(--wi-line);}
+  .sp .note b{color:var(--sp-deep);} .sm .note b{color:var(--sm-deep);}
+  .au .note b{color:var(--au-deep);} .wi .note b{color:var(--wi-deep);}
+  .trap{
+    margin-top:3mm; border:1mm solid var(--warn); border-radius:5mm;
+    background:var(--warn-bg); padding:2.2mm 2.6mm;
+  }
+  .trap-title{text-align:center; font-size:11.5pt; font-weight:900; color:#5b3ba3; margin-bottom:1.6mm;}
+  .trap-cards{display:grid; grid-template-columns:repeat(5,1fr); gap:2mm;}
+  .trap-card{
+    background:#fff; border-radius:3mm; text-align:center;
+    padding:1.2mm 1mm 1.1mm; border:.5mm solid rgba(0,0,0,.12);
+  }
+  .trap-card svg{width:62%; height:auto; margin:0 auto; display:block;}
+  .trap-card .name{font-size:7.4pt; font-weight:900; display:block; margin:.3mm 0; line-height:1.2;}
+  .trap-card .ans{display:inline-block; font-size:6.8pt; font-weight:900; color:#fff; border-radius:8px; padding:.2mm 2mm .5mm;}
+  .a-sp{background:var(--sp-deep);} .a-sm{background:var(--sm-deep);}
+  .a-au{background:var(--au-deep);} .a-wi{background:var(--wi-deep);}
+  .trap-card .why{font-size:6.2pt; font-weight:700; display:block; margin-top:.5mm; line-height:1.3; color:#555;}
+  footer{text-align:center; font-size:7.2pt; font-weight:700; color:#888; margin-top:2.2mm;}
+  @page{size:A4 portrait; margin:0;}
+  @media print{ html,body{background:#fff;} .page{margin:0; width:auto; min-height:auto;} }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <h1>きせつの はな</h1>
+    <p>はなびらの かたち・かずを よく みて おぼえよう</p>
+  </header>
+
+  <div class="grid">
+    <section class="season sp">
+      <div class="s-head"><span class="s-name">はる</span><span class="s-month">3・4・5がつ</span></div>
+      <div class="cards" id="c-sp"></div>
+      <div class="note">🌱 <b>春の七草</b>：せり・なずな・ごぎょう・はこべら・ほとけのざ・すずな・すずしろ（1がつ7かの おかゆ）</div>
+    </section>
+
+    <section class="season sm">
+      <div class="s-head"><span class="s-name">なつ</span><span class="s-month">6・7・8がつ</span></div>
+      <div class="cards" id="c-sm"></div>
+      <div class="note">🌅 <b>あさがお</b>は あさ さいて ひるに しぼむ。つるは <b>ひだりまき</b>に のびる。</div>
+    </section>
+
+    <section class="season au">
+      <div class="s-head"><span class="s-name">あき</span><span class="s-month">9・10・11がつ</span></div>
+      <div class="cards" id="c-au"></div>
+      <div class="note">🌾 <b>秋の七草</b>：はぎ・すすき・ききょう・なでしこ・おみなえし・ふじばかま・くず（みて たのしむ）</div>
+    </section>
+
+    <section class="season wi">
+      <div class="s-head"><span class="s-name">ふゆ</span><span class="s-month">12・1・2がつ</span></div>
+      <div class="cards" id="c-wi"></div>
+      <div class="note">❄️ さむい なかで さく はなは すくない。<b>つばき・さざんか・すいせん</b>を まず おぼえよう。</div>
+    </section>
+  </div>
+
+  <section class="trap">
+    <div class="trap-title">⚠️ かたちで みわける ポイント</div>
+    <div class="trap-cards" id="c-trap"></div>
+  </section>
+
+  <footer>おうちの かたへ：ブラウザの「印刷」から A4・カラーで印刷してください（背景の色を印刷する設定を ON に）</footer>
+</div>
+
+<script>
+/* ============ 花びらパス生成 ============ */
+const S=(n)=>Number(n.toFixed(2));
+function petalPath(type,l,w){
+  switch(type){
+    case 'round':  return `M0,0 C${-w},${-l*.35} ${-w*.92},${-l} 0,${-l} C${w*.92},${-l} ${w},${-l*.35} 0,0 Z`;
+    case 'wide':   return `M0,0 C${-w*1.15},${-l*.3} ${-w},${-l*1.02} 0,${-l} C${w},${-l*1.02} ${w*1.15},${-l*.3} 0,0 Z`;
+    case 'point':  return `M0,0 C${-w},${-l*.5} ${-w*.5},${-l*.88} 0,${-l} C${w*.5},${-l*.88} ${w},${-l*.5} 0,0 Z`;
+    case 'notch':  return `M0,0 C${-w},${-l*.4} ${-w*.95},${-l*.97} ${-w*.4},${-l*.9} L0,${-l*.68} L${w*.4},${-l*.9} C${w*.95},${-l*.97} ${w},${-l*.4} 0,0 Z`;
+    case 'ray':    return `M${-w*.5},${-l*.12} L${-w*.5},${-l*.88} Q0,${-l*1.12} ${w*.5},${-l*.88} L${w*.5},${-l*.12} Z`;
+    case 'raynotch':return `M${-w*.62},${-l*.15} L${-w*.72},${-l*.8} L${-w*.3},${-l*.74} L0,${-l*.95} L${w*.3},${-l*.74} L${w*.72},${-l*.8} L${w*.62},${-l*.15} Z`;
+    case 'strap':  return `M${-w*.35},0 C${-w*.6},${-l*.5} ${-w*1.5},${-l*.75} ${-w*.9},${-l} C${-w*.45},${-l*.8} ${w*.45},${-l*.45} ${w*.35},0 Z`;
+    case 'lily':   return `M0,0 C${-w},${-l*.45} ${-w*.75},${-l*.95} ${-w*.15},${-l} C${w*.1},${-l*.8} ${w},${-l*.4} 0,0 Z`;
+    case 'fringe':{
+      let p=`M0,0 C${-w},${-l*.4} ${-w*.95},${-l*.8} ${-w*.8},${-l*.85}`;
+      for(let i=0;i<7;i++){const x=-w*.8+(w*1.6/6)*i; p+=` L${S(x+w*.13)},${-l*(i%2?.99:.86)}`;}
+      p+=` C${w*.95},${-l*.8} ${w},${-l*.4} 0,0 Z`; return p;
+    }
+    default: return petalPath('round',l,w);
+  }
+}
+function ring({n,type,l,w,fill,stroke,rot=0,op=1}){
+  let s='';
+  for(let i=0;i<n;i++){
+    const a=rot+i*360/n;
+    s+=`<path d="${petalPath(type,l,w)}" transform="rotate(${S(a)})" fill="${fill}" stroke="${stroke||'#00000022'}" stroke-width="1.1" stroke-linejoin="round" opacity="${op}"/>`;
+  }
+  return s;
+}
+function stamens(n,len,col){
+  let s='';
+  for(let i=0;i<n;i++){
+    const a=(i*360/n-90)*Math.PI/180, x=Math.cos(a)*len, y=Math.sin(a)*len;
+    s+=`<line x1="0" y1="0" x2="${S(x)}" y2="${S(y)}" stroke="${col}" stroke-width="1.4" stroke-linecap="round"/><circle cx="${S(x)}" cy="${S(y)}" r="1.8" fill="${col}"/>`;
+  }
+  return s;
+}
+const LEAF=(x,y,sc,rot,col='#5FA83E')=>
+ `<g transform="translate(${x},${y}) rotate(${rot}) scale(${sc})"><path d="M0,0 C10,-6 24,-4 30,0 C24,4 10,6 0,0 Z" fill="${col}" stroke="#3E7A16" stroke-width="1"/><path d="M2,0 L28,0" stroke="#3E7A16" stroke-width=".8"/></g>`;
+const STEM=(d)=>`<path d="${d}" fill="none" stroke="#5FA83E" stroke-width="3" stroke-linecap="round"/>`;
+
+/* ============ 花ごとの描画 ============ */
+const D={
+ /* --- 春 --- */
+ ume:()=>`${STEM('M14,86 C34,78 52,70 82,66')}<g transform="translate(50,44)">${ring({n:5,type:'round',l:26,w:15,fill:'#FBD3E0'})}${stamens(9,11,'#F2B705')}<circle r="4.5" fill="#F2B705"/></g><g transform="translate(24,66)">${ring({n:5,type:'round',l:11,w:6.5,fill:'#FBD3E0'})}<circle r="2" fill="#F2B705"/></g>`,
+ sakura:()=>`${STEM('M12,84 C32,80 56,74 86,74')}<g transform="translate(48,42)">${ring({n:5,type:'notch',l:27,w:16,fill:'#FFC6D5'})}${stamens(10,12,'#E88AA6')}<circle r="4" fill="#F7A6BC"/></g><g transform="translate(80,60)">${ring({n:5,type:'notch',l:12,w:7,fill:'#FFC6D5'})}<circle r="2" fill="#F7A6BC"/></g>`,
+ momo:()=>`${STEM('M14,88 C36,80 56,74 84,72')}<g transform="translate(48,42)">${ring({n:5,type:'point',l:27,w:15,fill:'#F589AE'})}${stamens(10,12,'#C2185B')}<circle r="4" fill="#E85C8A"/></g>${LEAF(66,64,.55,20,'#69A83E')}`,
+ tulip:()=>`${STEM('M50,96 L50,52')}${LEAF(40,92,.9,-118)}${LEAF(60,92,.9,-62)}<g transform="translate(50,40)"><path d="M-20,4 C-22,-16 -14,-28 0,-28 C14,-28 22,-16 20,4 C12,12 -12,12 -20,4 Z" fill="#E33C4A" stroke="#B3202D" stroke-width="1.2"/><path d="M-20,2 C-14,-4 -8,-24 -6,-28" fill="none" stroke="#B3202D" stroke-width="1.2"/><path d="M20,2 C14,-4 8,-24 6,-28" fill="none" stroke="#B3202D" stroke-width="1.2"/></g>`,
+ tanpopo:()=>`${STEM('M50,96 L50,54')}<g transform="translate(50,44)">${ring({n:22,type:'ray',l:26,w:8,fill:'#FFCE2E',rot:8})}${ring({n:14,type:'ray',l:16,w:7,fill:'#FFE07A'})}<circle r="4.5" fill="#F2A20C"/></g><path d="M50,86 C34,86 26,80 24,72 C34,70 44,76 50,86 Z" fill="#4E9331"/>`,
+ nanohana:()=>`${STEM('M50,96 L50,50')}${LEAF(46,78,.5,170)}<g transform="translate(50,36)">${ring({n:4,type:'wide',l:20,w:12,fill:'#FFD028',rot:45})}<circle r="3.5" fill="#E8A300"/></g><g transform="translate(24,52)">${ring({n:4,type:'wide',l:11,w:7,fill:'#FFD028',rot:45})}</g><g transform="translate(76,54)">${ring({n:4,type:'wide',l:11,w:7,fill:'#FFD028',rot:45})}</g>`,
+ sumire:()=>`${STEM('M50,96 C46,78 48,68 50,58')}${LEAF(40,88,.55,-160)}<g transform="translate(50,46)"><path d="${petalPath('round',22,14)}" transform="rotate(-52)" fill="#8E6CC8"/><path d="${petalPath('round',22,14)}" transform="rotate(52)" fill="#8E6CC8"/><path d="${petalPath('round',20,12)}" transform="rotate(-104)" fill="#7A57BC"/><path d="${petalPath('round',20,12)}" transform="rotate(104)" fill="#7A57BC"/><path d="${petalPath('wide',22,13)}" transform="rotate(180)" fill="#6B47AE"/><path d="M-5,6 L5,6" stroke="#F5E14B" stroke-width="4" stroke-linecap="round"/></g>`,
+ renge:()=>`${STEM('M50,96 L50,58')}${LEAF(40,84,.5,-170)}<g transform="translate(50,42)">${[0,60,120,180,240,300].map(a=>`<g transform="rotate(${a}) translate(0,-16)"><path d="M-9,4 C-9,-8 9,-8 9,4 C4,8 -4,8 -9,4 Z" fill="#F07CA8" stroke="#C2185B" stroke-width=".9"/></g>`).join('')}<circle r="8" fill="#FFF" stroke="#E4A0BC" stroke-width="1"/></g>`,
+ fuji:()=>`${STEM('M10,16 C34,10 62,14 92,12')}${[26,44,62,78].map((x,i)=>{const h=[46,58,40,34][i];let s=`<line x1="${x}" y1="18" x2="${x}" y2="${18+h}" stroke="#6B8E3E" stroke-width="2"/>`;for(let k=0;k<h/8;k++){const y=24+k*8,w=8-k*0.7;s+=`<ellipse cx="${x-w*.7}" cy="${y}" rx="${w*.75}" ry="4" fill="#9B7BD4"/><ellipse cx="${x+w*.7}" cy="${y}" rx="${w*.75}" ry="4" fill="#8464C8"/>`;}return s;}).join('')}`,
+ tsutsuji:()=>`${LEAF(20,80,.6,-30)}${LEAF(80,80,.6,210)}<g transform="translate(50,46)">${ring({n:5,type:'point',l:30,w:17,fill:'#EE5A7A'})}<circle r="7" fill="#F9C6D2"/>${stamens(7,20,'#C2185B')}<circle r="3" fill="#D33A5C"/></g><g transform="translate(50,46)">${[0,72,144,216,288].map(a=>`<circle cx="${S(Math.cos((a-90)*Math.PI/180)*13)}" cy="${S(Math.sin((a-90)*Math.PI/180)*13)}" r="1.6" fill="#B3143E" opacity=".55"/>`).join('')}</g>`,
+
+ /* --- 夏 --- */
+ himawari:()=>`${STEM('M50,98 L50,60')}${LEAF(44,82,.7,175)}${LEAF(56,88,.7,5)}<g transform="translate(50,46)">${ring({n:20,type:'point',l:32,w:9,fill:'#FFC61A',rot:9})}${ring({n:20,type:'point',l:26,w:8,fill:'#FFD84D'})}<circle r="15" fill="#7A4A1E"/>${Array.from({length:14},(_,i)=>{const a=i*2.4,r=2+i*.95;return `<circle cx="${S(Math.cos(a)*r)}" cy="${S(Math.sin(a)*r)}" r="1.5" fill="#5A3413"/>`;}).join('')}</g>`,
+ asagao:()=>`<path d="M12,96 C22,72 14,52 26,34" fill="none" stroke="#4E9331" stroke-width="2.6"/><path d="M26,34 C20,28 30,24 28,30" fill="none" stroke="#4E9331" stroke-width="2"/>${LEAF(18,72,.55,-40)}<g transform="translate(56,46)"><ellipse cx="0" cy="0" rx="30" ry="27" fill="#6E7BD0"/><ellipse cx="0" cy="0" rx="30" ry="27" fill="none" stroke="#4A57B0" stroke-width="1.2"/>${[0,72,144,216,288].map(a=>`<line x1="0" y1="0" x2="${S(Math.cos((a-90)*Math.PI/180)*30)}" y2="${S(Math.sin((a-90)*Math.PI/180)*27)}" stroke="#FFFFFF" stroke-width="2.4" opacity=".85"/>`).join('')}<circle r="9" fill="#FFFFFF"/><circle r="3.5" fill="#F7E08A"/></g><path d="M56,72 C48,80 44,86 42,92" fill="none" stroke="#4E9331" stroke-width="2.4"/>`,
+ ajisai:()=>`${LEAF(14,86,.8,-15)}${LEAF(86,86,.8,195)}${(()=>{const pts=[[50,26],[32,40],[68,40],[24,60],[50,52],[76,60],[38,72],[62,72]];const cols=['#6FA8DC','#8FB8E8','#5B8FD4','#9AC0EA','#6FA8DC','#7FAEE0','#5B8FD4','#8FB8E8'];return pts.map((p,i)=>`<g transform="translate(${p[0]},${p[1]}) rotate(${i*17})">${ring({n:4,type:'wide',l:13,w:8,fill:cols[i],rot:45})}<circle r="2.2" fill="#EAF3FB"/></g>`).join('');})()}`,
+ yuri:()=>`${STEM('M50,98 L50,58')}${LEAF(46,84,.6,180)}<g transform="translate(50,46)"><g>${[0,60,120,180,240,300].map(a=>`<path d="${petalPath('lily',30,13)}" transform="rotate(${a})" fill="${a%120===0?'#FFFFFF':'#FDF5F7'}" stroke="#D9B7C2" stroke-width="1.1"/>`).join('')}</g>${stamens(6,20,'#C97F2E')}<circle r="4" fill="#E8C07A"/></g>`,
+ hasu:()=>`<rect x="0" y="74" width="100" height="26" fill="#CDE8F2"/><ellipse cx="20" cy="76" rx="22" ry="7" fill="#5FA83E"/><g transform="translate(56,40)">${ring({n:8,type:'point',l:30,w:12,fill:'#F6B8CE',rot:22})}${ring({n:8,type:'point',l:22,w:10,fill:'#FBD7E4'})}<circle r="8" fill="#C9D96B"/><circle r="8" fill="none" stroke="#9CB03F" stroke-width="1"/></g><path d="M56,64 L56,80" stroke="#5FA83E" stroke-width="3"/>`,
+ suiren:()=>`<rect x="0" y="56" width="100" height="44" fill="#BFE2F0"/><path d="M6,80 A20,13 0 1,1 44,80 L34,80 L28,72 L20,80 Z" fill="#4E9331"/><path d="M62,88 A16,10 0 1,1 96,88 Z" fill="#4E9331"/><g transform="translate(50,54)">${ring({n:12,type:'point',l:26,w:8,fill:'#FFFFFF',rot:15})}${ring({n:12,type:'point',l:18,w:7,fill:'#FCF7FA'})}<circle r="6.5" fill="#F5D33F"/></g>`,
+ housenka:()=>`${STEM('M50,98 L50,44')}${LEAF(40,80,.55,-165)}${LEAF(60,68,.55,-15)}<g transform="translate(50,36)">${ring({n:5,type:'round',l:22,w:14,fill:'#F0619B'})}<circle r="4" fill="#FBD7E4"/></g><g transform="translate(24,60)">${ring({n:5,type:'round',l:12,w:8,fill:'#F0619B'})}</g><path d="M74,62 C82,58 84,66 76,68 Z" fill="#7FBF4D"/>`,
+ hechima:()=>`<path d="M8,96 C16,70 10,48 22,30" fill="none" stroke="#4E9331" stroke-width="2.6"/>${LEAF(16,70,.6,-35)}<g transform="translate(52,40)">${ring({n:5,type:'wide',l:26,w:16,fill:'#FBD424'})}<circle r="5" fill="#E0A100"/></g><path d="M74,58 C86,60 90,74 84,90 C78,96 70,92 72,80 Z" fill="#6FA83E" stroke="#4E7F26" stroke-width="1"/>`,
+ oshiroi:()=>`${STEM('M50,98 L50,56')}${LEAF(40,82,.55,-165)}<g transform="translate(50,42)"><path d="M-24,2 C-26,-14 -14,-22 0,-22 C14,-22 26,-14 24,2 C14,10 -14,10 -24,2 Z" fill="#F2637E" stroke="#C43C58" stroke-width="1.1"/>${[0,72,144,216,288].map(a=>`<line x1="0" y1="0" x2="${S(Math.cos((a-90)*Math.PI/180)*24)}" y2="${S(Math.sin((a-90)*Math.PI/180)*20)}" stroke="#C43C58" stroke-width="1" opacity=".6"/>`).join('')}<line x1="0" y1="0" x2="0" y2="14" stroke="#6FA83E" stroke-width="2.6"/>${stamens(5,16,'#F7D774')}</g>`,
+ sarusuberi:()=>`${STEM('M50,98 L50,66')}<g transform="translate(50,42)">${ring({n:6,type:'fringe',l:28,w:14,fill:'#E4538E',rot:12})}${ring({n:6,type:'fringe',l:19,w:11,fill:'#F07CA8'})}${stamens(8,10,'#F5D33F')}<circle r="4" fill="#F5D33F"/></g><g transform="translate(22,66)">${ring({n:6,type:'fringe',l:13,w:7,fill:'#E4538E'})}</g>`,
+
+ /* --- 秋 --- */
+ cosmos:()=>`${STEM('M50,98 L50,58')}<path d="M44,84 l-10,-6 M44,74 l-10,-5 M56,80 l10,-6" stroke="#5FA83E" stroke-width="1.6" fill="none"/><g transform="translate(50,44)">${ring({n:8,type:'raynotch',l:30,w:15,fill:'#F292BE',rot:22})}<circle r="8" fill="#F5C93F"/>${Array.from({length:7},(_,i)=>`<circle cx="${S(Math.cos(i*.9)*4)}" cy="${S(Math.sin(i*.9)*4)}" r="1.3" fill="#D9A81E"/>`).join('')}</g>`,
+ kiku:()=>`${STEM('M50,98 L50,60')}${LEAF(42,82,.55,-165)}<g transform="translate(50,44)">${ring({n:20,type:'ray',l:30,w:7,fill:'#FFC61A',rot:9})}${ring({n:20,type:'ray',l:23,w:6.5,fill:'#FFD54F'})}${ring({n:14,type:'ray',l:15,w:6,fill:'#FFE79A',rot:12})}<circle r="5" fill="#E8A300"/></g>`,
+ higanbana:()=>`${STEM('M50,98 L50,58')}<g transform="translate(50,46)">${[0,60,120,180,240,300].map(a=>`<path d="${petalPath('strap',30,11)}" transform="rotate(${a})" fill="#E0302C" stroke="#B01A18" stroke-width="1"/>`).join('')}${Array.from({length:6},(_,i)=>{const a=(i*60-90)*Math.PI/180;return `<line x1="0" y1="0" x2="${S(Math.cos(a)*34)}" y2="${S(Math.sin(a)*34)}" stroke="#E0302C" stroke-width="1.3"/><circle cx="${S(Math.cos(a)*34)}" cy="${S(Math.sin(a)*34)}" r="1.8" fill="#8E1210"/>`;}).join('')}</g>`,
+ kikyou:()=>`${STEM('M50,98 L50,60')}${LEAF(42,82,.5,-165)}<g transform="translate(50,44)"><path d="${Array.from({length:5},(_,i)=>{const a=(i*72-90)*Math.PI/180,b=((i+.5)*72-90)*Math.PI/180;return `${i?'L':'M'}${S(Math.cos(a)*30)},${S(Math.sin(a)*30)} Q${S(Math.cos(b)*20)},${S(Math.sin(b)*20)} `;}).join('')} Z" fill="#7A63C4" stroke="#5A45A0" stroke-width="1.1"/>${[0,72,144,216,288].map(a=>`<line x1="0" y1="0" x2="${S(Math.cos((a-90)*Math.PI/180)*28)}" y2="${S(Math.sin((a-90)*Math.PI/180)*28)}" stroke="#5A45A0" stroke-width=".9" opacity=".5"/>`).join('')}<circle r="5" fill="#EDE7F8"/></g>`,
+ nadeshiko:()=>`${STEM('M50,98 L50,58')}<g transform="translate(50,44)">${ring({n:5,type:'fringe',l:28,w:15,fill:'#F07CA8'})}<circle r="6" fill="#FBD7E4"/>${stamens(5,10,'#D14C82')}</g>`,
+ hagi:()=>`<path d="M6,10 C26,26 40,54 52,96" fill="none" stroke="#6B8E3E" stroke-width="2.6"/><path d="M6,10 C34,18 58,36 76,70" fill="none" stroke="#6B8E3E" stroke-width="2.2"/>${(()=>{const pts=[[24,30],[36,46],[46,64],[54,82],[44,26],[60,44],[70,62]];return pts.map((p,i)=>`<g transform="translate(${p[0]},${p[1]}) rotate(${-30+i*8})"><path d="M-8,3 C-8,-7 8,-7 8,3 C4,7 -4,7 -8,3 Z" fill="#C2568E" stroke="#8E2E62" stroke-width=".8"/></g>`).join('');})()}`,
+ ominaeshi:()=>`${STEM('M50,98 L50,44')}<path d="M50,60 L30,44 M50,58 L70,44 M50,50 L38,36 M50,50 L62,36" stroke="#6B8E3E" stroke-width="1.8" fill="none"/>${[[30,40],[70,40],[38,32],[62,32],[50,28],[22,34],[78,34]].map(p=>`<g transform="translate(${p[0]},${p[1]})">${ring({n:5,type:'round',l:8,w:5,fill:'#FFD028'})}<circle r="1.8" fill="#E0A000"/></g>`).join('')}`,
+ susuki:()=>`${[[30,-18],[50,0],[70,16]].map(([x,r])=>`<g transform="translate(${x},96) rotate(${r})"><line x1="0" y1="0" x2="0" y2="-56" stroke="#C4A96A" stroke-width="2.2"/>${Array.from({length:9},(_,i)=>{const y=-56-i*0;return '';}).join('')}<g transform="translate(0,-56)">${Array.from({length:11},(_,i)=>{const a=-70+i*14;return `<path d="M0,0 Q${S(Math.sin(a*Math.PI/180)*10)},${S(-14)} ${S(Math.sin(a*Math.PI/180)*22)},${S(-24+Math.abs(a)/9)}" fill="none" stroke="#D8C08A" stroke-width="2.6" stroke-linecap="round"/>`;}).join('')}</g></g>`).join('')}<path d="M14,96 C30,80 34,60 32,44" fill="none" stroke="#8FA85E" stroke-width="2"/>`,
+ rindou:()=>`${STEM('M50,98 L50,66')}${LEAF(42,84,.5,-165)}${[[34,52],[50,40],[66,54]].map(([x,y],i)=>`<g transform="translate(${x},${y}) rotate(${(i-1)*18})"><path d="M-13,16 C-16,-4 -10,-18 0,-18 C10,-18 16,-4 13,16 Z" fill="#5A63C0" stroke="#3E45A0" stroke-width="1"/><path d="M-13,-14 L-8,-22 L-3,-14 L2,-22 L7,-14 L12,-21" fill="none" stroke="#3E45A0" stroke-width="1.2" transform="translate(0,4)"/><path d="M-13,-12 C-6,-18 6,-18 13,-12" fill="#7A82D4"/></g>`).join('')}`,
+ kinmokusei:()=>`<path d="M50,98 L50,20" stroke="#8B5E3C" stroke-width="4"/><path d="M50,60 L24,40 M50,52 L74,34 M50,74 L28,62 M50,68 L76,56" stroke="#8B5E3C" stroke-width="2.4" fill="none"/>${[[24,38],[74,32],[28,60],[76,54],[50,22],[38,48],[62,46],[40,74],[62,72]].map((p,i)=>`<g transform="translate(${p[0]},${p[1]}) rotate(${i*23})">${ring({n:4,type:'round',l:8,w:5.5,fill:'#F79020',rot:45})}<circle r="1.6" fill="#D96E06"/></g>`).join('')}`,
+
+ /* --- 冬 --- */
+ tsubaki:()=>`${LEAF(12,80,.75,-18,'#2F7A34')}${LEAF(88,82,.75,198,'#2F7A34')}<g transform="translate(50,44)">${ring({n:5,type:'round',l:30,w:19,fill:'#D8202E',rot:0})}${ring({n:5,type:'round',l:21,w:14,fill:'#E5424E',rot:36})}<circle r="9" fill="#F7D774"/>${stamens(11,14,'#F0C23A')}<circle r="5" fill="#FBE9A8"/></g>`,
+ sazanka:()=>`${LEAF(12,80,.75,-18,'#2F7A34')}${LEAF(88,82,.75,198,'#2F7A34')}<g transform="translate(50,44)">${[0,72,144,216,288].map(a=>`<path d="${petalPath('wide',29,16)}" transform="rotate(${a+6})" fill="#F0679B" stroke="#C43C6E" stroke-width="1.1"/>`).join('')}<circle r="8" fill="#F7D774"/>${stamens(9,13,'#F0C23A')}</g><path d="M20,66 l6,4 M78,68 l-6,4" stroke="#F0679B" stroke-width="4" stroke-linecap="round"/>`,
+ suisen:()=>`${STEM('M50,98 L50,54')}${LEAF(38,96,1.05,-96)}${LEAF(62,96,1.05,-84)}<g transform="translate(50,42)">${ring({n:6,type:'point',l:28,w:13,fill:'#FFFFFF',rot:0})}<circle r="11" fill="#FFD028" stroke="#E0A000" stroke-width="1.4"/><circle r="6" fill="#FFE79A"/></g>`,
+ cyclamen:()=>`${STEM('M50,98 C46,80 48,68 50,58')}<path d="M28,92 A14,10 0 1,1 56,92 Z" fill="#2F7A34"/><g transform="translate(50,44)">${[[-14,0],[-5,-4],[5,-4],[14,0],[0,-2]].map((p,i)=>`<path d="M${p[0]},${p[1]} C${p[0]-9},${p[1]-14} ${p[0]-6},${p[1]-32} ${p[0]+(i-2)*2},${p[1]-34} C${p[0]+7},${p[1]-30} ${p[0]+8},${p[1]-12} ${p[0]},${p[1]} Z" fill="#E0355F" stroke="#B01A3E" stroke-width=".9"/>`).join('')}</g>`,
+ poinsettia:()=>`<g transform="translate(50,50)">${ring({n:7,type:'point',l:34,w:11,fill:'#3F8A3A',rot:26})}${ring({n:7,type:'point',l:31,w:13,fill:'#D8202E'})}${ring({n:5,type:'point',l:20,w:10,fill:'#E5424E',rot:36})}${Array.from({length:6},(_,i)=>{const a=(i*60)*Math.PI/180;return `<circle cx="${S(Math.cos(a)*4.5)}" cy="${S(Math.sin(a)*4.5)}" r="2.6" fill="#F5D33F" stroke="#C9A21E" stroke-width=".6"/>`;}).join('')}</g>`,
+ roubai:()=>`<path d="M14,96 C26,64 34,40 40,14" stroke="#8B5E3C" stroke-width="3.4" fill="none"/><path d="M30,58 L58,44 M24,76 L52,66 M36,36 L62,28" stroke="#8B5E3C" stroke-width="2.2" fill="none"/>${[[58,42],[52,64],[62,26],[40,14],[34,44],[30,72]].map((p,i)=>`<g transform="translate(${p[0]},${p[1]}) rotate(${i*29})">${ring({n:9,type:'point',l:11,w:5,fill:'#F5D33F'})}<circle r="2.4" fill="#C98A12"/></g>`).join('')}`,
+ fukujusou:()=>`${STEM('M50,98 L50,62')}<path d="M34,86 l-12,-8 M34,76 l-12,-6 M66,86 l12,-8" stroke="#5FA83E" stroke-width="1.6" fill="none"/><g transform="translate(50,46)">${ring({n:16,type:'point',l:29,w:8,fill:'#FFC61A',rot:11})}${ring({n:16,type:'point',l:22,w:7,fill:'#FFD84F'})}<circle r="7" fill="#C9A21E"/></g>`,
+ pansy:()=>`${STEM('M50,98 L50,64')}${LEAF(40,88,.5,-165)}<g transform="translate(50,46)"><path d="${petalPath('wide',26,17)}" transform="rotate(-40)" fill="#7A57BC"/><path d="${petalPath('wide',26,17)}" transform="rotate(40)" fill="#7A57BC"/><path d="${petalPath('wide',24,15)}" transform="rotate(-100)" fill="#F5C93F"/><path d="${petalPath('wide',24,15)}" transform="rotate(100)" fill="#F5C93F"/><path d="${petalPath('wide',26,16)}" transform="rotate(180)" fill="#F5C93F"/><path d="M-11,10 C-6,2 6,2 11,10 C6,16 -6,16 -11,10 Z" fill="#3A2A5E"/><path d="M-13,-2 C-8,-8 -4,-6 -3,0 Z" fill="#3A2A5E"/><path d="M13,-2 C8,-8 4,-6 3,0 Z" fill="#3A2A5E"/><circle cy="4" r="3" fill="#FFF06B"/></g>`
+};
+
+/* ============ データ ============ */
+const DATA={
+ sp:[['ume','うめ','5まい・まるい'],['sakura','さくら','さきが われる'],['momo','もも','5まい・とがる'],['tulip','チューリップ','コップの かたち'],['tanpopo','たんぽぽ','ほそい はなびら'],
+     ['nanohana','なのはな','4まい・じゅうじ'],['sumire','すみれ','よこむき'],['renge','れんげそう','まるく あつまる'],['fuji','ふじ','たれさがる'],['tsutsuji','つつじ','ラッパがた']],
+ sm:[['himawari','ひまわり','まんなか ちゃいろ'],['asagao','あさがお','ラッパ＋ほし'],['ajisai','あじさい','4まいが たくさん'],['yuri','ゆり','6まい・おおきい'],['hasu','はす','みずの うえに たつ'],
+     ['suiren','すいれん','みずに うかぶ'],['housenka','ほうせんか','はの あいだに さく'],['hechima','へちま','つるに きいろ'],['oshiroi','おしろいばな','ゆうがた さく'],['sarusuberi','さるすべり','ちぢれた はなびら']],
+ au:[['cosmos','コスモス','8まい・さきギザ'],['kiku','きく','ほそい はなびら'],['higanbana','ひがんばな','はっぱが ない'],['kikyou','ききょう','ほしの かたち'],['nadeshiko','なでしこ','さきが きれこむ'],
+     ['hagi','はぎ','えだが しなる'],['ominaeshi','おみなえし','ちいさい きいろ'],['susuki','すすき','ほが ふさふさ'],['rindou','りんどう','つつがた・あお'],['kinmokusei','きんもくせい','ちいさい オレンジ']],
+ wi:[['tsubaki','つばき','まるごと おちる'],['sazanka','さざんか','1まいずつ ちる'],['suisen','すいせん','まんなか カップ'],['cyclamen','シクラメン','うえに そりかえる'],['poinsettia','ポインセチア','あかいのは はっぱ'],
+     ['roubai','ろうばい','ろうの ような きいろ'],['fukujusou','ふくじゅそう','おわんの かたち'],['pansy','パンジー','かおの もよう']]
+};
+const TRAP=[
+ ['ume','うめ・もも・さくら','a-sp','はる','うめ→もも→さくら の じゅんに さく'],
+ ['tsubaki','つばき','a-wi','ふゆ','はなが <b>まるごと</b> ぽとりと おちる'],
+ ['sazanka','さざんか','a-wi','ふゆ','はなびらが <b>1まいずつ</b> ちる'],
+ ['ajisai','あじさい','a-sm','なつ','つゆ（6がつ）の はな'],
+ ['higanbana','ひがんばな','a-au','あき','はっぱが なく はなだけ さく']
+];
+
+/* ============ 描画 ============ */
+function svg(key){return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">${D[key]?D[key]():''}</svg>`;}
+Object.entries(DATA).forEach(([k,list])=>{
+  document.getElementById('c-'+k).innerHTML=list.map(([key,name,tag])=>
+    `<div class="card">${svg(key)}<span class="name">${name}</span><span class="tag">${tag}</span></div>`).join('');
+});
+document.getElementById('c-trap').innerHTML=TRAP.map(([key,name,cls,ans,why])=>
+  `<div class="trap-card">${svg(key)}<span class="name">${name}</span><span class="ans ${cls}">${ans}</span><span class="why">${why}</span></div>`).join('');
+</script>
+</body>
+</html>

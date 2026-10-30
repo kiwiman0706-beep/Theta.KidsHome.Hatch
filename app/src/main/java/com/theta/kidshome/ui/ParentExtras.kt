@@ -470,3 +470,92 @@ fun MediaSection(config: AppConfig) {
         }
     }
 }
+
+// ---------------------------------------------------------------- Hatch シリーズ
+
+@Composable
+fun HatchSection() {
+    val context = LocalContext.current
+    androidx.compose.runtime.LaunchedEffect(Unit) { com.theta.kidshome.update.Hatch.apps.forEach { com.theta.kidshome.update.Hatch.check(it) } }
+    Section("🥚 Hatch シリーズのアプリ") {
+        com.theta.kidshome.update.Hatch.apps.forEach { app ->
+            val st = com.theta.kidshome.update.Hatch.states[app.packageName] ?: com.theta.kidshome.update.Hatch.State()
+            val installed = com.theta.kidshome.update.Hatch.installedVersion(context, app)
+            val latest = st.latest?.version
+            Surface(shape = RoundedCornerShape(16.dp), color = Color(0xFFFAF6F8), modifier = Modifier.fillMaxWidth().padding(top = 6.dp)) {
+                Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(app.emoji, fontSize = 32.sp)
+                    Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                        Text(app.name, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        Text(app.description, fontSize = 13.sp, color = Color.Gray)
+                        Text(
+                            buildString {
+                                append(if (installed != null) "入っている版：$installed" else "まだ入っていません")
+                                when {
+                                    st.progress != null -> append("　ダウンロード中 ${(st.progress * 100).toInt()}%")
+                                    st.checking -> append("　確かめています…")
+                                    latest != null -> append("　最新：$latest")
+                                    st.error != null -> append("　（${st.error}）")
+                                }
+                            },
+                            fontSize = 13.sp,
+                        )
+                    }
+                    val newer = latest != null && (installed == null || com.theta.kidshome.update.isNewer(latest, installed))
+                    if (newer) {
+                        Button(enabled = st.progress == null, onClick = { com.theta.kidshome.update.Hatch.install(context, app) }) {
+                            Text(if (installed == null) "インストール" else "アップデート")
+                        }
+                    }
+                    if (installed != null) {
+                        TextButton(onClick = { Launcher.launchPackage(context, app.packageName) }) { Text("ひらく") }
+                    }
+                }
+            }
+        }
+        Text(
+            "入れたあと、子どものホームに出すには「ボタン」の「アプリを追加」か、アプリの仕分けで見せるカテゴリーに入れてください。",
+            fontSize = 12.sp, color = Color.Gray, modifier = Modifier.padding(top = 8.dp),
+        )
+    }
+}
+
+// ---------------------------------------------------------------- ピアノの れんしゅう曲
+
+@Composable
+fun SongSection(config: AppConfig) {
+    var title by remember { mutableStateOf("") }
+    var notes by remember { mutableStateOf("") }
+    Section("🎹 ピアノの れんしゅう曲") {
+        Text(
+            "「がっき」→「🎓 れんしゅう」で、次に押す けん が光り、押すまで待ってくれます。入っている曲：" +
+                com.theta.kidshome.media.Songs.builtIn.joinToString("・") { it.title } + "。",
+            fontSize = 14.sp,
+        )
+        config.songs.forEachIndexed { i, s ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("🎵 ${s.title}（${com.theta.kidshome.media.Songs.parse(s.notes).size}おと）", modifier = Modifier.weight(1f))
+                TextButton(onClick = { Store.update { c -> c.copy(songs = c.songs.filterIndexed { j, _ -> j != i }) } }) {
+                    Text("削除", color = Color(0xFFD03B5C))
+                }
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        Text("曲を足す（ドレミで書く）", fontWeight = FontWeight.Bold)
+        OutlinedTextField(title, { title = it }, singleLine = true, label = { Text("曲の名前") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(notes, { notes = it }, label = { Text("例：ドドソソララソー ファファミミレレドー") }, modifier = Modifier.fillMaxWidth().padding(top = 6.dp))
+        val parsed = com.theta.kidshome.media.Songs.parse(notes)
+        Text(
+            "ド レ ミ ファ ソ ラ シ。うしろに ＋ で1つ上の高さ（＋＋で2つ上）、♯ で半音上、ー で のばす。いま ${parsed.size} おと。",
+            fontSize = 12.sp, color = Color.Gray,
+        )
+        Button(
+            enabled = title.isNotBlank() && parsed.isNotEmpty(),
+            onClick = {
+                Store.update { it.copy(songs = it.songs + com.theta.kidshome.media.Song(title.trim(), notes.trim())) }
+                title = ""; notes = ""
+            },
+            modifier = Modifier.padding(top = 6.dp),
+        ) { Text("足す") }
+    }
+}

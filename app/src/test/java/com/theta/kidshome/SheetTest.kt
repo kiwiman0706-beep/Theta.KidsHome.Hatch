@@ -66,4 +66,21 @@ class SheetTest {
             assertTrue(sheet.contains("&lt;a&amp;b&gt;"))
         }
     }
+
+    @Test
+    fun appliesTimetable() {
+        val base = AppConfig.default()
+        val data = mapOf(
+            "じかんわり" to listOf(
+                listOf("おねえちゃん", "げつ", "こくご", "さんすう", "", "", "", "", "たいそうふく"),
+                listOf("おねえちゃん", "水曜", "おんがく", "", "", "", "", "", ""),
+            ),
+        )
+        val p = SheetSync.apply(base, data).profiles[0]
+        assertEquals(listOf("こくご", "さんすう"), p.timetable[0])
+        assertEquals(listOf("おんがく"), p.timetable[2])
+        assertEquals("たいそうふく", p.belongings[0])
+        assertTrue(p.hasTimetable)
+        assertTrue(!SheetSync.apply(base, data).profiles[1].hasTimetable)
+    }
 }
