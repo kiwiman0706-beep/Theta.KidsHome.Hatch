@@ -14,6 +14,7 @@ class KidsApp : Application() {
         Store.init(this)
         com.theta.kidshome.data.Widgets.init(this)
         com.theta.kidshome.data.StampLibrary.init(this)
+        com.theta.kidshome.data.Atlas.init(this)
         Rescue.watchMainThread(this)
     }
 }

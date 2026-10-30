@@ -127,7 +127,7 @@ object Weather {
 
     /** 端末のおおよその位置（ネットワーク）。許可が無い・取れないときは null */
     @SuppressLint("MissingPermission")
-    private suspend fun locate(context: Context): Pair<Double, Double>? {
+    internal suspend fun locate(context: Context): Pair<Double, Double>? {
         if (context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) return null
         val lm = context.getSystemService(LocationManager::class.java) ?: return null
         val provider = listOf(LocationManager.NETWORK_PROVIDER, LocationManager.GPS_PROVIDER, LocationManager.PASSIVE_PROVIDER)

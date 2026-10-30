@@ -69,6 +69,12 @@ object Store {
             }
             prefs.edit().putBoolean("added:kuku", true).apply()
         }
+        if (!prefs.getBoolean("added:map", false)) {
+            if (config.profiles.none { p -> p.tiles.any { it.type == TileType.MAP } }) {
+                update { c -> c.copy(profiles = c.profiles.map { it.copy(tiles = it.tiles + AppConfig.mapTile()) }) }
+            }
+            prefs.edit().putBoolean("added:map", true).apply()
+        }
     }
 
     /** いまの子のホームに ふせん をはる（少しずらして、少しかたむける） */

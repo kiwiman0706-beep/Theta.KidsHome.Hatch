@@ -118,6 +118,7 @@ fun HomeScreen(
     onOpenTyping: () -> Unit = {},
     onOpenMoji: () -> Unit = {},
     onOpenKuku: () -> Unit = {},
+    onOpenMap: () -> Unit = {},
     onPlayVideo: (List<com.theta.kidshome.data.MediaEntry>, Int) -> Unit = { _, _ -> },
 ) {
     val config = Store.config
@@ -175,6 +176,7 @@ fun HomeScreen(
             tile.type == TileType.TYPING -> onOpenTyping()
             tile.type == TileType.MOJI -> onOpenMoji()
             tile.type == TileType.KUKU -> onOpenKuku()
+            tile.type == TileType.MAP -> onOpenMap()
             else -> Launcher.launch(context, tile)
         }
     }
@@ -657,6 +659,7 @@ private fun TileWindow(tile: Tile, theme: KidTheme, index: Int, locked: Boolean,
         tile.type == TileType.TYPING -> "タイピング"
         tile.type == TileType.MOJI -> "もじ"
         tile.type == TileType.KUKU -> "くく"
+        tile.type == TileType.MAP -> "ちず"
         tile.isVideo -> "どうが"
         else -> "アプリ"
     }
