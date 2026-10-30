@@ -67,6 +67,7 @@ private class GuideBridge(private val onTap: () -> Unit, private val onReady: (S
     @JavascriptInterface fun onTap() { main.post(onTap) }
     @JavascriptInterface fun onReady(json: String) { main.post { onReady(json) } }
     @JavascriptInterface fun onError(msg: String) { main.post { onError(msg) } }
+    @JavascriptInterface fun onStage(stage: String) { main.post { GuidePack.stage(stage) } }
 }
 
 /**
@@ -98,17 +99,23 @@ fun GuideView(
             GuidePack.viewReady = false
             GuidePack.viewStatus = "よみこみ中…"
             webViewClient = object : WebViewClient() {
-                override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? = loader.shouldInterceptRequest(request.url)
+                override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =
+                    loader.shouldInterceptRequest(request.url)
+                        // アプリの中に ない もの（favicon など）は ネット に いかず「ない」と こたえる
+                        ?: if (request.url.host == "appassets.androidplatform.net") WebResourceResponse("text/plain", "utf-8", 404, "Not Found", emptyMap(), java.io.ByteArrayInputStream(ByteArray(0))) else null
                 override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest) = true
                 override fun onReceivedError(view: WebView, request: WebResourceRequest, error: android.webkit.WebResourceError) {
-                    GuidePack.viewStatus = "よめない：${request.url.path}（${error.description}）"
+                    if (!request.url.path.orEmpty().endsWith("favicon.ico")) GuidePack.reportError("よめない：${request.url.path}（${error.description}）")
+                }
+                override fun onReceivedHttpError(view: WebView, request: WebResourceRequest, response: WebResourceResponse) {
+                    if (!request.url.path.orEmpty().endsWith("favicon.ico")) GuidePack.reportError("ない：${request.url.path}（${response.statusCode}）")
                 }
             }
             // ページの エラー を おやメニュー に だす（なおすときの 手がかり）
             webChromeClient = object : android.webkit.WebChromeClient() {
                 override fun onConsoleMessage(m: android.webkit.ConsoleMessage): Boolean {
-                    if (m.messageLevel() == android.webkit.ConsoleMessage.MessageLevel.ERROR && !GuidePack.viewReady) {
-                        GuidePack.viewStatus = "${m.message()}（${m.sourceId().substringAfterLast('/')}:${m.lineNumber()}）"
+                    if (m.messageLevel() == android.webkit.ConsoleMessage.MessageLevel.ERROR) {
+                        GuidePack.reportError("${m.message()}（${m.sourceId().substringAfterLast('/')}:${m.lineNumber()}）")
                     }
                     return true
                 }
@@ -117,7 +124,7 @@ fun GuideView(
                 GuidePack.viewReady = true
                 GuidePack.viewStatus = null
                 onReady(runCatching { JSONObject(j).getJSONArray("parts").let { a -> (0 until a.length()).map { a.getString(it) } } }.getOrDefault(emptyList()))
-            }, { e -> GuidePack.viewStatus = e }), "KidsHomeGuide")
+            }, { e -> GuidePack.reportError(e) }), "KidsHomeGuide")
             val p = android.net.Uri.encode(JSONArray(parts).toString())
             loadUrl("https://appassets.androidplatform.net/assets/guide/guide.html?pack=${GuidePack.packPath}&view=$view&parts=$p")
         }

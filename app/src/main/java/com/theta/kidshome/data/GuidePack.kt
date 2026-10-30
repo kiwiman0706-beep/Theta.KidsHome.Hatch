@@ -53,6 +53,21 @@ object GuidePack {
     var viewStatus by mutableStateOf<String?>(null)
     var viewReady by mutableStateOf(false)
 
+    /** どこまで すすんだか（エラー が なければ 出す） */
+    fun stage(s: String) {
+        if (viewReady) return
+        val cur = viewStatus
+        if (cur == null || cur.startsWith("よみこみ中")) viewStatus = "よみこみ中…（$s）"
+    }
+
+    /** さいしょ の エラー を のこす（あとの こまかい エラー で うわがき しない） */
+    fun reportError(msg: String) {
+        if (viewReady) return
+        val cur = viewStatus
+        if (cur == null || cur.startsWith("よみこみ中")) viewStatus = msg
+        else if (!cur.contains(msg) && cur.length < 400) viewStatus = "$cur ／ $msg"
+    }
+
     /** きせかえ を かえた 合図 */
     var outfitVersion by mutableStateOf(0)
         private set

@@ -8,10 +8,17 @@ import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
 const params = new URLSearchParams(location.search);
 const pack = params.get('pack') || '/pack/guide/';
 const view = params.get('view') || 'full';
-const bridge = window.KidsHomeGuide || { onReady() {}, onTap() {}, onError(m) { console.error(m); } };
+const bridge = window.KidsHomeGuide || { onReady() {}, onTap() {}, onError(m) { console.error(m); }, onStage() {} };
+const stage = (s) => { try { bridge.onStage(s); } catch (e) { /* ふるい アプリ */ } };
+stage('スクリプト');
 
 window.addEventListener('error', (e) => bridge.onError(String(e.message || e)));
 window.addEventListener('unhandledrejection', (e) => bridge.onError(String(e.reason && e.reason.message || e.reason)));
+// WebGL が つかえるか（つかえないと 3D は でない）
+(() => {
+  const c = document.createElement('canvas');
+  if (!c.getContext('webgl2') && !c.getContext('webgl')) bridge.onError('この 端末の WebView で WebGL（3D）が つかえません');
+})();
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -181,7 +188,9 @@ function loadModel(path) {
   currentModel = path;
   const loader = new GLTFLoader();
   loader.register((p) => new VRMLoaderPlugin(p));
+  stage('モデル');
   loading = new Promise((resolve) => loader.load(pack + path, (gltf) => {
+    stage('ひょうじ');
     if (path !== currentModel) { resolve(); return; } // とちゅうで べつの ふく に なった
     if (root) { scene.remove(root); VRMUtils.deepDispose(root); tinted.clear(); }
     vrm = gltf.userData.vrm || null;
@@ -204,7 +213,7 @@ function loadModel(path) {
     setParts(wantParts);
     bridge.onReady(JSON.stringify({ parts: partNames(), expressions: vrm && vrm.expressionManager ? vrm.expressionManager.expressions.map((e) => e.expressionName) : [] }));
     resolve();
-  }, undefined, (e) => { bridge.onError(String(e && e.message || e)); resolve(); }));
+  }, (ev) => { if (ev && ev.total) stage('モデル ' + Math.round(ev.loaded / ev.total * 100) + '%'); }, (e) => { bridge.onError(String(e && e.message || e)); resolve(); }));
   return loading;
 }
 
@@ -216,9 +225,10 @@ function dress(ids) {
 }
 
 async function start() {
+  stage('せってい');
   try {
     manifest = await (await fetch(pack + 'manifest.json')).json();
-  } catch (e) { manifest = {}; }
+  } catch (e) { manifest = {}; bridge.onError('manifest.json が よめない：' + e); }
   dress(JSON.parse(params.get('parts') || '[]'));
   requestAnimationFrame(animate);
 }

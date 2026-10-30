@@ -185,7 +185,7 @@ fun RoomView(
                 // 3D が うごくまで（うごかないとき も）えもじ の マスコット
                 if (!GuidePack.viewReady) {
                     Mascot(theme, "", u, playful, onMascot)
-                    GuidePack.viewStatus?.takeIf { it != "よみこみ中…" }?.let { msg ->
+                    GuidePack.viewStatus?.takeIf { !it.startsWith("よみこみ中") }?.let { msg ->
                         Box(Modifier.offset(u * GUIDE.x, u * (GUIDE.y + GUIDE.h - 60f)).size(u * GUIDE.w, u * 60f)) {
                             Text("⚠️ 3D：$msg", fontSize = 10.sp, color = Color(0xFFD03B5C), maxLines = 3)
                         }
