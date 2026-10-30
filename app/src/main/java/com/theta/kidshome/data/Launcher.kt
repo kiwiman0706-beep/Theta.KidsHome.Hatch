@@ -73,7 +73,7 @@ object Launcher {
             TileType.APP -> launchApp(context, tile.packageName ?: return)
             TileType.VIDEO -> openVideo(context, tile.url ?: return, tile.packageName)
             TileType.CALL -> openVideo(context, tile.url ?: return, null)
-            TileType.DRAWING, TileType.INSTRUMENT, TileType.EDUPAD, TileType.WORDPRO -> true
+            TileType.DRAWING, TileType.INSTRUMENT, TileType.EDUPAD, TileType.WORDPRO, TileType.PUZZLE, TileType.TYPING -> true
         }
         if (!ok) Toast.makeText(context, "ひらけなかったよ…\nおうちのひとに きいてね", Toast.LENGTH_LONG).show()
     }

@@ -12,8 +12,8 @@ android {
         applicationId = "com.theta.kidshome"
         minSdk = 29
         targetSdk = 35
-        versionCode = 8
-        versionName = "0.8.0"
+        versionCode = 9
+        versionName = "0.9.0"
     }
 
     signingConfigs {
@@ -62,7 +62,10 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer:1.4.1")
     // くるくる思考パッド（内蔵の Web アプリ）を WebView で開く
     implementation("androidx.webkit:webkit:1.11.0")
+    // 絵の印刷
+    implementation("androidx.print:print:1.0.0")
     implementation("androidx.media3:media3-ui:1.4.1")
     implementation("androidx.media3:media3-session:1.4.1")
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.json:json:20240303")
 }

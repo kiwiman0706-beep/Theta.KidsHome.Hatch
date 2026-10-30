@@ -585,3 +585,36 @@ fun SongSection(config: AppConfig) {
         ) { Text("足す") }
     }
 }
+
+// ---------------------------------------------------------------- Gemini（写真を お絵かき風 に）
+
+@Composable
+fun GeminiSection() {
+    val context = LocalContext.current
+    var key by remember { mutableStateOf(com.theta.kidshome.data.Gemini.apiKey(context)) }
+    var model by remember { mutableStateOf(com.theta.kidshome.data.Gemini.model(context)) }
+    var shown by remember { mutableStateOf(false) }
+    Section("✨ 写真を お絵かき風 に（Gemini）") {
+        Text(
+            "おえかき で 🖼️ 写真を開いたあと ✨ を押すと、写真を ぬりえ・クレヨン・すいさい・まんが の絵にしてから描けます。" +
+                "Google AI Studio で作った自分の API キーを使います（画像の生成は有料のプロジェクトのキーが必要なことがあります）。" +
+                "写真は Google に送られます。キーはこのタブレットだけに保存し、スプレッドシート・書き出しには入れません。",
+            fontSize = 14.sp,
+        )
+        OutlinedTextField(
+            key, { key = it }, singleLine = true, label = { Text("Gemini API キー") },
+            visualTransformation = if (shown) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+        )
+        OutlinedTextField(model, { model = it }, singleLine = true, label = { Text("モデル") }, modifier = Modifier.fillMaxWidth().padding(top = 6.dp))
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 6.dp)) {
+            Button(onClick = {
+                com.theta.kidshome.data.Gemini.setApiKey(context, key)
+                com.theta.kidshome.data.Gemini.setModel(context, model)
+                Toast.makeText(context, "保存しました", Toast.LENGTH_SHORT).show()
+            }) { Text("保存") }
+            TextButton(onClick = { shown = !shown }) { Text(if (shown) "かくす" else "見る") }
+            TextButton(onClick = { model = com.theta.kidshome.data.Gemini.DEFAULT_MODEL }) { Text("モデルを はじめに戻す") }
+        }
+    }
+}

@@ -45,6 +45,18 @@ object Store {
             }
             prefs.edit().putBoolean("added:wordpro", true).apply()
         }
+        if (!prefs.getBoolean("added:puzzle", false)) {
+            if (config.profiles.none { p -> p.tiles.any { it.type == TileType.PUZZLE } }) {
+                update { c -> c.copy(profiles = c.profiles.map { it.copy(tiles = it.tiles + AppConfig.puzzleTile()) }) }
+            }
+            prefs.edit().putBoolean("added:puzzle", true).apply()
+        }
+        if (!prefs.getBoolean("added:typing", false)) {
+            if (config.profiles.none { p -> p.tiles.any { it.type == TileType.TYPING } }) {
+                update { c -> c.copy(profiles = c.profiles.map { it.copy(tiles = it.tiles + AppConfig.typingTile()) }) }
+            }
+            prefs.edit().putBoolean("added:typing", true).apply()
+        }
     }
 
     /** いまの子のホームに ふせん をはる（少しずらして、少しかたむける） */

@@ -5,7 +5,7 @@ import org.json.JSONObject
 import java.util.UUID
 
 /** CALL：Google Meet などの通話リンク（どうがロック中も押せる） */
-enum class TileType { APP, VIDEO, DRAWING, CALL, INSTRUMENT, EDUPAD, WORDPRO }
+enum class TileType { APP, VIDEO, DRAWING, CALL, INSTRUMENT, EDUPAD, WORDPRO, PUZZLE, TYPING }
 
 /** ホーム画面に並ぶ1つのボタン */
 data class Tile(
@@ -91,10 +91,12 @@ data class AppConfig(
         fun instrumentTile() = Tile(type = TileType.INSTRUMENT, label = "がっき", emoji = "🎹")
         fun edupadTile() = Tile(type = TileType.EDUPAD, label = "くるくる思考パッド", emoji = "🧠")
         fun wordproTile() = Tile(type = TileType.WORDPRO, label = "わーぷろ", emoji = "📝")
+        fun puzzleTile() = Tile(type = TileType.PUZZLE, label = "パズル", emoji = "🧩")
+        fun typingTile() = Tile(type = TileType.TYPING, label = "タイピング", emoji = "⌨️")
 
         fun default(): AppConfig {
-            val p1 = Profile(name = "おねえちゃん", themeId = "usagi", tiles = listOf(edupadTile(), drawingTile(), wordproTile(), instrumentTile()))
-            val p2 = Profile(name = "いもうと", themeId = "neko", tiles = listOf(edupadTile(), drawingTile(), wordproTile(), instrumentTile()))
+            val p1 = Profile(name = "おねえちゃん", themeId = "usagi", tiles = listOf(edupadTile(), drawingTile(), wordproTile(), puzzleTile(), instrumentTile()))
+            val p2 = Profile(name = "いもうと", themeId = "neko", tiles = listOf(edupadTile(), drawingTile(), wordproTile(), puzzleTile(), instrumentTile()))
             return AppConfig(profiles = listOf(p1, p2), currentProfileId = p1.id)
         }
     }

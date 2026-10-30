@@ -176,6 +176,8 @@ private fun SettingsTab(modifier: Modifier) {
 
         HatchSection()
 
+        GeminiSection()
+
         CategorySection(config)
 
         VideoLockSection(config)
@@ -448,6 +450,12 @@ private fun ProfileEditor(profile: Profile, canDelete: Boolean, onDelete: () -> 
         if (profile.tiles.none { it.type == TileType.EDUPAD }) {
             OutlinedButton(onClick = { Store.addTiles(profile.id, listOf(AppConfig.edupadTile())) }) { Text("🧠 くるくる思考パッドを追加") }
         }
+        if (profile.tiles.none { it.type == TileType.TYPING }) {
+            OutlinedButton(onClick = { Store.addTiles(profile.id, listOf(AppConfig.typingTile())) }) { Text("⌨️ タイピングを追加") }
+        }
+        if (profile.tiles.none { it.type == TileType.PUZZLE }) {
+            OutlinedButton(onClick = { Store.addTiles(profile.id, listOf(AppConfig.puzzleTile())) }) { Text("🧩 パズルを追加") }
+        }
         if (profile.tiles.none { it.type == TileType.WORDPRO }) {
             OutlinedButton(onClick = { Store.addTiles(profile.id, listOf(AppConfig.wordproTile())) }) { Text("📝 わーぷろを追加") }
         }
@@ -535,6 +543,8 @@ private fun TileRow(tile: Tile, onUp: (() -> Unit)?, onDown: (() -> Unit)?, onEd
                     TileType.INSTRUMENT -> add("がっき（内蔵）")
                     TileType.EDUPAD -> add("くるくる思考パッド（内蔵）")
                     TileType.WORDPRO -> add("わーぷろ（内蔵）")
+                    TileType.PUZZLE -> add("パズル（内蔵）")
+                    TileType.TYPING -> add("タイピング（内蔵）")
                 }
                 if (tile.isVideo) add("🔒ロック対象")
                 if (missing) add("⚠️ アプリが見つかりません")

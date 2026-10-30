@@ -114,6 +114,8 @@ fun HomeScreen(
     onOpenInstrument: () -> Unit = {},
     onOpenEdupad: () -> Unit = {},
     onOpenWordpro: () -> Unit = {},
+    onOpenPuzzle: () -> Unit = {},
+    onOpenTyping: () -> Unit = {},
     onPlayVideo: (List<com.theta.kidshome.data.MediaEntry>, Int) -> Unit = { _, _ -> },
 ) {
     val config = Store.config
@@ -167,6 +169,8 @@ fun HomeScreen(
             tile.type == TileType.INSTRUMENT -> onOpenInstrument()
             tile.type == TileType.EDUPAD -> onOpenEdupad()
             tile.type == TileType.WORDPRO -> onOpenWordpro()
+            tile.type == TileType.PUZZLE -> onOpenPuzzle()
+            tile.type == TileType.TYPING -> onOpenTyping()
             else -> Launcher.launch(context, tile)
         }
     }
@@ -645,6 +649,8 @@ private fun TileWindow(tile: Tile, theme: KidTheme, index: Int, locked: Boolean,
         tile.type == TileType.INSTRUMENT -> "がっき"
         tile.type == TileType.EDUPAD -> "べんきょう"
         tile.type == TileType.WORDPRO -> "わーぷろ"
+        tile.type == TileType.PUZZLE -> "パズル"
+        tile.type == TileType.TYPING -> "タイピング"
         tile.isVideo -> "どうが"
         else -> "アプリ"
     }
