@@ -206,6 +206,9 @@ fun HomeScreen(
         listOfNotNull(appTiles.takeIf { it.isNotEmpty() }?.let { Shelf("apps", "📱", "アプリ", it) }) +
         tabs.filter { it.kind == TabKind.CATEGORY }.map { Shelf(it.key, it.emoji, it.label, it.tiles) }
     val toyShelves = toys.filter { it.tiles.isNotEmpty() }
+    // 📱 アプリ の いちらん（ドロワー）：この子に 見せる アプリ ぜんぶ
+    val drawer = (listOf(Shelf("apps", "📱", "アプリ", appTiles), Shelf("tvapps", "📺", "どうがアプリ", tvApps)) +
+        tabs.filter { it.kind == TabKind.CATEGORY }.map { Shelf(it.key, it.emoji, it.label, it.tiles) }).filter { it.tiles.isNotEmpty() }
 
     val onTile: (Tile) -> Unit = { tile ->
         when {
@@ -275,6 +278,7 @@ fun HomeScreen(
                     onTv = { if (locked) showLockedDialog = true else open(tvKeys) },
                     onRadio = { open(listOfNotNull("local:music".takeIf { k -> tabs.any { it.key == k } }) + "room:music") },
                     onCall = { if (callTiles.size == 1) onTile(callTiles[0]) else open(listOf("room:calls")) },
+                    apps = drawer,
                 )
             } else Row(Modifier.weight(1f)) {
                 Box(Modifier.weight(1f).fillMaxHeight()) {
@@ -556,7 +560,7 @@ private fun ProfileAvatar(name: String, theme: KidTheme, selected: Boolean, fram
 
 /** 2秒ながおしで開く、おうちのひとボタン（子どもがうっかり押さないように） */
 @Composable
-private fun HoldButton(theme: KidTheme, badge: Boolean, onTriggered: () -> Unit) {
+internal fun HoldButton(theme: KidTheme, badge: Boolean, onTriggered: () -> Unit) {
     var progress by remember { mutableFloatStateOf(0f) }
     val scope = rememberCoroutineScope()
     val shape = RoundedCornerShape(14.dp)

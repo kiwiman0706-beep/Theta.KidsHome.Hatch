@@ -96,7 +96,9 @@ private val BOARD = R(40f, 40f, 700f, 450f)
 private val WINDOW = R(790f, 45f, 300f, 274f)
 private val PLATE = R(780f, 345f, 320f, 110f)
 private val SWITCH = R(1100f, 360f, 44f, 64f)
-private val SHELF = R(1160f, 35f, 410f, 910f)
+private val SHELF = R(1160f, 130f, 410f, 760f)
+private val GEAR = R(1470f, 18f, 100f, 100f)
+private val APPS = R(1160f, 905f, 410f, 82f)
 private val TV = R(80f, 515f, 360f, 292f)
 private val RADIO = R(460f, 690f, 150f, 95f)
 private val PHONE = R(1010f, 480f, 110f, 100f)
@@ -133,6 +135,7 @@ fun RoomView(
     onTv: () -> Unit,
     onRadio: () -> Unit,
     onCall: () -> Unit,
+    apps: List<Shelf> = emptyList(),
     initialPopup: String? = null,
 ) {
     val cal = Calendar.getInstance().apply { timeInMillis = now }
@@ -152,7 +155,11 @@ fun RoomView(
             Weather.forecast?.let { f -> Tag("${Weather.emoji(f.code, f.isDay)} ${f.temp.toInt()}℃", WINDOW.x + WINDOW.w / 2, WINDOW.y + WINDOW.h - 80f, u, theme, Color.White) }
             // なふだ（子どもの きりかえ）と でんきの スイッチ（おうちのひと）
             NamePlate(theme, profile, u)
-            Box(Modifier.offset(u * SWITCH.x, u * SWITCH.y)) { LightSwitch(theme, u, updateBadge, onGate) }
+            // ⚙️ おうちのひと（2 びょう ながおし）と 📱 アプリ の いちらん
+            Box(Modifier.offset(u * GEAR.x, u * GEAR.y).size(u * GEAR.w, u * GEAR.h), contentAlignment = Alignment.Center) { HoldButton(theme, updateBadge, onGate) }
+            if (apps.isNotEmpty()) Box(Modifier.offset(u * APPS.x, u * APPS.y).size(u * APPS.w, u * APPS.h), contentAlignment = Alignment.Center) {
+                RetroButton("📱 アプリ", theme, theme.titleBars[1 % theme.titleBars.size], fontSize = 20, modifier = Modifier.fillMaxWidth()) { popup = "apps" }
+            }
             // ほんだな
             if (shelves.isNotEmpty()) Bookshelf(theme, shelves, u) { s ->
                 if (s.open != null && s.tiles.isEmpty()) s.open.invoke() else { popup = "shelf"; popupKey = s.key }
@@ -196,6 +203,7 @@ fun RoomView(
                 "toys" -> Popup(theme, "🧸 おもちゃばこ", u, onClose = { popup = null }, glass = true) {
                     Showcase(theme, toys, u, tileView)
                 }
+                "apps" -> Popup(theme, "📱 アプリ", u, onClose = { popup = null }) { Showcase(theme, apps, u, tileView) }
                 "wardrobe" -> Popup(theme, "👗 きせかえ", u, onClose = { popup = null }) { Wardrobe(theme, profile.id) }
             }
         }
