@@ -24,6 +24,6 @@ class ToneTest {
 
     @Test
     fun padsAreAudibleAndDoNotClip() {
-        Kit.entries.forEach { kit -> for (p in 0 until 8) check("$kit/$p", Tones.drum(kit, p)) }
+        Kit.entries.filter { it != Kit.MINE }.forEach { kit -> for (p in 0 until 8) check("$kit/$p", Tones.drum(kit, p)) }
     }
 }

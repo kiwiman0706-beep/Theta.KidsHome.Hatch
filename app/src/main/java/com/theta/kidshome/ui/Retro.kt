@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -64,14 +65,16 @@ fun RetroWindow(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (pressed) 0.94f else 1f, label = "press")
+    // テレビのリモコン（十字キー）で選んでいるとき
+    val focused by interaction.collectIsFocusedAsState()
+    val scale by animateFloatAsState(if (pressed) 0.94f else if (focused) 1.05f else 1f, label = "press")
     Column(
         modifier
             .scale(scale)
             .stickerShadow(theme.outline.copy(alpha = 0.85f), if (pressed) 2.dp else 5.dp)
             .clip(WindowShape)
             .background(body)
-            .border(3.dp, theme.outline, WindowShape)
+            .border(if (focused) 6.dp else 3.dp, if (focused) theme.accent else theme.outline, WindowShape)
             .then(
                 if (onClick != null) Modifier.clickable(interactionSource = interaction, indication = null, onClick = onClick)
                 else Modifier
@@ -115,6 +118,7 @@ fun RetroButton(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
+    val focused by interaction.collectIsFocusedAsState()
     val shape = RoundedCornerShape(12.dp)
     Box(
         modifier
@@ -122,7 +126,7 @@ fun RetroButton(
             .stickerShadow(theme.outline, if (pressed) 0.dp else 3.dp, 12.dp)
             .clip(shape)
             .background(color)
-            .border(3.dp, theme.outline, shape)
+            .border(if (focused) 5.dp else 3.dp, if (focused) theme.accent else theme.outline, shape)
             .clickable(interactionSource = interaction, indication = null, onClick = onClick)
             .padding(horizontal = 22.dp, vertical = 10.dp),
         contentAlignment = Alignment.Center,
@@ -141,14 +145,16 @@ fun RetroIconButton(
     onClick: () -> Unit,
 ) {
     val shape = RoundedCornerShape(14.dp)
+    val interaction = remember { MutableInteractionSource() }
+    val focused by interaction.collectIsFocusedAsState()
     Box(
         Modifier.padding(5.dp)
             .offset(x = if (selected) 3.dp else 0.dp, y = if (selected) 3.dp else 0.dp)
             .stickerShadow(theme.outline, if (selected) 0.dp else 3.dp, 14.dp)
             .size(size).clip(shape)
             .background(if (selected) theme.titleBars.first() else Color.White)
-            .border(3.dp, theme.outline, shape)
-            .clickable(onClick = onClick),
+            .border(if (focused) 5.dp else 3.dp, if (focused) theme.accent else theme.outline, shape)
+            .clickable(interactionSource = interaction, indication = null, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) { Text(emoji, fontSize = (size.value * 0.48f).sp) }
 }

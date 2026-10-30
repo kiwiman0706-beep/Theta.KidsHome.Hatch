@@ -38,6 +38,11 @@ enum class Kit(val emoji: String, val label: String, val pads: List<Pair<String,
         "🎛", "でんし",
         listOf("💣" to "ズン", "⚡" to "パシ", "✨" to "ツッ", "🙌" to "パチ", "🌀" to "ピュン", "🔔" to "ポーン", "🌊" to "ザー", "🎯" to "ピッ"),
     ),
+    /** マイクで録音した音（パッドを ながおし で録音） */
+    MINE(
+        "🎤", "じぶんの おと",
+        (1..8).map { "🎤" to "$it" },
+    ),
     FUN(
         "🎉", "たのしい",
         listOf("🫧" to "ぷよん", "👾" to "ピコ", "🚀" to "ビーム", "🎈" to "ポン", "🐸" to "ケロ", "🐤" to "ピヨ", "🌈" to "キラ", "😴" to "ブー"),
@@ -82,7 +87,9 @@ class Synth(private val context: Context) {
         val dir = File(context.cacheDir, "instrument").apply { mkdirs() }
         val files = withContext(Dispatchers.Default) {
             val v = if (needVoice) (0 until KEYS).map { k -> wav(File(dir, "${voice.name}_$k.wav"), Tones.note(voice, BASE_MIDI + k)) } else emptyList()
-            val d = if (needKit) (0 until 8).map { p -> wav(File(dir, "${kit.name}_$p.wav"), Tones.drum(kit, p)) } else emptyList()
+            val d = if (!needKit) emptyList() else if (kit == Kit.MINE) {
+                (0 until 8).map { p -> Sampler.file(context, p).takeIf { it.exists() } ?: wav(File(dir, "silent.wav"), FloatArray(RATE / 20)) }
+            } else (0 until 8).map { p -> wav(File(dir, "${kit.name}_$p.wav"), Tones.drum(kit, p)) }
             v to d
         }
         pending += files.first.size + files.second.size
@@ -97,6 +104,16 @@ class Synth(private val context: Context) {
         pool.play(id, 0.9f, 0.9f, 1, 0, rate)
     }
 
+    /** 録音しなおしたパッドを読み込みなおす */
+    fun reloadSample(pad: Int) {
+        val ids = kitIds[Kit.MINE] ?: return
+        val f = Sampler.file(context, pad)
+        if (!f.exists()) return
+        pool.unload(ids[pad])
+        pending++
+        ids[pad] = pool.load(f.path, 1)
+    }
+
     fun playPad(kit: Kit, pad: Int) {
         val id = kitIds[kit]?.getOrNull(pad) ?: return
         pool.play(id, 1f, 1f, 1, 0, 1f)
@@ -104,7 +121,7 @@ class Synth(private val context: Context) {
 
     fun release() = pool.release()
 
-    private fun wav(file: File, data: FloatArray): File {
+    fun wav(file: File, data: FloatArray): File {
         val pcm = ByteBuffer.allocate(data.size * 2).order(ByteOrder.LITTLE_ENDIAN)
         data.forEach { pcm.putShort((it.coerceIn(-1f, 1f) * 32767).toInt().toShort()) }
         DataOutputStream(file.outputStream().buffered()).use { o ->
@@ -198,6 +215,7 @@ object Tones {
                 6 -> render(1.0) { t, _ -> 0.4 * noise() * (if (t < 0.5) t * 2 else exp(-(t - 0.5) * 8)) }
                 else -> render(0.1) { t, _ -> 0.5 * sq(1760.0, t) * exp(-30.0 * t) }
             }
+            Kit.MINE -> FloatArray(Synth.RATE / 20)
             Kit.FUN -> when (pad) {
                 0 -> render(0.45) { t, _ -> 0.7 * sweep(180.0, 520.0, 8.0, t) * exp(-5.0 * t) }
                 1 -> render(0.18) { t, _ -> 0.45 * sq(if (t < 0.06) 988.0 else 1319.0, t) * exp(-8.0 * t) }

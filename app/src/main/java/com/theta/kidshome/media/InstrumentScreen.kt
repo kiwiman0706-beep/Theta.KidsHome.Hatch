@@ -1,6 +1,8 @@
 package com.theta.kidshome.media
 
 import androidx.activity.compose.BackHandler
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.animation.core.animateFloat
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
@@ -106,11 +108,28 @@ fun InstrumentScreen(onBack: () -> Unit) {
     var pos by remember { mutableIntStateOf(0) }
     var demo by remember { mutableStateOf<Job?>(null) }
     val scope = rememberCoroutineScope()
+    val looper = remember {
+        Looper(scope) { h ->
+            if (h.key != null && h.voice != null) synth.playKey(h.voice, h.key, h.octave)
+            else if (h.pad != null && h.kit != null) synth.playPad(h.kit, h.pad)
+        }
+    }
+    var recordingPad by remember { mutableStateOf<Int?>(null) }
+    val micPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
+    fun startSample(pad: Int) {
+        if (!Sampler.hasPermission(context)) { micPermission.launch(android.Manifest.permission.RECORD_AUDIO); return }
+        recordingPad = pad
+        Sampler.start(context, pad, synth) { if (recordingPad == pad) recordingPad = null }
+    }
 
     LaunchedEffect(voice, kit) { synth.prepare(voice, kit) }
     DisposableEffect(Unit) {
         AudioPlayer.pause()
-        onDispose { synth.release() }
+        onDispose {
+            Sampler.stop()
+            looper.clear()
+            synth.release()
+        }
     }
 
     Box(Modifier.fillMaxSize()) {
@@ -120,8 +139,40 @@ fun InstrumentScreen(onBack: () -> Unit) {
                 RetroIconButton("🏠", theme, onClick = onBack)
                 DotText("がっき", theme, 28, theme.text, modifier = Modifier.padding(start = 10.dp))
                 if (!synth.ready) DotText("　じゅんびちゅう…", theme, 16, theme.text)
+                Spacer(Modifier.weight(1f))
+                LooperBar(theme, looper)
             }
             Spacer(Modifier.height(10.dp))
+
+            // ---- ドラムパッド（れんしゅう中は けんばん を大きく）
+            if (!practice) {
+            RetroWindow(theme, Modifier.weight(1f).fillMaxWidth().padding(end = 6.dp, bottom = 6.dp), title = "ドラム　${kit.emoji} ${kit.label}", titleColor = theme.titleBars[2]) {
+                Row(Modifier.padding(horizontal = 6.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Kit.entries.forEach { k -> RetroIconButton(k.emoji, theme, kit == k, 46.dp) { kit = k } }
+                    if (kit == Kit.MINE) DotText("　パッドを ながおし で ろくおん", theme, 14)
+                }
+                Column(Modifier.weight(1f).fillMaxWidth().padding(8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    kit.pads.chunked(4).forEachIndexed { row, pads ->
+                        Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            pads.forEachIndexed { col, (emoji, label) ->
+                                val i = row * 4 + col
+                                Pad(
+                                    theme, emoji, if (kit == Kit.MINE && recordingPad == i) "ろくおん中" else label,
+                                    if (kit == Kit.MINE && recordingPad == i) Color(0xFFFF4D6D) else PAD_COLORS[i],
+                                    Modifier.weight(1f).fillMaxHeight(),
+                                    onHoldStart = if (kit == Kit.MINE) ({ startSample(i) }) else null,
+                                    onHoldEnd = { if (recordingPad == i) { Sampler.stop(); recordingPad = null } },
+                                ) {
+                                    synth.playPad(kit, i)
+                                    looper.record(Looper.Hit(0, pad = i, kit = kit))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+            }
 
             // ---- けんばん
             RetroWindow(
@@ -172,26 +223,9 @@ fun InstrumentScreen(onBack: () -> Unit) {
                     glow = if (practice) notes.getOrNull(pos)?.key else null,
                 ) { key ->
                     synth.playKey(voice, key, octave)
+                    looper.record(Looper.Hit(0, key = key, voice = voice, octave = octave))
                     // 光っている けん を押したら つぎへ（まちがえても まってくれる）
                     if (practice && demo?.isActive != true && notes.getOrNull(pos)?.key == key) pos++
-                }
-            }
-            Spacer(Modifier.height(12.dp))
-
-            // ---- ドラムパッド（れんしゅう中は けんばん を大きく）
-            if (!practice) RetroWindow(theme, Modifier.weight(1f).fillMaxWidth().padding(end = 6.dp, bottom = 6.dp), title = "ドラム　${kit.emoji} ${kit.label}", titleColor = theme.titleBars[2]) {
-                Row(Modifier.padding(horizontal = 6.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Kit.entries.forEach { k -> RetroIconButton(k.emoji, theme, kit == k, 46.dp) { kit = k } }
-                }
-                Column(Modifier.weight(1f).fillMaxWidth().padding(8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    kit.pads.chunked(4).forEachIndexed { row, pads ->
-                        Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            pads.forEachIndexed { col, (emoji, label) ->
-                                val i = row * 4 + col
-                                Pad(theme, emoji, label, PAD_COLORS[i], Modifier.weight(1f).fillMaxHeight()) { synth.playPad(kit, i) }
-                            }
-                        }
-                    }
                 }
             }
         }
@@ -199,7 +233,11 @@ fun InstrumentScreen(onBack: () -> Unit) {
 }
 
 @Composable
-private fun Pad(theme: KidTheme, emoji: String, label: String, color: Color, modifier: Modifier, onHit: () -> Unit) {
+private fun Pad(
+    theme: KidTheme, emoji: String, label: String, color: Color, modifier: Modifier,
+    onHoldStart: (() -> Unit)? = null, onHoldEnd: () -> Unit = {}, onHit: () -> Unit,
+) {
+    val scope = rememberCoroutineScope()
     var down by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(if (down) 0.9f else 1f, label = "pad")
     val shape = RoundedCornerShape(18.dp)
@@ -213,7 +251,11 @@ private fun Pad(theme: KidTheme, emoji: String, label: String, color: Color, mod
                     awaitFirstDown().consume()
                     onHit()
                     down = true
+                    // ながおし（0.5 びょう）で録音（じぶんの おと のときだけ）
+                    val hold = onHoldStart?.let { start -> scope.launch { delay(500); start() } }
                     waitForUpOrCancellation()
+                    hold?.cancel()
+                    onHoldEnd()
                     down = false
                 }
             },
@@ -338,4 +380,30 @@ private fun PracticeBar(
             }
         }
     }
+}
+
+/** かんたんループの ボタン と すすみぐあい */
+@Composable
+private fun LooperBar(theme: KidTheme, looper: Looper) {
+    val m = looper.mode
+    DotText(
+        when (m) {
+            Looper.Mode.EMPTY -> "ループ"
+            Looper.Mode.FIRST -> "とってるよ… もういちど ⏺ で くりかえし"
+            Looper.Mode.PLAYING -> "くりかえし中"
+            Looper.Mode.OVERDUB -> "かさねて とってるよ"
+            Looper.Mode.PAUSED -> "とまってるよ"
+        },
+        theme, 14, theme.text,
+    )
+    if (m == Looper.Mode.PLAYING || m == Looper.Mode.OVERDUB) {
+        Box(Modifier.padding(horizontal = 8.dp).width(90.dp).height(14.dp).clip(RoundedCornerShape(50)).background(Color.White).border(2.dp, theme.outline, RoundedCornerShape(50))) {
+            Box(Modifier.fillMaxWidth(looper.progress).fillMaxHeight().background(if (m == Looper.Mode.OVERDUB) Color(0xFFFF4D6D) else theme.accent))
+        }
+    }
+    RetroIconButton("⏺", theme, selected = m == Looper.Mode.FIRST || m == Looper.Mode.OVERDUB, size = 46.dp) { looper.pressRecord() }
+    if (m == Looper.Mode.PLAYING || m == Looper.Mode.OVERDUB || m == Looper.Mode.PAUSED) {
+        RetroIconButton(if (m == Looper.Mode.PAUSED) "▶️" else "⏸", theme, size = 46.dp) { looper.togglePlay() }
+    }
+    if (m != Looper.Mode.EMPTY) RetroIconButton("🗑️", theme, size = 46.dp) { looper.clear() }
 }

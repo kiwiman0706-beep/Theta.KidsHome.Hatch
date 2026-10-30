@@ -14,6 +14,13 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.Key
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -333,6 +340,8 @@ private fun TabRail(tabs: List<KidTab>, selected: String, theme: KidTheme, locke
         tabs.forEachIndexed { i, t ->
             val isSel = t.key == selected
             val shape = RoundedCornerShape(topStart = 18.dp, bottomStart = 18.dp)
+            val tabInteraction = remember { MutableInteractionSource() }
+            val tabFocused by tabInteraction.collectIsFocusedAsState()
             Box(
                 Modifier
                     .offset(x = if (isSel) 0.dp else 10.dp)
@@ -340,8 +349,8 @@ private fun TabRail(tabs: List<KidTab>, selected: String, theme: KidTheme, locke
                     .width(84.dp)
                     .clip(shape)
                     .background(if (isSel) Color.White else theme.titleBars[i % theme.titleBars.size])
-                    .border(3.dp, theme.outline, shape)
-                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onSelect(t.key) }
+                    .border(if (tabFocused) 5.dp else 3.dp, if (tabFocused) theme.accent else theme.outline, shape)
+                    .clickable(interactionSource = tabInteraction, indication = null) { onSelect(t.key) }
                     .padding(vertical = 8.dp),
                 contentAlignment = Alignment.Center,
             ) {
@@ -436,9 +445,28 @@ private fun HoldButton(theme: KidTheme, badge: Boolean, onTriggered: () -> Unit)
     var progress by remember { mutableFloatStateOf(0f) }
     val scope = rememberCoroutineScope()
     val shape = RoundedCornerShape(14.dp)
+    val interaction = remember { MutableInteractionSource() }
+    val focused by interaction.collectIsFocusedAsState()
+    var held by remember { mutableIntStateOf(0) }
     Box(
         Modifier.stickerShadow(theme.outline, 3.dp, 14.dp).size(52.dp).clip(shape)
-            .background(Color.White.copy(alpha = 0.85f)).border(3.dp, theme.outline, shape)
+            .background(Color.White.copy(alpha = 0.85f))
+            .border(if (focused) 5.dp else 3.dp, if (focused) theme.accent else theme.outline, shape)
+            // テレビ：リモコンの決定ボタンを 2 びょう ながおし
+            .onPreviewKeyEvent { e ->
+                val center = e.key == Key.DirectionCenter || e.key == Key.Enter || e.key == Key.NumPadEnter
+                if (!center) return@onPreviewKeyEvent false
+                if (e.type == KeyEventType.KeyDown) {
+                    held++
+                    progress = (held / 20f).coerceAtMost(1f)
+                    if (held == 20) { progress = 0f; onTriggered() }
+                } else if (e.type == KeyEventType.KeyUp) {
+                    held = 0
+                    progress = 0f
+                }
+                true
+            }
+            .focusable(interactionSource = interaction)
             .pointerInput(Unit) {
                 awaitEachGesture {
                     awaitFirstDown().consume()

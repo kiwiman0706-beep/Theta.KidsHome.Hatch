@@ -464,10 +464,36 @@ fun MediaSection(config: AppConfig) {
         Text("📅 カレンダーの予定", fontWeight = FontWeight.Bold)
         Text("端末のカレンダー（子どもの Google アカウントなど）の予定を、ホームのカレンダーに出します。", fontSize = 14.sp)
         if (!calendar) {
-            OutlinedButton(onClick = { askCalendar.launch(Manifest.permission.READ_CALENDAR) }) { Text("カレンダーの予定を表示する") }
+            OutlinedButton(onClick = { askCalendar.launch(Manifest.permission.READ_CALENDAR) }) { Text("この端末のカレンダーを表示する") }
         } else {
-            Text("✅ 表示しています", fontSize = 14.sp)
+            Text("✅ この端末のカレンダーを表示しています", fontSize = 14.sp)
         }
+        Spacer(Modifier.height(8.dp))
+        Text("Google カレンダー（ログインなし）", fontWeight = FontWeight.Bold)
+        Text(
+            "パソコンの Google カレンダー → 設定 → 見せたいカレンダー →「iCal 形式の非公開アドレス」をコピーして貼ります。" +
+                "家族のカレンダーを、子どものタブレットに Google アカウントを入れずに出せます（読むだけ）。このアドレスは人に教えないでください。",
+            fontSize = 13.sp, color = Color.Gray,
+        )
+        config.calendarUrls.forEachIndexed { i, u ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("📅 " + u.take(48) + if (u.length > 48) "…" else "", fontSize = 13.sp, modifier = Modifier.weight(1f))
+                TextButton(onClick = {
+                    Store.update { c -> c.copy(calendarUrls = c.calendarUrls.filterIndexed { j, _ -> j != i }) }
+                    Events.refresh(context, force = true)
+                }) { Text("外す", color = Color(0xFFD03B5C)) }
+            }
+        }
+        var ical by remember { mutableStateOf("") }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(ical, { ical = it }, singleLine = true, label = { Text("https://calendar.google.com/calendar/ical/…/basic.ics") }, modifier = Modifier.weight(1f))
+            TextButton(enabled = ical.trim().let { it.startsWith("http") || it.startsWith("webcal") }, onClick = {
+                Store.update { it.copy(calendarUrls = it.calendarUrls + ical.trim()) }
+                ical = ""
+                Events.refresh(context, force = true)
+            }) { Text("足す") }
+        }
+        Events.error?.let { Text("⚠️ 読めないカレンダーがあります（$it）", fontSize = 12.sp, color = Color(0xFFD03B5C)) }
     }
 }
 

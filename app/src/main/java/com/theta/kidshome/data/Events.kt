@@ -29,21 +29,51 @@ object Events {
     fun hasPermission(context: Context) =
         context.checkSelfPermission(Manifest.permission.READ_CALENDAR) == PackageManager.PERMISSION_GRANTED
 
+    var error by mutableStateOf<String?>(null)
+        private set
+
+    /** 端末のカレンダー（許可があれば）と、iCal の URL の予定をあわせる */
     fun refresh(context: Context, force: Boolean = false) {
-        if (!hasPermission(context) || (!force && System.currentTimeMillis() - loadedAt < 10 * 60_000)) return
+        val urls = Store.config.calendarUrls
+        if (!hasPermission(context) && urls.isEmpty()) return
+        if (!force && System.currentTimeMillis() - loadedAt < 10 * 60_000) return
         loadedAt = System.currentTimeMillis()
         val app = context.applicationContext
         scope.launch {
-            list = runCatching { withContext(Dispatchers.IO) { query(app) } }.getOrDefault(emptyList())
+            val local = if (hasPermission(app)) runCatching { withContext(Dispatchers.IO) { query(app) } }.getOrDefault(emptyList()) else emptyList()
+            val (from, to) = range()
+            val errors = mutableListOf<String>()
+            val remote = urls.flatMapIndexed { i, url ->
+                runCatching { withContext(Dispatchers.IO) { Ical.parse(get(url), from, to, icalColors[i % icalColors.size]) } }
+                    .onFailure { errors += it.message ?: "読めませんでした" }.getOrDefault(emptyList())
+            }
+            error = errors.firstOrNull()
+            list = (local + remote).sortedBy { it.begin }
         }
     }
 
-    private fun query(context: Context): List<CalEvent> {
+    private val icalColors = listOf(0xFF4DA3FF.toInt(), 0xFFFF6B8B.toInt(), 0xFF6BCB77.toInt(), 0xFFFF9F43.toInt())
+
+    private fun range(): Pair<Long, Long> {
         val from = Calendar.getInstance().apply {
             set(Calendar.DAY_OF_MONTH, 1); set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
             add(Calendar.DAY_OF_MONTH, -7)
         }.timeInMillis
-        val to = from + 50L * 24 * 3600_000
+        return from to from + 50L * 24 * 3600_000
+    }
+
+    private fun get(url: String): String {
+        // webcal:// は https:// として読む
+        val u = url.trim().replaceFirst(Regex("^webcal://"), "https://")
+        val c = java.net.URL(u).openConnection() as java.net.HttpURLConnection
+        c.connectTimeout = 15_000
+        c.readTimeout = 20_000
+        if (c.responseCode / 100 != 2) throw java.io.IOException("HTTP ${c.responseCode}")
+        return c.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+    }
+
+    private fun query(context: Context): List<CalEvent> {
+        val (from, to) = range()
         val uri = CalendarContract.Instances.CONTENT_URI.buildUpon().also {
             ContentUris.appendId(it, from)
             ContentUris.appendId(it, to)

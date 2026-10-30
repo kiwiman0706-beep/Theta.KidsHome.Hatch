@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android TV のランチャーに出る横長の絵（320×180） -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp"
+    android:height="180dp"
+    android:viewportWidth="320"
+    android:viewportHeight="180">
+    <path android:fillColor="#FFD6E4" android:pathData="M0,0h320v180h-320z" />
+    <path android:fillColor="#FFFFFF" android:strokeColor="#7A3E55" android:strokeWidth="5"
+        android:pathData="M20,30 h120 a12,12 0 0 1 12,12 v100 a12,12 0 0 1 -12,12 h-120 a12,12 0 0 1 -12,-12 v-100 a12,12 0 0 1 12,-12 z" />
+    <path android:fillColor="#FFB3CF" android:pathData="M10.5,42 a10,10 0 0 1 10,-9.5 h119 a10,10 0 0 1 10,9.5 v8 h-139z" />
+    <path android:fillColor="#7A3E55" android:pathData="M10,50 h142 v4 h-142z" />
+    <!-- おうち と ハート -->
+    <path android:fillColor="#FF7FA8" android:pathData="M80,68 L112,96 L104,96 L104,138 L56,138 L56,96 L48,96 Z" />
+    <path android:fillColor="#FFFFFF" android:pathData="M80,128 C80,128 66,119 66,110 C66,105 69.5,102 73.5,102 C76.5,102 79,104 80,106.5 C81,104 83.5,102 86.5,102 C90.5,102 94,105 94,110 C94,119 80,128 80,128 Z" />
+    <!-- ことば：キッズ ホーム（ドット風の大きな文字の代わりに、丸と星） -->
+    <path android:fillColor="#FFE29A" android:strokeColor="#7A3E55" android:strokeWidth="4" android:pathData="M200,50 m-26,0 a26,26 0 1 0 52,0 a26,26 0 1 0 -52,0" />
+    <path android:fillColor="#C9F0A8" android:strokeColor="#7A3E55" android:strokeWidth="4" android:pathData="M262,72 m-22,0 a22,22 0 1 0 44,0 a22,22 0 1 0 -44,0" />
+    <path android:fillColor="#B8D8FF" android:strokeColor="#7A3E55" android:strokeWidth="4" android:pathData="M214,124 m-30,0 a30,30 0 1 0 60,0 a30,30 0 1 0 -60,0" />
+    <path android:fillColor="#FFD95A" android:pathData="M288,128 L292,138 L302,139 L294,146 L297,156 L288,150 L279,156 L282,146 L274,139 L284,138 Z" />
+</vector>

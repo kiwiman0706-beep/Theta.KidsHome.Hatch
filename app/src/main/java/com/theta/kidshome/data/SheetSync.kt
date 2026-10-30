@@ -251,6 +251,8 @@ object SheetSync {
         }
 
         data["せってい"]?.let { rows ->
+            val cals = rows.filter { it.at(0) == "カレンダー" }.map { it.at(1) }.filter { it.isNotBlank() }
+            if (cals.isNotEmpty()) c = c.copy(calendarUrls = cals)
             rows.forEach { r ->
                 when (r.at(0)) {
                     "かけ算" -> c = c.copy(hardGate = r.at(1) == "むずかしい")
@@ -308,7 +310,7 @@ object SheetSync {
                 SETTINGS,
                 listOf("かけ算", if (config.hardGate) "むずかしい" else "ふつう"),
                 listOf("てんき", config.weather?.let { if (it.useLocation) "いまいるところ" else it.name } ?: "なし"),
-            ),
+            ) + config.calendarUrls.map { listOf("カレンダー", it) },
         )
     }
 
