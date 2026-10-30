@@ -275,7 +275,8 @@ private fun UpdateSection(config: AppConfig) {
             when {
                 st.checking -> "確かめています…"
                 st.progress != null -> "ダウンロード中 ${(st.progress * 100).toInt()}%"
-                st.newer && st.latest != null -> "新しい版 ${st.latest.version} があります"
+                st.newer && st.latest != null && st.ready != null -> "新しい版 ${st.latest.version} を ダウンロード ずみ（あとは インストール だけ）"
+                st.newer && st.latest != null -> "新しい版 ${st.latest.version} があります（うらで ダウンロード 中）"
                 st.error != null -> "確かめられませんでした（${st.error}）"
                 st.checkedAt > 0 -> "最新です"
                 else -> " "
@@ -286,7 +287,7 @@ private fun UpdateSection(config: AppConfig) {
         )
         FlowRow8 {
             if (st.newer) {
-                Button(onClick = { SelfUpdate.downloadAndInstall(context) }, enabled = st.progress == null) { Text("アップデートする") }
+                Button(onClick = { SelfUpdate.downloadAndInstall(context) }, enabled = st.progress == null) { Text(if (st.ready != null) "インストールする" else "アップデートする") }
             }
             OutlinedButton(onClick = { SelfUpdate.check(context, force = true) }) { Text("今すぐ確かめる") }
             OutlinedButton(onClick = {

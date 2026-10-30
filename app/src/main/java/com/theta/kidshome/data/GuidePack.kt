@@ -49,6 +49,10 @@ object GuidePack {
         private set
     var status by mutableStateOf<String?>(null)
         private set
+    /** 3D の ひょうじ の ようす："よみこみ中" / null（うごいている）/ エラー の なかみ */
+    var viewStatus by mutableStateOf<String?>(null)
+    var viewReady by mutableStateOf(false)
+
     /** きせかえ を かえた 合図 */
     var outfitVersion by mutableStateOf(0)
         private set

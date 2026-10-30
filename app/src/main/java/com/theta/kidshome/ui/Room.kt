@@ -147,6 +147,8 @@ fun RoomView(
     var popupKey by remember { mutableStateOf(shelves.firstOrNull { it.tiles.isNotEmpty() }?.key) }
     BoxWithConstraints(modifier, contentAlignment = Alignment.Center) {
         val u = minOf(maxWidth / RW, maxHeight / RH)
+        val ox = (maxWidth - u * RW) / 2
+        val oy = (maxHeight - u * RH) / 2
         Box(Modifier.size(u * RW, u * RH).clip(RoundedCornerShape(u * 28f)).border(3.dp, theme.outline, RoundedCornerShape(u * 28f))) {
             Canvas(Modifier.fillMaxSize()) { roomBack(theme) }
 
@@ -180,10 +182,14 @@ fun RoomView(
                 }
             }
             if (GuidePack.installed) {
-                // 3D の ガイド役（パック が あるとき）
-                var center by remember { mutableStateOf(Offset.Zero) }
-                Box(Modifier.offset(u * GUIDE.x, u * GUIDE.y).size(u * GUIDE.w, u * GUIDE.h).onGloballyPositioned { center = it.boundsInRoot().center }) {
-                    GuideView(profile.id, Modifier.fillMaxSize(), onTap = { onMascot(center) })
+                // 3D が うごくまで（うごかないとき も）えもじ の マスコット
+                if (!GuidePack.viewReady) {
+                    Mascot(theme, "", u, playful, onMascot)
+                    GuidePack.viewStatus?.takeIf { it != "よみこみ中…" }?.let { msg ->
+                        Box(Modifier.offset(u * GUIDE.x, u * (GUIDE.y + GUIDE.h - 60f)).size(u * GUIDE.w, u * 60f)) {
+                            Text("⚠️ 3D：$msg", fontSize = 10.sp, color = Color(0xFFD03B5C), maxLines = 3)
+                        }
+                    }
                 }
                 Bubble(theme, mascotLine, GUIDE.x + GUIDE.w / 2, GUIDE.y - 10f, u)
                 Box(
@@ -194,7 +200,17 @@ fun RoomView(
             } else Mascot(theme, mascotLine, u, playful, onMascot)
             if (night) Box(Modifier.fillMaxSize().background(Color(0xFF1B1F4A).copy(alpha = 0.22f)))
 
-            // 小さな まど（本棚・ショーウインドウ）
+        }
+        // 3D の ガイド は、まるく きりとった へや の そと に おく（WebView は きりとり の 中だと 出ないことが ある）
+        if (GuidePack.installed && popup == null) {
+            var center by remember { mutableStateOf(Offset.Zero) }
+            Box(
+                Modifier.align(Alignment.TopStart).offset(ox + u * GUIDE.x, oy + u * GUIDE.y).size(u * GUIDE.w, u * GUIDE.h)
+                    .onGloballyPositioned { center = it.boundsInRoot().center },
+            ) { GuideView(profile.id, Modifier.fillMaxSize(), onTap = { onMascot(center) }) }
+        }
+        // 小さな まど（本棚・ショーウインドウ・きせかえ）
+        if (popup != null) Box(Modifier.align(Alignment.TopStart).offset(ox, oy).size(u * RW, u * RH)) {
             when (popup) {
                 "shelf" -> Popup(theme, "📚 ほんだな", u, onClose = { popup = null }) {
                     ShelfPicker(theme, shelves, popupKey, u, onPick = { popupKey = it.key }, tileView = tileView)

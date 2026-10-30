@@ -95,13 +95,29 @@ fun GuideView(
             settings.javaScriptEnabled = true
             settings.allowFileAccess = false
             settings.allowContentAccess = false
+            GuidePack.viewReady = false
+            GuidePack.viewStatus = "よみこみ中…"
             webViewClient = object : WebViewClient() {
                 override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? = loader.shouldInterceptRequest(request.url)
                 override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest) = true
+                override fun onReceivedError(view: WebView, request: WebResourceRequest, error: android.webkit.WebResourceError) {
+                    GuidePack.viewStatus = "よめない：${request.url.path}（${error.description}）"
+                }
+            }
+            // ページの エラー を おやメニュー に だす（なおすときの 手がかり）
+            webChromeClient = object : android.webkit.WebChromeClient() {
+                override fun onConsoleMessage(m: android.webkit.ConsoleMessage): Boolean {
+                    if (m.messageLevel() == android.webkit.ConsoleMessage.MessageLevel.ERROR && !GuidePack.viewReady) {
+                        GuidePack.viewStatus = "${m.message()}（${m.sourceId().substringAfterLast('/')}:${m.lineNumber()}）"
+                    }
+                    return true
+                }
             }
             addJavascriptInterface(GuideBridge({ onTap() }, { j ->
+                GuidePack.viewReady = true
+                GuidePack.viewStatus = null
                 onReady(runCatching { JSONObject(j).getJSONArray("parts").let { a -> (0 until a.length()).map { a.getString(it) } } }.getOrDefault(emptyList()))
-            }, { e -> Toast.makeText(context, "ガイドを よめません（$e）", Toast.LENGTH_LONG).show() }), "KidsHomeGuide")
+            }, { e -> GuidePack.viewStatus = e }), "KidsHomeGuide")
             val p = android.net.Uri.encode(JSONArray(parts).toString())
             loadUrl("https://appassets.androidplatform.net/assets/guide/guide.html?pack=${GuidePack.packPath}&view=$view&parts=$p")
         }
@@ -201,6 +217,7 @@ fun GuideSection() {
             if (m != null) OutlinedButton(onClick = { parts = emptyList() }) { Text("パーツ名を 見る") }
             if (m != null && !GuidePack.builtin) TextButton(onClick = { GuidePack.remove(context) }) { Text("はずして デフォルトに もどす", color = Color(0xFFD03B5C)) }
         }
+        GuidePack.viewStatus?.let { Text("3D の ようす：$it", fontSize = 13.sp, color = Color(0xFFD03B5C)) }
         Text("新しい版 は 1 日 1 かい たしかめます。パック の 作りかた は 非公開リポジトリ の README に あります。", fontSize = 12.sp, color = Color.Gray)
     }
     parts?.let { list ->

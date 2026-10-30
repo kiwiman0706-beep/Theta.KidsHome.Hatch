@@ -49,6 +49,8 @@ data class UpdateState(
     val progress: Float? = null,
     val error: String? = null,
     val checkedAt: Long = 0L,
+    /** うらで ダウンロード して たしかめ ずみ の APK（あとは インストール だけ） */
+    val ready: File? = null,
 )
 
 /**
@@ -82,12 +84,34 @@ object SelfUpdate {
             val now = System.currentTimeMillis()
             prefs.edit().putLong("lastCheck", now).apply()
             val rel = r.getOrNull()
+            val newer = rel != null && isNewer(rel.version, current)
             state = UpdateState(
                 latest = rel,
-                newer = rel != null && isNewer(rel.version, current),
+                newer = newer,
                 error = r.exceptionOrNull()?.message,
                 checkedAt = now,
+                ready = if (newer && rel != null) readyFile(context, rel) else null,
             )
+            if (newer && rel != null && state.ready == null) prefetch(context.applicationContext, rel)
+        }
+    }
+
+    /** もう ダウンロード して たしかめて ある か */
+    private fun readyFile(context: Context, rel: Release): File? {
+        val f = File(File(context.cacheDir, "update"), rel.apkName.replace('/', '_'))
+        val ok = context.getSharedPreferences("update", Context.MODE_PRIVATE).getString("ready", null) == rel.tag
+        return f.takeIf { ok && it.exists() && it.length() > 0 }
+    }
+
+    /** 新しい版 を うらで ダウンロード しておく（おやメニュー で すぐ インストール できるように） */
+    private fun prefetch(app: Context, rel: Release) {
+        if (state.progress != null) return
+        scope.launch {
+            val r = runCatching { download(app, rel) { } }
+            r.getOrNull()?.let { f ->
+                app.getSharedPreferences("update", Context.MODE_PRIVATE).edit().putString("ready", rel.tag).apply()
+                if (state.latest?.tag == rel.tag) state = state.copy(ready = f)
+            }
         }
     }
 
@@ -99,6 +123,11 @@ object SelfUpdate {
         permissionIntent(app)?.let {
             Toast.makeText(app, "「この提供元のアプリを許可」をオンにしてから、もう一度押してください", Toast.LENGTH_LONG).show()
             app.startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            return
+        }
+        // うらで ダウンロード ずみ なら すぐ インストール
+        state.ready?.takeIf { it.exists() }?.let { f ->
+            runCatching { install(app, f) }.onFailure { e -> state = state.copy(error = e.message) }
             return
         }
         state = state.copy(progress = 0f, error = null)

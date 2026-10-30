@@ -10,6 +10,8 @@ const pack = params.get('pack') || '/pack/guide/';
 const view = params.get('view') || 'full';
 const bridge = window.KidsHomeGuide || { onReady() {}, onTap() {}, onError(m) { console.error(m); } };
 
+window.addEventListener('error', (e) => bridge.onError(String(e.message || e)));
+window.addEventListener('unhandledrejection', (e) => bridge.onError(String(e.reason && e.reason.message || e.reason)));
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -128,6 +130,13 @@ function animate(now) {
   if (document.hidden) return;
   if (now - lastFrame < 1000 / 31) return; // 30 コマ で じゅうぶん（でんち の ため）
   lastFrame = now;
+  // WebView が あとから 大きさ を もらったとき（resize が こない 端末 むけ）
+  if (renderer.domElement.width !== Math.floor(window.innerWidth * renderer.getPixelRatio()) && window.innerWidth > 0) {
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    frame();
+  }
   const dt = Math.min(clock.getDelta(), 0.1);
   const t = clock.elapsedTime;
   if (vrm) {
