@@ -80,6 +80,8 @@ data class AppConfig(
     val songs: List<com.theta.kidshome.media.Song> = emptyList(),
     /** Google カレンダーなどの iCal の URL（ログインなしで予定を出す） */
     val calendarUrls: List<String> = emptyList(),
+    /** ホームの かたち："room"（へや）か "tabs"（タブ） */
+    val homeStyle: String = "room",
 ) {
     fun categoryOf(packageName: String): AppCategory? =
         appCategory[packageName]?.let { id -> categories.firstOrNull { it.id == id } }
@@ -214,6 +216,7 @@ fun AppConfig.toJson(): JSONObject = JSONObject().apply {
     put("hiddenFolders", JSONArray(hiddenFolders.toList()))
     put("songs", JSONArray(songs.map { JSONObject().put("title", it.title).put("notes", it.notes) }))
     put("calendarUrls", JSONArray(calendarUrls))
+    put("homeStyle", homeStyle)
 }
 
 fun appConfigFromJson(o: JSONObject): AppConfig {
@@ -257,5 +260,6 @@ fun appConfigFromJson(o: JSONObject): AppConfig {
             (0 until a.length()).map { a.getJSONObject(it) }.map { com.theta.kidshome.media.Song(it.optString("title"), it.optString("notes")) }
         } ?: emptyList(),
         calendarUrls = o.optJSONArray("calendarUrls")?.let { a -> (0 until a.length()).map { a.getString(it) } } ?: emptyList(),
+        homeStyle = o.optString("homeStyle", "room"),
     )
 }

@@ -166,3 +166,66 @@ fun QrSection(config: com.theta.kidshome.data.AppConfig) {
         ) { show = null }
     }
 }
+
+// ---------------------------------------------------------------- いつもの ホーム
+
+fun isDefaultHome(context: Context): Boolean {
+    val rm = context.getSystemService(android.app.role.RoleManager::class.java)
+    if (rm != null && rm.isRoleAvailable(android.app.role.RoleManager.ROLE_HOME)) return rm.isRoleHeld(android.app.role.RoleManager.ROLE_HOME)
+    val r = context.packageManager.resolveActivity(
+        android.content.Intent(android.content.Intent.ACTION_MAIN).addCategory(android.content.Intent.CATEGORY_HOME),
+        android.content.pm.PackageManager.MATCH_DEFAULT_ONLY,
+    )
+    return r?.activityInfo?.packageName == context.packageName
+}
+
+/** おやメニューの いちばん上：キッズホームを「いつもの ホーム」に */
+@Composable
+fun DefaultHomeSection() {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var isDefault by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(isDefaultHome(context)) }
+    fun openSettings() = runCatching {
+        context.startActivity(android.content.Intent(android.provider.Settings.ACTION_HOME_SETTINGS).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+    }.onFailure {
+        context.startActivity(android.content.Intent(android.provider.Settings.ACTION_SETTINGS).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+    }
+    val ask = rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) {
+        isDefault = isDefaultHome(context)
+        // 前に「いいえ」を選んでいると ダイアログが出ないので、設定画面へ
+        if (!isDefault) openSettings()
+    }
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        // 設定画面から もどってきたとき
+        while (true) { kotlinx.coroutines.delay(1500); isDefault = isDefaultHome(context) }
+    }
+    Section("🏠 ホーム") {
+        val style = com.theta.kidshome.data.Store.config.homeStyle
+        Text("ホームの かたち", fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+        FlowRow8 {
+            listOf("room" to "🛏️ へや（部屋の中の ものを押す）", "tabs" to "🗂️ タブ（ボタンを ならべる）").forEach { (id, label) ->
+                androidx.compose.material3.FilterChip(
+                    selected = (style != "tabs") == (id == "room"),
+                    onClick = { com.theta.kidshome.data.Store.update { it.copy(homeStyle = id) } },
+                    label = { Text(label) },
+                )
+            }
+        }
+        Text("へや：つくえ＝もじ・タイピング・くるくる・わーぷろ、イーゼル＝おえかき、テレビ＝どうが、おもちゃばこ＝アプリ…。この子の ボタンに ない ものは 置きません。", fontSize = 12.sp, color = Color.Gray)
+        androidx.compose.foundation.layout.Spacer(Modifier.padding(top = 10.dp))
+        Text("いつもの ホーム", fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+        if (isDefault) {
+            Text("✅ キッズホームが いつもの ホーム です（ホームボタンで ここに もどります）", fontSize = 15.sp)
+            androidx.compose.material3.TextButton(onClick = { openSettings() }) { Text("ほかのホームに もどす（Android の設定）") }
+        } else {
+            Text("いまは ほかのホームアプリが「いつもの ホーム」です。ホームボタンで キッズホームに もどるように しましょう。", fontSize = 15.sp)
+            FlowRow8 {
+                androidx.compose.material3.Button(onClick = {
+                    val rm = context.getSystemService(android.app.role.RoleManager::class.java)
+                    if (rm != null && rm.isRoleAvailable(android.app.role.RoleManager.ROLE_HOME)) ask.launch(rm.createRequestRoleIntent(android.app.role.RoleManager.ROLE_HOME))
+                    else openSettings()
+                }) { Text("🏠 キッズホームを いつもの ホームにする") }
+                androidx.compose.material3.OutlinedButton(onClick = { openSettings() }) { Text("Android の設定で えらぶ") }
+            }
+        }
+    }
+}

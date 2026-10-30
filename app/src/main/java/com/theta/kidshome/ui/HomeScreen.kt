@@ -27,6 +27,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -166,6 +167,53 @@ fun HomeScreen(
     var tabKey by remember { mutableStateOf("home") }
     val tab = tabs.firstOrNull { it.key == tabKey } ?: tabs.first()
 
+    val room = config.homeStyle != "tabs"
+    var overlay by remember { mutableStateOf<List<String>?>(null) }
+    var overlayKey by remember { mutableStateOf<String?>(null) }
+    var mascotLine by remember(theme.id) {
+        mutableStateOf(
+            when (Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) {
+                in 4..9 -> "おはよう！"
+                in 10..16 -> "こんにちは！"
+                in 17..19 -> "こんばんは！"
+                else -> "そろそろ おやすみ…"
+            },
+        )
+    }
+    // へや で つかう、タブ には ない まとめ（おもちゃばこ＝アプリ、でんわ）
+    val appTiles = profile.tiles.filter { it.type == TileType.APP && !it.isVideo }
+    val callTiles = profile.tiles.filter { it.type == TileType.CALL }
+    val allTabs = tabs + listOfNotNull(
+        appTiles.takeIf { it.isNotEmpty() }?.let { KidTab("room:apps", TabKind.CATEGORY, "🧸", "アプリ", tiles = it) },
+        callTiles.takeIf { it.isNotEmpty() }?.let { KidTab("room:calls", TabKind.CATEGORY, "📞", "でんわ", tiles = it) },
+        KidTab("room:music", TabKind.MUSIC_REMOTE, "🎵", "おんがく"),
+    )
+    val tvKeys = tabs.filter { it.kind == TabKind.VIDEO || it.kind == TabKind.LOCAL_VIDEO }.map { it.key } +
+        profile.tiles.filter { it.type == TileType.APP && it.isVideo }.let { if (it.isNotEmpty()) listOf("room:tvapps") else emptyList() }
+    val tvApps = profile.tiles.filter { it.type == TileType.APP && it.isVideo }
+    val roomTabs = allTabs + listOfNotNull(tvApps.takeIf { it.isNotEmpty() }?.let { KidTab("room:tvapps", TabKind.CATEGORY, "📺", "どうがアプリ", tiles = it) })
+    val toyKeys = listOfNotNull("room:apps".takeIf { appTiles.isNotEmpty() }) + tabs.filter { it.kind == TabKind.CATEGORY }.map { it.key }
+    fun has(type: TileType) = profile.tiles.any { it.type == type }
+    val roomThings = buildSet {
+        add(RoomThing.WINDOW); add(RoomThing.CLOCK); add(RoomThing.CALENDAR); add(RoomThing.RADIO)
+        if (has(TileType.MAP)) { add(RoomThing.MAP); add(RoomThing.GLOBE) }
+        if (has(TileType.KUKU)) add(RoomThing.KUKU)
+        if (has(TileType.TASU)) add(RoomThing.TASU)
+        if (profile.hasTimetable) add(RoomThing.TIMETABLE)
+        if (config.widgetIds.isNotEmpty()) add(RoomThing.CORK)
+        if (has(TileType.DRAWING)) add(RoomThing.EASEL)
+        if (has(TileType.TYPING)) add(RoomThing.LAPTOP)
+        if (has(TileType.MOJI)) add(RoomThing.NOTEBOOK)
+        if (has(TileType.EDUPAD)) add(RoomThing.PAD)
+        if (has(TileType.WORDPRO)) add(RoomThing.PAPER)
+        if (has(TileType.INSTRUMENT)) add(RoomThing.PIANO)
+        if (callTiles.isNotEmpty()) add(RoomThing.PHONE)
+        if (tvKeys.isNotEmpty()) add(RoomThing.TV)
+        if (tabs.any { it.kind == TabKind.BOOKS }) add(RoomThing.SHELF)
+        if (toyKeys.isNotEmpty()) add(RoomThing.TOYBOX)
+        if (has(TileType.PUZZLE)) add(RoomThing.PUZZLE)
+    }
+
     val onTile: (Tile) -> Unit = { tile ->
         when {
             tile.isVideo && locked -> showLockedDialog = true
@@ -180,6 +228,44 @@ fun HomeScreen(
             tile.type == TileType.MAP -> onOpenMap()
             tile.type == TileType.TASU -> onOpenTasu()
             else -> Launcher.launch(context, tile)
+        }
+    }
+
+    fun open(keys: List<String>) { if (keys.isNotEmpty()) { overlay = keys; overlayKey = keys.first() } }
+    fun builtin(type: TileType) { profile.tiles.firstOrNull { it.type == type }?.let(onTile) }
+    fun openThing(t: RoomThing) {
+        when (t) {
+            RoomThing.WINDOW, RoomThing.CLOCK, RoomThing.CALENDAR -> open(listOf("clock"))
+            RoomThing.TIMETABLE -> open(listOf("timetable"))
+            RoomThing.CORK -> open(listOf("widgets"))
+            RoomThing.MAP, RoomThing.GLOBE -> builtin(TileType.MAP)
+            RoomThing.KUKU -> builtin(TileType.KUKU)
+            RoomThing.TASU -> builtin(TileType.TASU)
+            RoomThing.EASEL -> builtin(TileType.DRAWING)
+            RoomThing.LAPTOP -> builtin(TileType.TYPING)
+            RoomThing.NOTEBOOK -> builtin(TileType.MOJI)
+            RoomThing.PAD -> builtin(TileType.EDUPAD)
+            RoomThing.PAPER -> builtin(TileType.WORDPRO)
+            RoomThing.PIANO -> builtin(TileType.INSTRUMENT)
+            RoomThing.PUZZLE -> builtin(TileType.PUZZLE)
+            RoomThing.PHONE -> if (callTiles.size == 1) onTile(callTiles[0]) else open(listOf("room:calls"))
+            RoomThing.TV -> if (locked) showLockedDialog = true else open(tvKeys)
+            RoomThing.RADIO -> open(listOfNotNull("local:music".takeIf { k -> tabs.any { it.key == k } }) + "room:music")
+            RoomThing.SHELF -> open(listOf("local:book"))
+            RoomThing.TOYBOX -> open(toyKeys)
+        }
+    }
+    val tabContent: @Composable (KidTab) -> Unit = { t ->
+        when (t.kind) {
+            TabKind.HOME -> {}
+            TabKind.CLOCK -> ClockPage(theme, now, wide = true)
+            TabKind.VIDEO, TabKind.CATEGORY -> VideoPage(t, theme, locked, onTile) { showLockedDialog = true }
+            TabKind.WIDGETS -> WidgetPage(theme)
+            TabKind.TIMETABLE -> TimetablePage(theme, profile, now)
+            TabKind.LOCAL_VIDEO -> VideoLibraryPage(theme, locked, onPlayVideo) { showLockedDialog = true }
+            TabKind.MUSIC -> AudioLibraryPage(theme, com.theta.kidshome.data.MediaKind.MUSIC)
+            TabKind.BOOKS -> AudioLibraryPage(theme, com.theta.kidshome.data.MediaKind.BOOK)
+            TabKind.MUSIC_REMOTE -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { MusicWindow(theme, Modifier.width(420.dp)) }
         }
     }
 
@@ -200,23 +286,58 @@ fun HomeScreen(
         ) {
             Header(config, theme, now, updateBadge = SelfUpdate.state.newer, onGate = { showGate = true })
             VSpace(14)
-            Row(Modifier.weight(1f)) {
+            if (room) {
+                RoomView(
+                    theme, now, roomThings, locked,
+                    lockText = if (locked) "🔒 あと ${remainingText(config.videoLockUntil, now)}" else null,
+                    tvEmoji = tabs.firstOrNull { it.kind == TabKind.VIDEO }?.emoji ?: "📺",
+                    mascotLine = mascotLine, playful = playful,
+                    modifier = Modifier.weight(1f).fillMaxWidth().padding(end = 20.dp),
+                    onMascot = { at ->
+                        mascotLine = (theme.lines + "${profile.name}、だいすき！").random()
+                        burst(at, listOf("💗", "💖", "✨"))
+                    },
+                    onThing = ::openThing,
+                )
+            } else Row(Modifier.weight(1f)) {
                 Box(Modifier.weight(1f).fillMaxHeight()) {
                     Crossfade(tab.key, label = "tab") { key ->
                         val t = tabs.firstOrNull { it.key == key } ?: tabs.first()
-                        when (t.kind) {
-                            TabKind.HOME -> HomePage(config, theme, locked, now, wide, stars, playful, ::burst, onTile)
-                            TabKind.CLOCK -> ClockPage(theme, now, wide)
-                            TabKind.VIDEO, TabKind.CATEGORY -> VideoPage(t, theme, locked, onTile) { showLockedDialog = true }
-                            TabKind.WIDGETS -> WidgetPage(theme)
-                            TabKind.TIMETABLE -> TimetablePage(theme, profile, now)
-                            TabKind.LOCAL_VIDEO -> VideoLibraryPage(theme, locked, onPlayVideo) { showLockedDialog = true }
-                            TabKind.MUSIC -> AudioLibraryPage(theme, com.theta.kidshome.data.MediaKind.MUSIC)
-                            TabKind.BOOKS -> AudioLibraryPage(theme, com.theta.kidshome.data.MediaKind.BOOK)
-                        }
+                        if (t.kind == TabKind.HOME) HomePage(config, theme, locked, now, wide, stars, playful, ::burst, onTile)
+                        else tabContent(t)
                     }
                 }
                 TabRail(tabs, tab.key, theme, locked) { tabKey = it }
+            }
+        }
+
+        // へや の もの を おしたとき：タブの なかみ を まど で ひらく
+        if (room) overlay?.let { keys ->
+            val list = keys.mapNotNull { k -> roomTabs.firstOrNull { it.key == k } }
+            if (list.isNotEmpty()) {
+                val cur = list.firstOrNull { it.key == overlayKey } ?: list.first()
+                Box(
+                    Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.25f))
+                        .pointerInput(Unit) { detectTapGestures { overlay = null } }
+                        .windowInsetsPadding(WindowInsets.safeDrawing).padding(28.dp),
+                ) {
+                    RetroWindow(
+                        theme, Modifier.fillMaxSize().pointerInput(Unit) { detectTapGestures { } },
+                        title = "${cur.emoji} ${cur.label}", titleColor = theme.titleBars[0],
+                    ) {
+                        Row(Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Row(Modifier.weight(1f).horizontalScroll(rememberScrollState())) {
+                                if (list.size > 1) list.forEach { t ->
+                                    RetroButton("${t.emoji} ${t.label}", theme, if (t.key == cur.key) theme.titleBars[1] else Color.White, fontSize = 16, modifier = Modifier.padding(end = 6.dp)) { overlayKey = t.key }
+                                }
+                            }
+                            RetroIconButton("✖️", theme, size = 48.dp) { overlay = null }
+                        }
+                        Box(Modifier.weight(1f).padding(12.dp)) {
+                            Crossfade(cur.key, label = "overlay") { k -> list.firstOrNull { it.key == k }?.let { tabContent(it) } }
+                        }
+                    }
+                }
             }
         }
 
@@ -301,7 +422,7 @@ private fun VideoPage(tab: KidTab, theme: KidTheme, locked: Boolean, onTile: (Ti
 
 // ---------------------------------------------------------------- タブ
 
-private enum class TabKind { HOME, CLOCK, TIMETABLE, LOCAL_VIDEO, MUSIC, BOOKS, CATEGORY, VIDEO, WIDGETS }
+private enum class TabKind { HOME, CLOCK, TIMETABLE, LOCAL_VIDEO, MUSIC, BOOKS, CATEGORY, VIDEO, WIDGETS, MUSIC_REMOTE }
 
 private data class KidTab(
     val key: String,

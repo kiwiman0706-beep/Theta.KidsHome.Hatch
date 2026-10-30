@@ -166,6 +166,8 @@ private fun SettingsTab(modifier: Modifier) {
     val context = LocalContext.current
 
     Column(modifier.verticalScroll(rememberScrollState()).widthIn(max = 900.dp)) {
+        DefaultHomeSection()
+
         UpdateSection(config)
 
         QrSection(config)
