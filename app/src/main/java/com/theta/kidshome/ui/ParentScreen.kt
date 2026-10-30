@@ -168,6 +168,8 @@ private fun SettingsTab(modifier: Modifier) {
     Column(modifier.verticalScroll(rememberScrollState()).widthIn(max = 900.dp)) {
         UpdateSection(config)
 
+        QrSection(config)
+
         SheetSection(config)
 
         MediaSection(config)
@@ -262,6 +264,7 @@ private fun UpdateSection(config: AppConfig) {
     val context = LocalContext.current
     val st = SelfUpdate.state
     val current = remember { SelfUpdate.currentVersion(context) }
+    var apkQr by remember { mutableStateOf(false) }
     Section("🆕 アップデート") {
         Text("いまの版：$current", fontSize = 14.sp)
         Text(
@@ -285,7 +288,12 @@ private fun UpdateSection(config: AppConfig) {
             OutlinedButton(onClick = {
                 context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(SelfUpdate.RELEASES_URL)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             }) { Text("更新履歴 ↗") }
+            OutlinedButton(onClick = { apkQr = true }) { Text("📲 別のタブレットに入れる（QR）") }
         }
+        if (apkQr) QrDialog(
+            "📲 別のタブレットに入れる", LATEST_APK_URL,
+            note = "新しいタブレットのカメラで読むと、最新版の APK がダウンロードされます。開いてインストールしてください。",
+        ) { apkQr = false }
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
             Text("自動で確かめる（1時間に1回まで）", modifier = Modifier.weight(1f))
             Switch(checked = config.autoUpdate, onCheckedChange = { v -> Store.update { it.copy(autoUpdate = v) } })

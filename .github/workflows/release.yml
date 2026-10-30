@@ -40,6 +40,8 @@ jobs:
         run: |
           mkdir -p out
           cp app/build/outputs/apk/release/app-release.apk "out/KidsHome-${{ steps.v.outputs.ver }}.apk"
+          # いつも同じ名前の APK も置く（releases/latest/download/KidsHome.apk = 別のタブレットに入れる QR）
+          cp "out/KidsHome-${{ steps.v.outputs.ver }}.apk" out/KidsHome.apk
           (cd out && sha256sum *.apk > SHA256SUMS.txt && cat SHA256SUMS.txt)
       - name: Release を作る
         env:

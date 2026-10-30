@@ -12,8 +12,8 @@ android {
         applicationId = "com.theta.kidshome"
         minSdk = 29
         targetSdk = 35
-        versionCode = 12
-        versionName = "0.11.0"
+        versionCode = 13
+        versionName = "0.12.0"
     }
 
     signingConfigs {
@@ -64,6 +64,8 @@ dependencies {
     implementation("androidx.webkit:webkit:1.11.0")
     // 絵の印刷
     implementation("androidx.print:print:1.0.0")
+    // QR コード（カメラで読む・表示する）
+    implementation("com.journeyapps:zxing-android-embedded:4.3.0")
     implementation("androidx.media3:media3-ui:1.4.1")
     implementation("androidx.media3:media3-session:1.4.1")
     testImplementation("junit:junit:4.13.2")

@@ -25,6 +25,8 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <!-- Android TV でも使えるように（タッチ・マイク・位置は無くてもよい） -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
@@ -147,5 +149,10 @@
         <receiver
             android:name=".update.InstallResultReceiver"
             android:exported="false" />
+        <!-- QR コード読み取り（タブレットの向きのまま） -->
+        <activity
+            android:name="com.journeyapps.barcodescanner.CaptureActivity"
+            android:screenOrientation="fullSensor"
+            tools:replace="screenOrientation" />
     </application>
 </manifest>

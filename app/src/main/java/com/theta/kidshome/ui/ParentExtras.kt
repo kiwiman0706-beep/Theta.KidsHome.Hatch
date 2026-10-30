@@ -69,6 +69,7 @@ import kotlinx.coroutines.launch
 fun RemoteSection(config: AppConfig) {
     val context = LocalContext.current
     val notifPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    var remoteQr by remember { mutableStateOf(false) }
     Section("📣 おうちのひとからの呼びかけ") {
         Text(
             "スマホのブラウザで下のページを開いて文字を送ると、動画を見ていてもキッズホームが前に出て、マスコットと一緒に表示されます。",
@@ -98,6 +99,7 @@ fun RemoteSection(config: AppConfig) {
                         .putExtra(Intent.EXTRA_TEXT, "キッズホームへの呼びかけ：$url")
                     context.startActivity(Intent.createChooser(send, "送るページを自分のスマホへ").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                 }) { Text("このリンクを自分のスマホへ送る") }
+                OutlinedButton(onClick = { remoteQr = true }) { Text("📱 QR で見せる") }
                 if (!Settings.canDrawOverlays(context)) {
                     Button(onClick = {
                         context.startActivity(
@@ -122,6 +124,7 @@ fun RemoteSection(config: AppConfig) {
                     "ntfy.sh という公開の中継サービスを使います。ページのアドレスを知っている人は誰でも送れるので、人に教えないでください。",
                 fontSize = 13.sp, color = Color.Gray, modifier = Modifier.padding(top = 8.dp),
             )
+            if (remoteQr) QrDialog("📱 呼びかけのページ", url, note = "スマホのカメラで読んで、ホーム画面に追加しておくと便利です。") { remoteQr = false }
         }
     }
 }
@@ -326,6 +329,14 @@ fun SheetSection(config: AppConfig) {
     val context = LocalContext.current
     val st = SheetSync.state
     var url by remember(config.sheetUrl) { mutableStateOf(config.sheetUrl.orEmpty()) }
+    val scanSheet = rememberQrScanner("スプレッドシートのリンクの QR コードを うつしてください") { v ->
+        if (com.theta.kidshome.data.QrSetup.isSheet(v.trim())) {
+            url = v.trim()
+            Store.update { it.copy(sheetUrl = v.trim()) }
+            SheetSync.sync(context, force = true)
+            Toast.makeText(context, "📷 スプレッドシートを設定しました", Toast.LENGTH_SHORT).show()
+        } else applyQrSetup(context, v)
+    }
     Section("📝 親のスマホから設定（Google スプレッドシート）") {
         Text(
             "スプレッドシートに書いた こども・ボタン・カテゴリー・アプリの仕分け・せってい を、このタブレットが読み込みます（15分ごと と ホームに戻ったとき）。" +
@@ -338,7 +349,7 @@ fun SheetSection(config: AppConfig) {
             "1. 下の「いまの設定を書き出す」→ Google ドライブに保存\n" +
                 "2. ドライブで開いて「Google スプレッドシートとして保存」\n" +
                 "3. 共有 →「リンクを知っている全員」（閲覧者）→ リンクをコピー\n" +
-                "4. そのリンクをここに貼る",
+                "4. そのリンクをここに貼る（スマホで共有 → QR コードを出して「📷 QR」で読んでも OK）",
             fontSize = 13.sp, color = Color.Gray,
         )
         Spacer(Modifier.height(8.dp))
@@ -350,6 +361,7 @@ fun SheetSection(config: AppConfig) {
                 value = url, onValueChange = { url = it }, singleLine = true,
                 label = { Text("スプレッドシートのリンク") }, modifier = Modifier.weight(1f),
             )
+            TextButton(onClick = scanSheet) { Text("📷 QR") }
             TextButton(onClick = {
                 val v = url.trim().ifEmpty { null }
                 if (v != null && SheetSync.sheetId(v) == null) {
@@ -485,6 +497,7 @@ fun MediaSection(config: AppConfig) {
             }
         }
         var ical by remember { mutableStateOf("") }
+        val scanIcal = rememberQrScanner("iCal アドレスの QR コードを うつしてください") { applyQrSetup(context, it) }
         Row(verticalAlignment = Alignment.CenterVertically) {
             OutlinedTextField(ical, { ical = it }, singleLine = true, label = { Text("https://calendar.google.com/calendar/ical/…/basic.ics") }, modifier = Modifier.weight(1f))
             TextButton(enabled = ical.trim().let { it.startsWith("http") || it.startsWith("webcal") }, onClick = {
@@ -492,6 +505,7 @@ fun MediaSection(config: AppConfig) {
                 ical = ""
                 Events.refresh(context, force = true)
             }) { Text("足す") }
+            TextButton(onClick = scanIcal) { Text("📷 QR") }
         }
         Events.error?.let { Text("⚠️ 読めないカレンダーがあります（$it）", fontSize = 12.sp, color = Color(0xFFD03B5C)) }
     }
@@ -594,11 +608,22 @@ fun GeminiSection() {
     var key by remember { mutableStateOf(com.theta.kidshome.data.Gemini.apiKey(context)) }
     var model by remember { mutableStateOf(com.theta.kidshome.data.Gemini.model(context)) }
     var shown by remember { mutableStateOf(false) }
+    val scanKey = rememberQrScanner("API キーの QR コードを うつしてください") { v ->
+        if (com.theta.kidshome.data.QrSetup.isGeminiKey(v.trim())) {
+            key = v.trim()
+            com.theta.kidshome.data.Gemini.setApiKey(context, key)
+            Toast.makeText(context, "📷 Gemini キーを保存しました", Toast.LENGTH_SHORT).show()
+        } else if (applyQrSetup(context, v) != null) {
+            key = com.theta.kidshome.data.Gemini.apiKey(context)
+            model = com.theta.kidshome.data.Gemini.model(context)
+        }
+    }
     Section("✨ 写真を お絵かき風 に（Gemini）") {
         Text(
             "おえかき で 🖼️ 写真を開いたあと ✨ を押すと、写真を ぬりえ・クレヨン・すいさい・まんが の絵にしてから描けます。" +
                 "Google AI Studio で作った自分の API キーを使います（画像の生成は有料のプロジェクトのキーが必要なことがあります）。" +
-                "写真は Google に送られます。キーはこのタブレットだけに保存し、スプレッドシート・書き出しには入れません。",
+                "写真は Google に送られます。キーはこのタブレットだけに保存し、スプレッドシート・書き出しには入れません。" +
+                "長いキーは、パソコンで QR コードにして「📷 QR で読む」と楽です。",
             fontSize = 14.sp,
         )
         OutlinedTextField(
@@ -613,6 +638,7 @@ fun GeminiSection() {
                 com.theta.kidshome.data.Gemini.setModel(context, model)
                 Toast.makeText(context, "保存しました", Toast.LENGTH_SHORT).show()
             }) { Text("保存") }
+            TextButton(onClick = scanKey) { Text("📷 QR で読む") }
             TextButton(onClick = { shown = !shown }) { Text(if (shown) "かくす" else "見る") }
             TextButton(onClick = { model = com.theta.kidshome.data.Gemini.DEFAULT_MODEL }) { Text("モデルを はじめに戻す") }
         }
