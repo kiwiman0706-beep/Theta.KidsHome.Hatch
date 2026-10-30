@@ -75,6 +75,12 @@ object Store {
             }
             prefs.edit().putBoolean("added:map", true).apply()
         }
+        if (!prefs.getBoolean("added:tasu", false)) {
+            if (config.profiles.none { p -> p.tiles.any { it.type == TileType.TASU } }) {
+                update { c -> c.copy(profiles = c.profiles.map { it.copy(tiles = it.tiles + AppConfig.tasuTile()) }) }
+            }
+            prefs.edit().putBoolean("added:tasu", true).apply()
+        }
     }
 
     /** いまの子のホームに ふせん をはる（少しずらして、少しかたむける） */

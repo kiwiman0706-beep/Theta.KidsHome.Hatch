@@ -225,7 +225,7 @@ fun KukuScreen(startHidden: Boolean = false, onBack: () -> Unit) {
 }
 
 @Composable
-private fun Header(text: String, cell: androidx.compose.ui.unit.Dp, theme: KidTheme, color: Color, on: Boolean, small: Boolean = false, onClick: () -> Unit) {
+internal fun Header(text: String, cell: androidx.compose.ui.unit.Dp, theme: KidTheme, color: Color, on: Boolean, small: Boolean = false, onClick: () -> Unit) {
     Box(
         Modifier.size(cell).padding(2.dp).clip(RoundedCornerShape(10.dp))
             .background(if (on) theme.titleBars[0] else color)
