@@ -170,6 +170,8 @@ private fun SettingsTab(modifier: Modifier) {
 
         SheetSection(config)
 
+        MediaSection(config)
+
         CategorySection(config)
 
         VideoLockSection(config)

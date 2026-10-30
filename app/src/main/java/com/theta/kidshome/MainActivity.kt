@@ -15,7 +15,9 @@ import androidx.compose.runtime.setValue
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import com.theta.kidshome.data.MediaEntry
 import com.theta.kidshome.data.Store
+import com.theta.kidshome.media.VideoPlayerScreen
 import com.theta.kidshome.data.Weather
 import com.theta.kidshome.data.Widgets
 import com.theta.kidshome.remote.Remote
@@ -28,10 +30,12 @@ import com.theta.kidshome.ui.HomeScreen
 import com.theta.kidshome.ui.ParentScreen
 import com.theta.kidshome.update.SelfUpdate
 
-private enum class Screen { HOME, DRAWING, PARENT }
+private enum class Screen { HOME, DRAWING, PARENT, PLAYER }
 
 class MainActivity : ComponentActivity() {
     private var screen by mutableStateOf(Screen.HOME)
+    private var playList by mutableStateOf<List<MediaEntry>>(emptyList())
+    private var playIndex = 0
 
     /** レスキュー画面へ回したとき（このアクティビティは何もしないで閉じる） */
     private var rescued = false
@@ -61,10 +65,12 @@ class MainActivity : ComponentActivity() {
                         HomeScreen(
                             onOpenDrawing = { screen = Screen.DRAWING },
                             onOpenParent = { screen = Screen.PARENT },
+                            onPlayVideo = { list, i -> playList = list; playIndex = i; screen = Screen.PLAYER },
                         )
                     }
                     Screen.DRAWING -> DrawingScreen(onBack = { screen = Screen.HOME })
                     Screen.PARENT -> ParentScreen(onClose = { screen = Screen.HOME })
+                    Screen.PLAYER -> VideoPlayerScreen(playList, playIndex, onBack = { screen = Screen.HOME }, onLocked = { screen = Screen.HOME })
                 }
             }
             // おうちのひとからの呼びかけは、どの画面の上にも出す
@@ -88,6 +94,8 @@ class MainActivity : ComponentActivity() {
         Weather.refresh(this)
         Remote.sync(this)
         com.theta.kidshome.data.SheetSync.sync(this)
+        com.theta.kidshome.data.MediaLibrary.refresh(this)
+        com.theta.kidshome.data.Events.refresh(this)
     }
 
     override fun onStart() {

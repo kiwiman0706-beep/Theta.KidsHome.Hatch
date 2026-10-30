@@ -53,6 +53,8 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.core.graphics.drawable.toBitmap
 import com.theta.kidshome.data.AppConfig
 import com.theta.kidshome.data.Launcher
+import com.theta.kidshome.data.Events
+import com.theta.kidshome.data.MediaLibrary
 import com.theta.kidshome.data.SheetSync
 import com.theta.kidshome.data.Store
 import com.theta.kidshome.data.Weather
@@ -396,4 +398,75 @@ private fun exportSheet(context: android.content.Context, config: AppConfig) {
             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         context.startActivity(Intent.createChooser(send, "ドライブに保存").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }.onFailure { Toast.makeText(context, "書き出せませんでした（${it.message}）", Toast.LENGTH_LONG).show() }
+}
+
+// ---------------------------------------------------------------- 端末の動画・音楽・おはなし
+
+@Composable
+fun MediaSection(config: AppConfig) {
+    val context = LocalContext.current
+    var granted by remember { mutableStateOf(MediaLibrary.hasPermission(context)) }
+    var calendar by remember { mutableStateOf(Events.hasPermission(context)) }
+    val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+        granted = MediaLibrary.hasPermission(context)
+        if (granted) MediaLibrary.refresh(context, force = true)
+    }
+    val askCalendar = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
+        calendar = ok
+        if (ok) Events.refresh(context, force = true)
+    }
+    Section("📼 端末の動画・音楽・おはなし") {
+        Text(
+            "本体と SD カードに入っている動画・音楽・オーディオブック（.m4b など）を、サムネイルで選んでホームの中で再生します。" +
+                "動画は「どうがロック」の対象です。見たところ・聞いたところは覚えて、次は続きから。",
+            fontSize = 14.sp,
+        )
+        Spacer(Modifier.height(8.dp))
+        if (!granted) {
+            Button(onClick = { ask.launch(MediaLibrary.permissions) }) { Text("動画と音楽へのアクセスを許可") }
+        } else {
+            Text(
+                "見つかったもの：動画 ${MediaLibrary.videos.size}・音楽 ${MediaLibrary.music.size}・おはなし ${MediaLibrary.books.size}",
+                fontSize = 14.sp, fontWeight = FontWeight.Bold,
+            )
+            listOf(
+                Triple("📼 ビデオ のタブ", config.showVideos) { v: Boolean -> Store.update { it.copy(showVideos = v) } },
+                Triple("🎵 おんがく のタブ", config.showMusic) { v: Boolean -> Store.update { it.copy(showMusic = v) } },
+                Triple("🎧 おはなし のタブ（オーディオブック）", config.showBooks) { v: Boolean -> Store.update { it.copy(showBooks = v) } },
+            ).forEach { (label, on, set) ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(label, modifier = Modifier.weight(1f))
+                    Switch(checked = on, onCheckedChange = set)
+                }
+            }
+            val folders = (MediaLibrary.videos + MediaLibrary.music + MediaLibrary.books).groupBy { it.folder }
+            if (folders.isNotEmpty()) {
+                Text("フォルダごとに 見せる・かくす（カメラで撮った動画などはかくす）", fontSize = 13.sp, color = Color.Gray, modifier = Modifier.padding(top = 8.dp))
+                FlowRow8 {
+                    folders.toSortedMap().forEach { (folder, list) ->
+                        val hidden = folder in config.hiddenFolders
+                        androidx.compose.material3.FilterChip(
+                            selected = !hidden,
+                            onClick = { Store.update { it.copy(hiddenFolders = if (hidden) it.hiddenFolders - folder else it.hiddenFolders + folder) } },
+                            label = { Text("${if (hidden) "🙈" else "👀"} $folder（${list.size}）") },
+                        )
+                    }
+                }
+            }
+            TextButton(onClick = { MediaLibrary.refresh(context, force = true) }) { Text("読み直す") }
+            Text(
+                "オーディオブックは、.m4b のファイル、または「Audiobooks」「オーディオブック」「おはなし」という名前のフォルダに入れた音声です。" +
+                    "再生できない形式の動画は、VLC が入っていれば「VLC で みる」が出ます。",
+                fontSize = 12.sp, color = Color.Gray,
+            )
+        }
+        Spacer(Modifier.height(12.dp))
+        Text("📅 カレンダーの予定", fontWeight = FontWeight.Bold)
+        Text("端末のカレンダー（子どもの Google アカウントなど）の予定を、ホームのカレンダーに出します。", fontSize = 14.sp)
+        if (!calendar) {
+            OutlinedButton(onClick = { askCalendar.launch(Manifest.permission.READ_CALENDAR) }) { Text("カレンダーの予定を表示する") }
+        } else {
+            Text("✅ 表示しています", fontSize = 14.sp)
+        }
+    }
 }

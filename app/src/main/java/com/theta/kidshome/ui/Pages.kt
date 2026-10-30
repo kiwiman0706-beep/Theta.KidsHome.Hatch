@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -54,8 +55,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
+import com.theta.kidshome.data.Events
 import com.theta.kidshome.data.Launcher
 import com.theta.kidshome.data.Media
+import com.theta.kidshome.media.AudioPlayer
 import com.theta.kidshome.data.Store
 import com.theta.kidshome.data.Weather
 import com.theta.kidshome.data.Widgets
@@ -167,44 +170,108 @@ fun AnalogClockWindow(theme: KidTheme, now: Long, modifier: Modifier = Modifier)
 }
 
 @Composable
-fun CalendarWindow(theme: KidTheme, now: Long, modifier: Modifier = Modifier) {
+fun CalendarWindow(theme: KidTheme, now: Long, modifier: Modifier = Modifier, compact: Boolean = false, initialWeek: Boolean = false) {
+    val context = LocalContext.current
+    LaunchedEffect(Unit) { Events.refresh(context) }
+    var week by remember { mutableStateOf(initialWeek) }
     val today = Calendar.getInstance().apply { timeInMillis = now }
     val month = today.get(Calendar.MONTH)
+    val scale = if (compact) 0.8f else 1f
+    fun sz(v: Int) = (v * scale).toInt()
+    RetroWindow(theme, modifier.fillMaxWidth(), title = "カレンダー", titleColor = theme.titleBars[3]) {
+        Column(Modifier.fillMaxWidth().padding(if (compact) 10.dp else 14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 6.dp)) {
+                DotText("${month + 1}がつ", theme, sz(22), modifier = Modifier.weight(1f))
+                listOf(false to "つき", true to "しゅう").forEach { (w, label) ->
+                    val on = week == w
+                    Box(
+                        Modifier.padding(start = 4.dp).clip(RoundedCornerShape(10.dp))
+                            .background(if (on) theme.titleBars[0] else Color.White)
+                            .border(2.dp, theme.outline, RoundedCornerShape(10.dp))
+                            .clickable { week = w }.padding(horizontal = 10.dp, vertical = 2.dp)
+                    ) { DotText(label, theme, sz(14)) }
+                }
+            }
+            Row(Modifier.fillMaxWidth()) {
+                WeekNames.forEachIndexed { i, w ->
+                    Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                        DotText(w, theme, sz(14), when (i) { 0 -> Sunday; 6 -> Saturday; else -> theme.outline })
+                    }
+                }
+            }
+            if (week) WeekRow(theme, today, compact) else MonthGrid(theme, today, compact)
+        }
+    }
+}
+
+private fun dayStart(c: Calendar): Long = (c.clone() as Calendar).apply {
+    set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+}.timeInMillis
+
+@Composable
+private fun MonthGrid(theme: KidTheme, today: Calendar, compact: Boolean) {
     val first = (today.clone() as Calendar).apply { set(Calendar.DAY_OF_MONTH, 1) }
     val offset = first.get(Calendar.DAY_OF_WEEK) - 1
     val days = today.getActualMaximum(Calendar.DAY_OF_MONTH)
     val cells = (0 until offset).map { 0 } + (1..days).toList()
-    RetroWindow(theme, modifier.fillMaxWidth(), title = "カレンダー", titleColor = theme.titleBars[3]) {
-        Column(Modifier.fillMaxWidth().padding(14.dp)) {
-            DotText("${today.get(Calendar.YEAR)}ねん ${month + 1}がつ", theme, 22, modifier = Modifier.padding(bottom = 6.dp))
-            Row(Modifier.fillMaxWidth()) {
-                WeekNames.forEachIndexed { i, w ->
-                    Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                        DotText(w, theme, 14, when (i) { 0 -> Sunday; 6 -> Saturday; else -> theme.outline })
+    val cell = if (compact) 30.dp else 38.dp
+    cells.chunked(7).forEach { week ->
+        Row(Modifier.fillMaxWidth().padding(top = 2.dp)) {
+            (0 until 7).forEach { i ->
+                val d = week.getOrNull(i) ?: 0
+                val isToday = d == today.get(Calendar.DAY_OF_MONTH)
+                val hasEvent = d > 0 && Events.list.isNotEmpty() &&
+                    Events.on(dayStart((first.clone() as Calendar).apply { set(Calendar.DAY_OF_MONTH, d) })).isNotEmpty()
+                Box(Modifier.weight(1f).height(cell), contentAlignment = Alignment.Center) {
+                    if (d > 0) {
+                        if (isToday) {
+                            Box(Modifier.size(cell - 4.dp).clip(CircleShape).background(theme.accent).border(2.5.dp, theme.outline, CircleShape))
+                        }
+                        DotText(
+                            d.toString(), theme, if (compact) 14 else 18,
+                            when {
+                                isToday -> Color.White
+                                i == 0 -> Sunday
+                                i == 6 -> Saturday
+                                else -> theme.outline
+                            },
+                        )
+                        if (hasEvent) {
+                            Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 1.dp).size(5.dp).clip(CircleShape).background(Color(0xFFFF6B8B)))
+                        }
                     }
                 }
             }
-            cells.chunked(7).forEach { week ->
-                Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
-                    (0 until 7).forEach { i ->
-                        val d = week.getOrNull(i) ?: 0
-                        val isToday = d == today.get(Calendar.DAY_OF_MONTH)
-                        Box(Modifier.weight(1f).height(36.dp), contentAlignment = Alignment.Center) {
-                            if (d > 0) {
-                                if (isToday) {
-                                    Box(Modifier.size(34.dp).clip(CircleShape).background(theme.accent).border(2.5.dp, theme.outline, CircleShape))
-                                }
-                                DotText(
-                                    d.toString(), theme, 18,
-                                    when {
-                                        isToday -> Color.White
-                                        i == 0 -> Sunday
-                                        i == 6 -> Saturday
-                                        else -> theme.outline
-                                    },
-                                )
-                            }
-                        }
+        }
+    }
+}
+
+/** 今週（にちようび はじまり）。予定があれば、その日の下に出す */
+@Composable
+private fun WeekRow(theme: KidTheme, today: Calendar, compact: Boolean) {
+    val sunday = (today.clone() as Calendar).apply { add(Calendar.DAY_OF_MONTH, -(get(Calendar.DAY_OF_WEEK) - 1)) }
+    Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
+        (0 until 7).forEach { i ->
+            val day = (sunday.clone() as Calendar).apply { add(Calendar.DAY_OF_MONTH, i) }
+            val isToday = day.get(Calendar.DAY_OF_YEAR) == today.get(Calendar.DAY_OF_YEAR)
+            val events = Events.on(dayStart(day))
+            Column(
+                Modifier.weight(1f).padding(1.dp).clip(RoundedCornerShape(8.dp))
+                    .background(if (isToday) theme.bubbles[0] else Color.Transparent)
+                    .heightIn(min = if (compact) 64.dp else 96.dp)
+                    .padding(2.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                DotText(
+                    day.get(Calendar.DAY_OF_MONTH).toString(), theme, if (compact) 16 else 20,
+                    when { i == 0 -> Sunday; i == 6 -> Saturday; else -> theme.outline },
+                )
+                events.take(if (compact) 2 else 4).forEach { e ->
+                    Box(
+                        Modifier.fillMaxWidth().padding(top = 2.dp).clip(RoundedCornerShape(4.dp))
+                            .background(Color(e.color).copy(alpha = 0.25f)).padding(horizontal = 2.dp)
+                    ) {
+                        Text(e.title, fontFamily = DotFont, fontSize = if (compact) 9.sp else 11.sp, color = theme.outline, maxLines = 2, lineHeight = 12.sp)
                     }
                 }
             }
@@ -307,7 +374,7 @@ fun MusicWindow(theme: KidTheme, modifier: Modifier = Modifier) {
     var playing by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         while (true) {
-            playing = Media.isPlaying(context)
+            playing = AudioPlayer.playing || Media.isPlaying(context)
             delay(1000)
         }
     }
@@ -318,12 +385,18 @@ fun MusicWindow(theme: KidTheme, modifier: Modifier = Modifier) {
         Column(Modifier.fillMaxWidth().padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("🎵", fontSize = 22.sp, modifier = Modifier.offset(y = if (playing) y.dp else 0.dp))
-                DotText(if (playing) "ながれているよ" else "とまっているよ", theme, 14, modifier = Modifier.padding(start = 4.dp))
+                DotText(
+                    AudioPlayer.current?.title ?: if (playing) "ながれているよ" else "とまっているよ",
+                    theme, 14, modifier = Modifier.padding(start = 4.dp),
+                )
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                RetroIconButton("⏮", theme, size = 48.dp) { Media.previous(context) }
-                RetroIconButton(if (playing) "⏸" else "▶️", theme, selected = playing, size = 56.dp) { Media.playPause(context) }
-                RetroIconButton("⏭", theme, size = 48.dp) { Media.next(context) }
+                val own = AudioPlayer.current != null
+                RetroIconButton("⏮", theme, size = 48.dp) { if (own) AudioPlayer.previous() else Media.previous(context) }
+                RetroIconButton(if (playing) "⏸" else "▶️", theme, selected = playing, size = 56.dp) {
+                    if (own) AudioPlayer.toggle() else Media.playPause(context)
+                }
+                RetroIconButton("⏭", theme, size = 48.dp) { if (own) AudioPlayer.next() else Media.next(context) }
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 RetroIconButton("🔉", theme, size = 40.dp) { Media.volume(context, false) }

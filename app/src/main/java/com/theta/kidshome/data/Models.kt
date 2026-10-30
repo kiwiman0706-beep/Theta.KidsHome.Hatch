@@ -59,6 +59,12 @@ data class AppConfig(
     val appCategory: Map<String, String> = emptyMap(),
     /** 親のスマホから設定するスプレッドシート（リンクを知っている全員が閲覧可） */
     val sheetUrl: String? = null,
+    /** 端末の動画・音楽・おはなし のタブを出すか */
+    val showVideos: Boolean = true,
+    val showMusic: Boolean = true,
+    val showBooks: Boolean = true,
+    /** 子どもに見せないフォルダ（カメラで撮った動画など） */
+    val hiddenFolders: Set<String> = setOf("Camera", "Screenshots", "Screen recordings", "WhatsApp Video", "LINE"),
 ) {
     fun categoryOf(packageName: String): AppCategory? =
         appCategory[packageName]?.let { id -> categories.firstOrNull { it.id == id } }
@@ -140,6 +146,10 @@ fun AppConfig.toJson(): JSONObject = JSONObject().apply {
     }))
     put("appCategory", JSONObject(appCategory))
     putOpt("sheetUrl", sheetUrl)
+    put("showVideos", showVideos)
+    put("showMusic", showMusic)
+    put("showBooks", showBooks)
+    put("hiddenFolders", JSONArray(hiddenFolders.toList()))
 }
 
 fun appConfigFromJson(o: JSONObject): AppConfig {
@@ -174,5 +184,10 @@ fun appConfigFromJson(o: JSONObject): AppConfig {
         } ?: emptyList(),
         appCategory = o.optJSONObject("appCategory")?.let { m -> m.keys().asSequence().associateWith { m.getString(it) } } ?: emptyMap(),
         sheetUrl = o.str("sheetUrl"),
+        showVideos = o.optBoolean("showVideos", true),
+        showMusic = o.optBoolean("showMusic", true),
+        showBooks = o.optBoolean("showBooks", true),
+        hiddenFolders = o.optJSONArray("hiddenFolders")?.let { a -> (0 until a.length()).map { a.getString(it) }.toSet() }
+            ?: AppConfig(emptyList(), "").hiddenFolders,
     )
 }

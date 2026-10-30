@@ -101,7 +101,11 @@ import kotlin.random.Random
 private data class Burst(val id: Long, val at: Offset, val emojis: List<String>)
 
 @Composable
-fun HomeScreen(onOpenDrawing: () -> Unit, onOpenParent: () -> Unit) {
+fun HomeScreen(
+    onOpenDrawing: () -> Unit,
+    onOpenParent: () -> Unit,
+    onPlayVideo: (List<com.theta.kidshome.data.MediaEntry>, Int) -> Unit = { _, _ -> },
+) {
     val config = Store.config
     val profile = config.currentProfile
     val theme = themeById(profile.themeId)
@@ -125,9 +129,15 @@ fun HomeScreen(onOpenDrawing: () -> Unit, onOpenParent: () -> Unit) {
     }
 
     val installed = remember(config.appCategory, config.categories) { Launcher.listApps(context) }
-    val tabs = remember(profile, config.widgetIds, config.appCategory, config.categories, installed) {
-        kidTabs(profile.tiles, config.widgetIds.isNotEmpty(), categoryTabs(config, profile.id, installed))
+    val media = buildList {
+        if (config.showVideos && visibleVideos().isNotEmpty()) add(KidTab("local:video", TabKind.LOCAL_VIDEO, "📼", "ビデオ"))
+        if (config.showMusic && visibleMusic().isNotEmpty()) add(KidTab("local:music", TabKind.MUSIC, "🎵", "おんがく"))
+        if (config.showBooks && visibleBooks().isNotEmpty()) add(KidTab("local:book", TabKind.BOOKS, "🎧", "おはなし"))
     }
+    val tabs = remember(profile, config.widgetIds, config.appCategory, config.categories, installed, media) {
+        kidTabs(profile.tiles, config.widgetIds.isNotEmpty(), media + categoryTabs(config, profile.id, installed))
+    }
+    LaunchedEffect(Unit) { com.theta.kidshome.data.MediaLibrary.refresh(context) }
     // ホームを開いたままでも、ときどき シート と てんき を取り直す（どちらも間隔は中で決める）
     LaunchedEffect(Unit) {
         while (true) {
@@ -173,6 +183,9 @@ fun HomeScreen(onOpenDrawing: () -> Unit, onOpenParent: () -> Unit) {
                             TabKind.CLOCK -> ClockPage(theme, now, wide)
                             TabKind.VIDEO, TabKind.CATEGORY -> VideoPage(t, theme, locked, onTile) { showLockedDialog = true }
                             TabKind.WIDGETS -> WidgetPage(theme)
+                            TabKind.LOCAL_VIDEO -> VideoLibraryPage(theme, locked, onPlayVideo) { showLockedDialog = true }
+                            TabKind.MUSIC -> AudioLibraryPage(theme, com.theta.kidshome.data.MediaKind.MUSIC)
+                            TabKind.BOOKS -> AudioLibraryPage(theme, com.theta.kidshome.data.MediaKind.BOOK)
                         }
                     }
                 }
@@ -207,8 +220,9 @@ private fun HomePage(
                 verticalArrangement = Arrangement.spacedBy(18.dp),
             ) {
                 MascotWindow(config, theme, stars, playful, burst)
-                MusicWindow(theme)
                 if (locked) LockWindow(config, theme, now)
+                CalendarWindow(theme, now, compact = true, initialWeek = true)
+                MusicWindow(theme)
             }
             HSpace(22)
             TileGrid(tiles, theme, locked, Modifier.weight(1f), onTile)
@@ -223,6 +237,8 @@ private fun HomePage(
                 VSpace(16)
                 Box(Modifier.padding(end = 6.dp)) { LockWindow(config, theme, now) }
             }
+            VSpace(16)
+            Box(Modifier.padding(end = 6.dp)) { CalendarWindow(theme, now, compact = true, initialWeek = true) }
             VSpace(18)
             TileGrid(tiles, theme, locked, Modifier.weight(1f), onTile)
         }
@@ -254,7 +270,7 @@ private fun VideoPage(tab: KidTab, theme: KidTheme, locked: Boolean, onTile: (Ti
 
 // ---------------------------------------------------------------- タブ
 
-private enum class TabKind { HOME, CLOCK, CATEGORY, VIDEO, WIDGETS }
+private enum class TabKind { HOME, CLOCK, LOCAL_VIDEO, MUSIC, BOOKS, CATEGORY, VIDEO, WIDGETS }
 
 private data class KidTab(
     val key: String,
@@ -326,7 +342,7 @@ private fun TabRail(tabs: List<KidTab>, selected: String, theme: KidTheme, locke
                     val icon = remember(t.packageName) { t.packageName?.let { Launcher.icon(context, it) } }
                     Box(contentAlignment = Alignment.Center) {
                         if (icon != null) Image(icon, null, Modifier.size(36.dp)) else Text(t.emoji, fontSize = 28.sp)
-                        if (locked && (t.kind == TabKind.VIDEO || t.kind == TabKind.CATEGORY && t.tiles.all { it.isVideo })) Text("🔒", fontSize = 18.sp, modifier = Modifier.offset(x = 14.dp, y = 12.dp))
+                        if (locked && (t.kind == TabKind.VIDEO || t.kind == TabKind.LOCAL_VIDEO || t.kind == TabKind.CATEGORY && t.tiles.all { it.isVideo })) Text("🔒", fontSize = 18.sp, modifier = Modifier.offset(x = 14.dp, y = 12.dp))
                     }
                     Text(
                         t.label, fontFamily = DotFont, fontSize = 11.sp, color = theme.outline,
