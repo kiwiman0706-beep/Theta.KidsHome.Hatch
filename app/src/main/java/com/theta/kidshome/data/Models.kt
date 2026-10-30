@@ -5,7 +5,7 @@ import org.json.JSONObject
 import java.util.UUID
 
 /** CALL：Google Meet などの通話リンク（どうがロック中も押せる） */
-enum class TileType { APP, VIDEO, DRAWING, CALL, INSTRUMENT, EDUPAD }
+enum class TileType { APP, VIDEO, DRAWING, CALL, INSTRUMENT, EDUPAD, WORDPRO }
 
 /** ホーム画面に並ぶ1つのボタン */
 data class Tile(
@@ -30,6 +30,8 @@ data class Profile(
     val timetable: List<List<String>> = List(6) { emptyList() },
     /** ようび ごとの もちもの */
     val belongings: List<String> = List(6) { "" },
+    /** ホームに はった ふせん（おえかき・わーぷろ から） */
+    val stickers: List<Sticker> = emptyList(),
 ) {
     val hasTimetable get() = timetable.any { d -> d.any { it.isNotBlank() } }
 }
@@ -88,14 +90,38 @@ data class AppConfig(
         fun drawingTile() = Tile(type = TileType.DRAWING, label = "おえかき", emoji = "🎨")
         fun instrumentTile() = Tile(type = TileType.INSTRUMENT, label = "がっき", emoji = "🎹")
         fun edupadTile() = Tile(type = TileType.EDUPAD, label = "くるくる思考パッド", emoji = "🧠")
+        fun wordproTile() = Tile(type = TileType.WORDPRO, label = "わーぷろ", emoji = "📝")
 
         fun default(): AppConfig {
-            val p1 = Profile(name = "おねえちゃん", themeId = "usagi", tiles = listOf(edupadTile(), drawingTile(), instrumentTile()))
-            val p2 = Profile(name = "いもうと", themeId = "neko", tiles = listOf(edupadTile(), drawingTile(), instrumentTile()))
+            val p1 = Profile(name = "おねえちゃん", themeId = "usagi", tiles = listOf(edupadTile(), drawingTile(), wordproTile(), instrumentTile()))
+            val p2 = Profile(name = "いもうと", themeId = "neko", tiles = listOf(edupadTile(), drawingTile(), wordproTile(), instrumentTile()))
             return AppConfig(profiles = listOf(p1, p2), currentProfileId = p1.id)
         }
     }
 }
+
+/** ホームに はる ふせん。image は おえかき の絵（アプリの中のファイル名）、なければ text */
+data class Sticker(
+    val id: String = UUID.randomUUID().toString(),
+    val image: String? = null,
+    val text: String = "",
+    /** 画面の中の位置（0〜1） */
+    val x: Float = 0.5f,
+    val y: Float = 0.6f,
+    val rotation: Float = 0f,
+    val color: Int = 0xFFFFF3A0.toInt(),
+)
+
+fun Sticker.toJson(): JSONObject = JSONObject().apply {
+    put("id", id); putOpt("image", image); put("text", text)
+    put("x", x.toDouble()); put("y", y.toDouble()); put("rotation", rotation.toDouble()); put("color", color)
+}
+
+fun stickerFromJson(o: JSONObject) = Sticker(
+    id = o.getString("id"), image = if (o.has("image") && !o.isNull("image")) o.getString("image") else null,
+    text = o.optString("text"), x = o.optDouble("x", 0.5).toFloat(), y = o.optDouble("y", 0.6).toFloat(),
+    rotation = o.optDouble("rotation").toFloat(), color = o.optInt("color", 0xFFFFF3A0.toInt()),
+)
 
 // ---- JSON 変換 ----
 
@@ -129,6 +155,7 @@ fun Profile.toJson(): JSONObject = JSONObject().apply {
     put("tiles", JSONArray(tiles.map { it.toJson() }))
     put("timetable", JSONArray(timetable.map { JSONArray(it) }))
     put("belongings", JSONArray(belongings))
+    put("stickers", JSONArray(stickers.map { it.toJson() }))
 }
 
 fun profileFromJson(o: JSONObject): Profile {
@@ -142,6 +169,7 @@ fun profileFromJson(o: JSONObject): Profile {
             o.optJSONArray("timetable")?.optJSONArray(d)?.let { a -> (0 until a.length()).map { a.optString(it) } } ?: emptyList()
         },
         belongings = List(6) { d -> o.optJSONArray("belongings")?.optString(d).orEmpty() },
+        stickers = o.optJSONArray("stickers")?.let { a -> (0 until a.length()).map { stickerFromJson(a.getJSONObject(it)) } } ?: emptyList(),
     )
 }
 

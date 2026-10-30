@@ -113,6 +113,7 @@ fun HomeScreen(
     onOpenParent: () -> Unit,
     onOpenInstrument: () -> Unit = {},
     onOpenEdupad: () -> Unit = {},
+    onOpenWordpro: () -> Unit = {},
     onPlayVideo: (List<com.theta.kidshome.data.MediaEntry>, Int) -> Unit = { _, _ -> },
 ) {
     val config = Store.config
@@ -165,6 +166,7 @@ fun HomeScreen(
             tile.type == TileType.DRAWING -> onOpenDrawing()
             tile.type == TileType.INSTRUMENT -> onOpenInstrument()
             tile.type == TileType.EDUPAD -> onOpenEdupad()
+            tile.type == TileType.WORDPRO -> onOpenWordpro()
             else -> Launcher.launch(context, tile)
         }
     }
@@ -205,6 +207,9 @@ fun HomeScreen(
                 TabRail(tabs, tab.key, theme, locked) { tabKey = it }
             }
         }
+
+        // ふせん（おえかき・わーぷろ から はったもの）
+        StickerLayer(theme, profile.stickers, maxWidth, maxHeight)
 
         if (playful) {
             Walker(theme, maxWidth, maxHeight) { at ->
@@ -639,6 +644,7 @@ private fun TileWindow(tile: Tile, theme: KidTheme, index: Int, locked: Boolean,
         tile.type == TileType.CALL -> "でんわ"
         tile.type == TileType.INSTRUMENT -> "がっき"
         tile.type == TileType.EDUPAD -> "べんきょう"
+        tile.type == TileType.WORDPRO -> "わーぷろ"
         tile.isVideo -> "どうが"
         else -> "アプリ"
     }

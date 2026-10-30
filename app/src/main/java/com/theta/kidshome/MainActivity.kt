@@ -30,7 +30,7 @@ import com.theta.kidshome.ui.HomeScreen
 import com.theta.kidshome.ui.ParentScreen
 import com.theta.kidshome.update.SelfUpdate
 
-private enum class Screen { HOME, DRAWING, PARENT, PLAYER, INSTRUMENT, EDUPAD }
+private enum class Screen { HOME, DRAWING, PARENT, PLAYER, INSTRUMENT, EDUPAD, WORDPRO }
 
 class MainActivity : ComponentActivity() {
     private var screen by mutableStateOf(Screen.HOME)
@@ -67,6 +67,7 @@ class MainActivity : ComponentActivity() {
                             onOpenParent = { screen = Screen.PARENT },
                             onOpenInstrument = { screen = Screen.INSTRUMENT },
                             onOpenEdupad = { screen = Screen.EDUPAD },
+                            onOpenWordpro = { screen = Screen.WORDPRO },
                             onPlayVideo = { list, i -> playList = list; playIndex = i; screen = Screen.PLAYER },
                         )
                     }
@@ -74,6 +75,7 @@ class MainActivity : ComponentActivity() {
                     Screen.PARENT -> ParentScreen(onClose = { screen = Screen.HOME })
                     Screen.INSTRUMENT -> com.theta.kidshome.media.InstrumentScreen(onBack = { screen = Screen.HOME })
                     Screen.EDUPAD -> com.theta.kidshome.ui.EdupadScreen(onBack = { screen = Screen.HOME })
+                    Screen.WORDPRO -> com.theta.kidshome.ui.WordproScreen(onBack = { screen = Screen.HOME })
                     Screen.PLAYER -> VideoPlayerScreen(playList, playIndex, onBack = { screen = Screen.HOME }, onLocked = { screen = Screen.HOME })
                 }
             }

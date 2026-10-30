@@ -127,6 +127,11 @@ fun DrawingScreen(onBack: () -> Unit) {
                     val ok = canvasSize.width > 0 && saveDrawing(context, canvasSize, Drawing.marks.toList())
                     Toast.makeText(context, if (ok) "ほぞん したよ！" else "ほぞん できなかったよ", Toast.LENGTH_SHORT).show()
                 }
+                // ホームに ふせん として はる
+                RetroIconButton("📌", theme) {
+                    val ok = canvasSize.width > 0 && Drawing.marks.isNotEmpty() && pinDrawing(context, canvasSize, Drawing.marks.toList())
+                    Toast.makeText(context, if (ok) "ホームに はったよ！" else "なにか かいてから はってね", Toast.LENGTH_SHORT).show()
+                }
             }
             Spacer(Modifier.height(12.dp))
 
@@ -285,6 +290,21 @@ private fun renderMarks(canvas: android.graphics.Canvas, marks: List<Mark>) {
         }
     }
 }
+
+/** 絵を小さくして、ホームの ふせん にする */
+private fun pinDrawing(context: Context, size: IntSize, marks: List<Mark>): Boolean = runCatching {
+    val full = Bitmap.createBitmap(size.width, size.height, Bitmap.Config.ARGB_8888)
+    val canvas = android.graphics.Canvas(full)
+    canvas.drawColor(PAPER)
+    renderMarks(canvas, marks)
+    val scale = 480f / maxOf(size.width, size.height)
+    val small = Bitmap.createScaledBitmap(full, (size.width * scale).toInt().coerceAtLeast(1), (size.height * scale).toInt().coerceAtLeast(1), true)
+    val name = "drawing_${System.currentTimeMillis()}.png"
+    val dir = java.io.File(context.filesDir, "stickers").apply { mkdirs() }
+    java.io.File(dir, name).outputStream().use { small.compress(Bitmap.CompressFormat.PNG, 100, it) }
+    com.theta.kidshome.data.Store.addSticker(com.theta.kidshome.data.Sticker(image = name, color = 0xFFFFFFFF.toInt()))
+    true
+}.getOrDefault(false)
 
 private fun saveDrawing(context: Context, size: IntSize, marks: List<Mark>): Boolean = runCatching {
     val bitmap = Bitmap.createBitmap(size.width, size.height, Bitmap.Config.ARGB_8888)
