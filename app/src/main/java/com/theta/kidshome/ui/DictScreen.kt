@@ -71,12 +71,13 @@ import kotlinx.coroutines.delay
 import java.io.File
 import java.util.Locale
 
-/** 辞書の なかま（タブ） */
-private enum class DictShelf(val emoji: String, val label: String, val codes: Set<String>) {
-    KOKUGO("あ", "こくご", setOf("kokugo", "koujien", "furoku")),
-    EIGO("A", "えいご", setOf("crcen", "eiwa", "waei")),
-    HYAKKA("🌍", "ひゃっか", setOf("encarta")),
-    KARADA("🩺", "からだ", setOf("promedica")),
+/** 辞書の なかま（タブ）。辞書 の DB の tab で きまる（あとから ふやした 辞書 は「ほか」） */
+private enum class DictShelf(val tab: String, val emoji: String, val label: String) {
+    KOKUGO("kokugo", "あ", "こくご"),
+    EIGO("eigo", "A", "えいご"),
+    HYAKKA("hyakka", "🌍", "ひゃっか"),
+    KARADA("karada", "🩺", "からだ"),
+    OTHER("other", "📚", "ほか"),
 }
 
 private fun gradeLabel(g: Int) = if (g >= 7) "中学" else "小$g"
@@ -97,15 +98,16 @@ fun DictScreen(onBack: () -> Unit) {
     var shelf by remember { mutableStateOf(DictShelf.KOKUGO) }
     var query by remember { mutableStateOf("") }
     var hits by remember { mutableStateOf<List<Dict.Hit>>(emptyList()) }
-    val history = remember { mutableStateListOf<Long>() }
-    val currentId = history.lastOrNull()
-    val current = remember(currentId, Dict.books) { currentId?.let { Dict.entry(it) } }
+    val history = remember { mutableStateListOf<Dict.Ref>() }
+    val currentRef = history.lastOrNull()
+    val current = remember(currentRef, Dict.books) { currentRef?.let { Dict.entry(it) } }
     BackHandler { if (history.isNotEmpty()) history.removeAt(history.lastIndex) else onBack() }
 
-    val books = Dict.books.filter { it.level <= maxLevel && (it.level <= 1 || more) }
-    val shelves = DictShelf.entries.filter { s -> books.any { it.code in s.codes } }
+    // レベル 2（広辞苑・研究社）は「もっと くわしく」で。ほか は 許可 の 範囲 なら いつも
+    val books = Dict.books.filter { it.level <= maxLevel && (it.level != 2 || more) }
+    val shelves = DictShelf.entries.filter { s -> books.any { DictShelf.entries.firstOrNull { e -> e.tab == it.tab }?.let { e -> e == s } ?: (s == DictShelf.OTHER) } }
     if (shelves.isNotEmpty() && shelf !in shelves) shelf = shelves.first()
-    val codes = books.filter { it.code in shelf.codes }.map { it.code }.toSet()
+    val codes = books.filter { (DictShelf.entries.firstOrNull { e -> e.tab == it.tab } ?: DictShelf.OTHER) == shelf }.map { it.key }.toSet()
 
     LaunchedEffect(query, codes) {
         delay(180)
@@ -164,7 +166,7 @@ fun DictScreen(onBack: () -> Unit) {
                                 val k = Regex("【(.+?)】").find(h.heading)?.groupValues?.get(1) ?: h.heading
                                 Column(
                                     Modifier.padding(4.dp).clip(RoundedCornerShape(14.dp)).background(Color.White)
-                                        .border(2.dp, theme.outline, RoundedCornerShape(14.dp)).clickable { history += h.id }.padding(6.dp),
+                                        .border(2.dp, theme.outline, RoundedCornerShape(14.dp)).clickable { history += h.ref }.padding(6.dp),
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                 ) {
                                     Text(k, fontSize = 34.sp, color = theme.outline)
@@ -176,17 +178,17 @@ fun DictScreen(onBack: () -> Unit) {
                 } else {
                     LazyColumn(Modifier.weight(1f)) {
                         if (hits.isEmpty()) item { DotText("みつからないよ", theme, 18, theme.text, modifier = Modifier.padding(12.dp)) }
-                        items(hits, key = { it.id }) { h ->
+                        items(hits, key = { it.ref.key + "/" + it.ref.id }) { h ->
                             Row(
                                 Modifier.fillMaxWidth().padding(vertical = 3.dp).clip(RoundedCornerShape(12.dp))
-                                    .background(if (h.id == current?.id) theme.titleBars[0] else Color.White)
+                                    .background(if (h.ref == current?.ref) theme.titleBars[0] else Color.White)
                                     .border(1.5.dp, theme.outline.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
-                                    .clickable { history.clear(); history += h.id }.padding(horizontal = 12.dp, vertical = 8.dp),
+                                    .clickable { history.clear(); history += h.ref }.padding(horizontal = 12.dp, vertical = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Text(h.heading, fontSize = 19.sp, color = theme.outline, maxLines = 1, modifier = Modifier.weight(1f))
                                 h.grade?.let { g -> Chip(gradeLabel(g), if (g <= grade) Color(0xFFB8F0A8) else Color(0xFFEEEEEE)) }
-                                Text(" " + (Dict.books.firstOrNull { it.code == h.code }?.title?.take(6) ?: ""), fontSize = 11.sp, color = Color.Gray)
+                                Text(" " + h.book.title.take(6), fontSize = 11.sp, color = Color.Gray)
                             }
                         }
                     }
@@ -198,7 +200,7 @@ fun DictScreen(onBack: () -> Unit) {
                 if (current == null) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { DotText("しらべたい ことば を いれてね", theme, 20) }
                 } else EntryView(theme, current, grade, tts, canBack = history.size > 1, onBack = { history.removeAt(history.lastIndex) }) { target ->
-                    Dict.resolve(target, current)?.let { history += it.id }
+                    Dict.resolve(target, current)?.let { history += it.ref }
                 }
             }
         }
@@ -215,7 +217,7 @@ private fun Chip(text: String, color: Color) {
 @Composable
 private fun EntryView(theme: KidTheme, e: Dict.Entry, grade: Int, tts: TextToSpeech?, canBack: Boolean, onBack: () -> Unit, onLink: (String) -> Unit) {
     val context = LocalContext.current
-    val blocks = remember(e.id) { DictText.blocks(e.body) }
+    val blocks = remember(e.ref) { DictText.blocks(e.body) }
     Column(Modifier.fillMaxSize().padding(14.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (canBack) RetroIconButton("⬅️", theme, size = 46.dp, onClick = onBack)
@@ -233,7 +235,7 @@ private fun EntryView(theme: KidTheme, e: Dict.Entry, grade: Int, tts: TextToSpe
         LazyColumn(Modifier.weight(1f).padding(top = 8.dp)) {
             items(blocks.size) { i ->
                 when (val b = blocks[i]) {
-                    is DictText.Block.Media -> MediaBlock(e.book.vault, b.name)
+                    is DictText.Block.Media -> MediaBlock(e.book, b.name)
                     is DictText.Block.Para -> Para(theme, b, e, onLink)
                 }
             }
@@ -262,7 +264,7 @@ private fun Para(theme: KidTheme, p: DictText.Block.Para, e: Dict.Entry, onLink:
     }
     val inline = gaiji.associate { g ->
         g.name to InlineTextContent(Placeholder(1.em, 1.em, PlaceholderVerticalAlign.TextCenter)) {
-            val bmp = remember(g.name) { (Dict.media(context, e.book.vault, g.name)?.second as? ByteArray)?.let { BitmapFactory.decodeByteArray(it, 0, it.size)?.asImageBitmap() } }
+            val bmp = remember(g.name) { (Dict.media(context, e.book, g.name)?.second as? ByteArray)?.let { BitmapFactory.decodeByteArray(it, 0, it.size)?.asImageBitmap() } }
             if (bmp != null) Image(bmp, null, Modifier.fillMaxSize()) else Text("〓")
         }
     }
@@ -273,13 +275,13 @@ private fun Para(theme: KidTheme, p: DictText.Block.Para, e: Dict.Entry, onLink:
 }
 
 @Composable
-private fun MediaBlock(vault: String, name: String) {
+private fun MediaBlock(book: Dict.Book, name: String) {
     val context = LocalContext.current
-    val m = remember(vault, name) { Dict.media(context, vault, name) }
+    val m = remember(book, name) { Dict.media(context, book, name) }
     if (m == null) { Text("（$name が ありません）", fontSize = 13.sp, color = Color.Gray); return }
     val (mime, data) = m
     if (mime.startsWith("image/")) {
-        val bmp = remember(vault, name) {
+        val bmp = remember(book, name) {
             when (data) {
                 is ByteArray -> BitmapFactory.decodeByteArray(data, 0, data.size)
                 is File -> BitmapFactory.decodeFile(data.path)
@@ -309,33 +311,44 @@ private fun MediaBlock(vault: String, name: String) {
 @Composable
 fun DictSection(config: com.theta.kidshome.data.AppConfig) {
     val context = LocalContext.current
-    LaunchedEffect(Unit) { Dict.open(context) }
+    var files by remember { mutableStateOf(Dict.files(context)) }
+    LaunchedEffect(Dict.books) { Dict.open(context); files = Dict.files(context) }
     val pick = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let { Dict.import(context, it) }
     }
     Section("📖 じしょ・ひゃっかじてん") {
         Text(
-            "パソコンで 辞書の Vault を 1 つの ファイル（${Dict.FILE}）に まとめて、タブレットに 入れます。" +
-                "まとめかた は 非公開リポジトリ の dict/README.md。中身は 家の 中だけ で つかってください。",
+            "パソコンで 辞書の Vault を SQLite（.sqlite）に まとめて、タブレットに 入れます（まとめかた は 非公開リポジトリ の dict/README.md）。" +
+                "ファイル は いくつでも おけて、あとから 辞書 を ふやせます。中身は 家の 中だけ で つかってください。",
             fontSize = 14.sp,
         )
-        val f = Dict.file(context)
-        Text(
-            if (Dict.ready) "✅ ${Dict.books.joinToString("・") { "${it.title}（${it.entries}）" }}　${f.length() shr 20}MB　${Dict.built ?: ""}"
-            else "まだ ありません",
-            fontSize = 14.sp, modifier = Modifier.padding(top = 6.dp),
-        )
+        if (files.isEmpty()) Text("まだ ありません", fontSize = 14.sp, modifier = Modifier.padding(top = 6.dp))
+        files.forEach { f ->
+            val inFile = Dict.books.filter { it.source.file == f }
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 6.dp)) {
+                Column(Modifier.weight(1f)) {
+                    Text("${if (Dict.isSd(f)) "💾 SD" else "📱 本体"}　${f.name}　${f.length() shr 20}MB", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text(inFile.joinToString("・") { "${it.title}（${it.entries}）" }.ifEmpty { "よめません（SQLite の 形 が ちがう？）" }, fontSize = 12.sp, color = Color.Gray)
+                }
+                androidx.compose.material3.TextButton(onClick = { Dict.remove(context, f); files = Dict.files(context) }) { Text("けす", color = Color(0xFFD03B5C)) }
+            }
+        }
         Dict.importing?.let { Text(it, fontSize = 13.sp, color = Color.Gray) }
         FlowRow8 {
             androidx.compose.material3.Button(enabled = Dict.importing?.startsWith("コピー中") != true, onClick = { pick.launch(arrayOf("*/*")) }) { Text("ファイル を えらんで 入れる") }
-            if (Dict.ready) androidx.compose.material3.TextButton(onClick = { Dict.remove(context) }) { Text("けす", color = Color(0xFFD03B5C)) }
+            androidx.compose.material3.OutlinedButton(onClick = { Dict.close(); Dict.open(context); files = Dict.files(context) }) { Text("さがしなおす") }
         }
-        Text("USB で コピー するなら：タブレットの「Android/data/${context.packageName}/files/dict/」に ${Dict.FILE}（と、あれば kidshome-dict-media フォルダ）を おく。", fontSize = 12.sp, color = Color.Gray)
+        Text("じかに おくなら（USB・カードリーダー）：", fontSize = 12.sp, color = Color.Gray, modifier = Modifier.padding(top = 6.dp))
+        Dict.dirs(context).filter { !it.path.startsWith(context.filesDir.path) }.forEach { d ->
+            Text("・${if (Dict.isSd(d)) "SD カード" else "本体"}：${d.path.substringAfter("/storage/").substringAfter("emulated/0/")}", fontSize = 12.sp, color = Color.Gray)
+        }
+        Text("大きい 添付 は <ファイル名>-media フォルダ ごと おなじ ところ に。アプリ を アンインストール すると この フォルダ も きえます（パソコン の 元 から また コピー）。", fontSize = 12.sp, color = Color.Gray)
         Text("子どもに 見せる 辞書", fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
         FlowRow8 {
-            listOf(1 to "こども向け だけ（コンサイス・エンカルタ）", 2 to "「もっと くわしく」で 広辞苑・研究社 も", 3 to "おとな向け（付属資料・医学）も").forEach { (lv, label) ->
+            listOf(3 to "ぜんぶ（医学辞典 も）", 2 to "医学辞典・付属資料 は かくす", 1 to "こども向け だけ（コンサイス・エンカルタ）").forEach { (lv, label) ->
                 androidx.compose.material3.FilterChip(config.dictLevel == lv, { Store.update { it.copy(dictLevel = lv) } }, label = { Text(label) })
             }
         }
+        Text("エンカルタ（ひゃっか）は いつも 見られます。広辞苑・研究社 は「🔎 もっと くわしく」で。", fontSize = 12.sp, color = Color.Gray)
     }
 }

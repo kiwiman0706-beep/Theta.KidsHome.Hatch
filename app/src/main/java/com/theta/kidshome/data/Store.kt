@@ -80,6 +80,11 @@ object Store {
             update { c -> c.copy(profiles = c.profiles.map { p -> p.copy(tiles = p.tiles.map { if (it.type == TileType.EDUPAD && it.emoji == "\uD83E\uDDE0") it.copy(emoji = "🌀") else it }) }) }
             prefs.edit().putBoolean("icon:edupad", true).apply()
         }
+        // じしょ は はじめ から ぜんぶ 見せる（医学辞典 も）
+        if (!prefs.getBoolean("dict:all", false)) {
+            update { it.copy(dictLevel = 3) }
+            prefs.edit().putBoolean("dict:all", true).apply()
+        }
         if (!prefs.getBoolean("added:dict", false)) {
             if (config.profiles.none { p -> p.tiles.any { it.type == TileType.DICT } }) {
                 update { c -> c.copy(profiles = c.profiles.map { it.copy(tiles = it.tiles + AppConfig.dictTile()) }) }

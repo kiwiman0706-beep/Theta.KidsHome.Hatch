@@ -87,7 +87,7 @@ data class AppConfig(
     /** 出さない 端末カレンダー（CalendarContract の id） */
     val hiddenCalendars: Set<String> = emptySet(),
     /** じしょ：子どもに 見せる 辞書 の レベル（1 こども向け・2 もっと くわしく・3 おとな向け も） */
-    val dictLevel: Int = 2,
+    val dictLevel: Int = 3,
 ) {
     fun categoryOf(packageName: String): AppCategory? =
         appCategory[packageName]?.let { id -> categories.firstOrNull { it.id == id } }
@@ -272,7 +272,7 @@ fun appConfigFromJson(o: JSONObject): AppConfig {
         calendarUrls = o.optJSONArray("calendarUrls")?.let { a -> (0 until a.length()).map { a.getString(it) } } ?: emptyList(),
         homeStyle = o.optString("homeStyle", "room"),
         nightDim = o.optBoolean("nightDim", false),
-        dictLevel = o.optInt("dictLevel", 2),
+        dictLevel = o.optInt("dictLevel", 3),
         hiddenCalendars = o.optJSONArray("hiddenCalendars")?.let { a -> (0 until a.length()).map { a.getString(it) }.toSet() } ?: emptySet(),
     )
 }
