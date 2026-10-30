@@ -1,31 +1,49 @@
 package com.theta.kidshome.ui
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -46,185 +64,463 @@ import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.theta.kidshome.data.Events
+import com.theta.kidshome.data.Profile
+import com.theta.kidshome.data.Store
+import com.theta.kidshome.data.Tile
 import com.theta.kidshome.data.Weather
 import kotlinx.coroutines.delay
 import java.util.Calendar
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
 
-/** へや の 中の もの。押すと その きのう */
-enum class RoomThing {
-    WINDOW, CLOCK, CALENDAR, MAP, KUKU, TASU, TIMETABLE, CORK,
-    EASEL, LAPTOP, NOTEBOOK, PAD, PAPER, GLOBE, PIANO, PHONE,
-    TV, RADIO, SHELF, TOYBOX, PUZZLE,
-}
+/** 本棚の 1 だん／ショーウインドウの 1 だん。open があれば だん を押すと それを ひらく（おはなし など） */
+class Shelf(val key: String, val emoji: String, val title: String, val tiles: List<Tile>, val open: (() -> Unit)? = null)
 
 /** 部屋の絵は 1600×1000 の 目盛りで かく */
 private const val RW = 1600f
 private const val RH = 1000f
 private const val FLOOR = 700f
 
-/** 部屋に置く 1 こ ぶんの もの */
-private class Spot(val thing: RoomThing, val x: Float, val y: Float, val w: Float, val h: Float, val label: String)
+private class R(val x: Float, val y: Float, val w: Float, val h: Float)
 
-private val spots = listOf(
-    Spot(RoomThing.WINDOW, 50f, 40f, 350f, 320f, "まど"),
-    Spot(RoomThing.CLOCK, 440f, 60f, 150f, 150f, "とけい"),
-    Spot(RoomThing.CALENDAR, 625f, 45f, 170f, 215f, ""),
-    Spot(RoomThing.MAP, 830f, 60f, 200f, 165f, "ちず"),
-    Spot(RoomThing.CORK, 1065f, 35f, 340f, 260f, ""),
-    Spot(RoomThing.KUKU, 1085f, 70f, 95f, 120f, "くく"),
-    Spot(RoomThing.TASU, 1190f, 70f, 95f, 120f, "たしざん"),
-    Spot(RoomThing.TIMETABLE, 1295f, 62f, 92f, 200f, "じかんわり"),
-    Spot(RoomThing.RADIO, 1440f, 145f, 135f, 85f, "おんがく"),
-    Spot(RoomThing.SHELF, 1430f, 230f, 155f, 640f, "ほんだな"),
-    Spot(RoomThing.EASEL, 45f, 370f, 260f, 520f, "おえかき"),
-    Spot(RoomThing.LAPTOP, 335f, 448f, 150f, 118f, "タイピング"),
-    Spot(RoomThing.NOTEBOOK, 495f, 496f, 115f, 70f, "もじ"),
-    Spot(RoomThing.PAD, 618f, 462f, 92f, 104f, "くるくる"),
-    Spot(RoomThing.PAPER, 716f, 500f, 84f, 66f, "わーぷろ"),
-    Spot(RoomThing.GLOBE, 803f, 420f, 80f, 146f, "ちず"),
-    Spot(RoomThing.PIANO, 905f, 430f, 250f, 400f, "がっき"),
-    Spot(RoomThing.PHONE, 1075f, 365f, 72f, 62f, "でんわ"),
-    Spot(RoomThing.TV, 1170f, 325f, 240f, 195f, "テレビ"),
-    Spot(RoomThing.TOYBOX, 1180f, 845f, 235f, 145f, "おもちゃばこ"),
-    Spot(RoomThing.PUZZLE, 370f, 895f, 440f, 100f, "パズル"),
-)
+private val BOARD = R(40f, 40f, 700f, 450f)
+private val WINDOW = R(790f, 45f, 300f, 274f)
+private val PLATE = R(780f, 345f, 320f, 110f)
+private val SWITCH = R(1100f, 360f, 44f, 64f)
+private val SHELF = R(1160f, 35f, 410f, 910f)
+private val TV = R(80f, 515f, 360f, 292f)
+private val RADIO = R(460f, 690f, 150f, 95f)
+private val PHONE = R(1010f, 480f, 110f, 100f)
+private val TOYBOX = R(860f, 640f, 270f, 330f)
+private val MASCOT = R(650f, 720f, 200f, 230f)
+
+private enum class Slide { CLOCK, CALENDAR, TIMETABLE }
 
 /**
- * へや の ホーム（Microsoft Bob みたいに、部屋の中の ものが アプリ）。
- * まど＝てんき、とけい・カレンダー、つくえ の上に ノート・パソコン、イーゼル＝おえかき、ピアノ、テレビ、ほんだな、おもちゃばこ…
- * available に ないものは 置かない（おうちのひとが はずした きのう）。
+ * へや の ホーム：部屋に おくのは 6 つだけ（けいじばん・まど・ほんだな・テレビ・おもちゃばこ・でんわ）。
+ * 本棚 と おもちゃばこ は、押すと 小さな まど で なかみ（だん ごと）を ひらく。
  */
 @Composable
 fun RoomView(
     theme: KidTheme,
     now: Long,
-    available: Set<RoomThing>,
+    profile: Profile,
+    shelves: List<Shelf>,
+    toys: List<Shelf>,
+    calls: List<Tile>,
+    hasTv: Boolean,
     locked: Boolean,
     lockText: String?,
     tvEmoji: String,
     mascotLine: String,
     playful: Boolean,
+    updateBadge: Boolean,
     modifier: Modifier = Modifier,
+    tileView: @Composable (Tile, Int) -> Unit,
+    onGate: () -> Unit,
     onMascot: (Offset) -> Unit,
-    onThing: (RoomThing) -> Unit,
+    onBoard: (String) -> Unit,
+    onTv: () -> Unit,
+    onRadio: () -> Unit,
+    onCall: () -> Unit,
+    initialPopup: String? = null,
 ) {
     val cal = Calendar.getInstance().apply { timeInMillis = now }
     val hour = cal.get(Calendar.HOUR_OF_DAY)
     val night = hour >= 19 || hour < 6
+    var popup by remember { mutableStateOf(initialPopup) } // "shelf" / "toys"
+    var popupKey by remember { mutableStateOf(shelves.firstOrNull { it.tiles.isNotEmpty() }?.key) }
     BoxWithConstraints(modifier, contentAlignment = Alignment.Center) {
         val u = minOf(maxWidth / RW, maxHeight / RH)
         Box(Modifier.size(u * RW, u * RH).clip(RoundedCornerShape(u * 28f)).border(3.dp, theme.outline, RoundedCornerShape(u * 28f))) {
-            Canvas(Modifier.fillMaxSize()) { room(theme) }
-            spots.filter { it.thing == RoomThing.CORK || it.thing in available }.forEach { s ->
-                Thing(s, u, theme, clickable = s.thing in available, onClick = { onThing(s.thing) }) {
-                    when (s.thing) {
-                        RoomThing.WINDOW -> window(theme, hour)
-                        RoomThing.CLOCK -> clock(theme, cal)
-                        RoomThing.CALENDAR -> paper(theme, theme.titleBars[0])
-                        RoomThing.MAP -> paper(theme, theme.titleBars[1 % theme.titleBars.size])
-                        RoomThing.CORK -> cork(theme)
-                        RoomThing.KUKU, RoomThing.TASU -> card(theme, if (s.thing == RoomThing.KUKU) theme.titleBars[2 % theme.titleBars.size] else theme.titleBars[3 % theme.titleBars.size])
-                        RoomThing.TIMETABLE -> card(theme, theme.titleBars[0])
-                        RoomThing.RADIO -> radio(theme)
-                        RoomThing.SHELF -> shelf(theme)
-                        RoomThing.EASEL -> easel(theme)
-                        RoomThing.LAPTOP -> laptop(theme)
-                        RoomThing.NOTEBOOK -> notebook(theme)
-                        RoomThing.PAD -> pad(theme)
-                        RoomThing.PAPER -> papers(theme)
-                        RoomThing.GLOBE -> globe(theme)
-                        RoomThing.PIANO -> piano(theme)
-                        RoomThing.PHONE -> phone(theme)
-                        RoomThing.TV -> tv(theme)
-                        RoomThing.TOYBOX -> toybox(theme)
-                        RoomThing.PUZZLE -> puzzle(theme)
-                    }
-                }
-                // もの の 上に のせる 字
-                Overlay(s, u) {
-                    when (s.thing) {
-                        RoomThing.CALENDAR -> Column(Modifier.fillMaxSize().padding(top = u * 50f), horizontalAlignment = Alignment.CenterHorizontally) {
-                            DotText("${cal.get(Calendar.MONTH) + 1}がつ", theme, (u.value * 26).toInt(), theme.outline)
-                            DotText("${cal.get(Calendar.DAY_OF_MONTH)}", theme, (u.value * 70).toInt(), theme.outline)
-                            DotText(listOf("にち", "げつ", "か", "すい", "もく", "きん", "ど")[cal.get(Calendar.DAY_OF_WEEK) - 1] + "ようび", theme, (u.value * 20).toInt(), theme.outline)
-                        }
-                        RoomThing.MAP -> Text("🗾", fontSize = (u.value * 96).sp, modifier = Modifier.align(Alignment.Center))
-                        RoomThing.KUKU -> CardText("9×9", "くく", theme, u)
-                        RoomThing.TASU -> CardText("1+1", "たしざん", theme, u)
-                        RoomThing.TIMETABLE -> CardText("📒", "じかん\nわり", theme, u)
-                        RoomThing.NOTEBOOK -> Text("あ", fontSize = (u.value * 34).sp, color = theme.outline, modifier = Modifier.align(Alignment.Center).offset(x = u * 22f))
-                        RoomThing.TV -> Text(if (locked) "🔒" else tvEmoji, fontSize = (u.value * 64).sp, modifier = Modifier.align(Alignment.Center).offset(y = -u * 6f))
-                        RoomThing.TOYBOX -> Text("🧸⚽🪀", fontSize = (u.value * 40).sp, modifier = Modifier.align(Alignment.TopCenter).offset(y = -u * 26f))
-                        else -> {}
-                    }
+            Canvas(Modifier.fillMaxSize()) { roomBack(theme) }
+
+            // けいじばん（スライド）
+            Board(theme, now, profile, u, onBoard)
+            // まど
+            Thing(WINDOW, u, 350f, 320f, onClick = { onBoard("clock") }) { window(theme, hour) }
+            Weather.forecast?.let { f -> Tag("${Weather.emoji(f.code, f.isDay)} ${f.temp.toInt()}℃", WINDOW.x + WINDOW.w / 2, WINDOW.y + WINDOW.h - 80f, u, theme, Color.White) }
+            // なふだ（子どもの きりかえ）と でんきの スイッチ（おうちのひと）
+            NamePlate(theme, profile, u)
+            Box(Modifier.offset(u * SWITCH.x, u * SWITCH.y)) { LightSwitch(theme, u, updateBadge, onGate) }
+            // ほんだな
+            if (shelves.isNotEmpty()) Bookshelf(theme, shelves, u) { s ->
+                if (s.open != null && s.tiles.isEmpty()) s.open.invoke() else { popup = "shelf"; popupKey = s.key }
+            }
+            // テレビ・ラジオ
+            if (hasTv) Thing(TV, u, 240f, 195f, onClick = onTv) { tv(theme) }
+            if (hasTv) Overlay(TV, u) {
+                Text(if (locked) "🔒" else tvEmoji, fontSize = (u.value * 90).sp, modifier = Modifier.align(Alignment.Center).offset(y = -u * 10f))
+            }
+            if (locked && lockText != null && hasTv) Tag(lockText, TV.x + TV.w / 2, TV.y + TV.h - 12f, u, theme, theme.titleBars[0])
+            Thing(RADIO, u, 135f, 85f, onClick = onRadio) { radio(theme) }
+            // でんわ
+            if (calls.isNotEmpty()) Thing(PHONE, u, 72f, 62f, onClick = onCall) { phone(theme) }
+            // おもちゃばこ
+            if (toys.isNotEmpty()) {
+                Thing(TOYBOX, u, 270f, 330f, onClick = { popup = "toys"; popupKey = toys.first().key }) { toyChest(theme) }
+                Overlay(TOYBOX, u) {
+                    Text("🧸🪀⚽", fontSize = (u.value * 54).sp, modifier = Modifier.align(Alignment.TopCenter).offset(y = u * 92f))
                 }
             }
-            // テレビの ロック、まど の てんき
-            if (locked && lockText != null && RoomThing.TV in available) Tag(lockText, 1290f, 518f, u, theme, theme.titleBars[0])
-            Weather.forecast?.let { f -> if (RoomThing.WINDOW in available) Tag("${Weather.emoji(f.code, f.isDay)} ${f.temp.toInt()}℃", 225f, 300f, u, theme, Color.White) }
-            // マスコット（あとで ガイド役 に）
             Mascot(theme, mascotLine, u, playful, onMascot)
-            // よる は へや を すこし くらく
             if (night) Box(Modifier.fillMaxSize().background(Color(0xFF1B1F4A).copy(alpha = 0.22f)))
+
+            // 小さな まど（本棚・ショーウインドウ）
+            when (popup) {
+                "shelf" -> Popup(theme, "📚 ほんだな", u, onClose = { popup = null }) {
+                    ShelfPicker(theme, shelves, popupKey, u, onPick = { popupKey = it.key }, tileView = tileView)
+                }
+                "toys" -> Popup(theme, "🧸 おもちゃばこ", u, onClose = { popup = null }, glass = true) {
+                    Showcase(theme, toys, u, tileView)
+                }
+            }
         }
     }
 }
 
+// ---------------------------------------------------------------- へや の もの
+
 @Composable
-private fun Thing(s: Spot, u: Dp, theme: KidTheme, clickable: Boolean, onClick: () -> Unit, draw: DrawScope.() -> Unit) {
+private fun Thing(r: R, u: Dp, artW: Float, artH: Float, onClick: () -> Unit, draw: DrawScope.() -> Unit) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val focused by interaction.collectIsFocusedAsState()
-    val k by animateFloatAsState(if (pressed) 0.93f else if (focused) 1.06f else 1f, label = "press")
+    val k by animateFloatAsState(if (pressed) 0.94f else if (focused) 1.05f else 1f, label = "press")
     Box(
-        Modifier.offset(u * s.x, u * s.y).size(u * s.w, u * s.h).scale(k)
-            .then(if (clickable) Modifier.clickable(interactionSource = interaction, indication = null, onClick = onClick) else Modifier),
+        Modifier.offset(u * r.x, u * r.y).size(u * r.w, u * r.h).scale(k)
+            .clickable(interactionSource = interaction, indication = null, onClick = onClick),
     ) {
         Canvas(Modifier.fillMaxSize()) {
-            withTransform({ scale(size.width / s.w, size.height / s.h, pivot = Offset.Zero) }) { draw() }
-            if (focused) drawRoundRect(theme.accent, style = Stroke(6.dp.toPx()), cornerRadius = CornerRadius(12.dp.toPx()))
-        }
-    }
-    if (s.label.isNotEmpty() && clickable && s.thing !in setOf(RoomThing.KUKU, RoomThing.TASU, RoomThing.TIMETABLE)) {
-        // ゆか の いちばん 下の ものは 中に、ほかは 下に
-        val inside = s.thing == RoomThing.TOYBOX || s.thing == RoomThing.PUZZLE
-        val lw = maxOf(s.w, 200f)
-        Box(Modifier.offset(u * (s.x + s.w / 2 - lw / 2), u * (if (inside) s.y + s.h - 42f else s.y + s.h - 4f)).size(u * lw, u * 40f), contentAlignment = Alignment.TopCenter) {
-            Text(
-                s.label, fontFamily = DotFont, fontSize = (u.value * 19).sp, color = theme.outline, maxLines = 1, softWrap = false,
-                modifier = Modifier.clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.8f)).padding(horizontal = u * 10f),
-            )
+            withTransform({ scale(size.width / artW, size.height / artH, pivot = Offset.Zero) }) { draw() }
+            if (focused) drawRoundRect(Color(0xFFFFB300), style = Stroke(6.dp.toPx()), cornerRadius = CornerRadius(12.dp.toPx()))
         }
     }
 }
 
 @Composable
-private fun Overlay(s: Spot, u: Dp, content: @Composable androidx.compose.foundation.layout.BoxScope.() -> Unit) {
-    Box(Modifier.offset(u * s.x, u * s.y).size(u * s.w, u * s.h), content = content)
-}
-
-@Composable
-private fun androidx.compose.foundation.layout.BoxScope.CardText(big: String, small: String, theme: KidTheme, u: Dp) {
-    Column(Modifier.align(Alignment.Center).padding(top = u * 12f), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(big, fontFamily = DotFont, fontSize = (u.value * 30).sp, color = theme.outline)
-        Text(small, fontFamily = DotFont, fontSize = (u.value * 17).sp, lineHeight = (u.value * 19).sp, color = theme.outline, textAlign = TextAlign.Center)
-    }
+private fun Overlay(r: R, u: Dp, content: @Composable BoxScope.() -> Unit) {
+    Box(Modifier.offset(u * r.x, u * r.y).size(u * r.w, u * r.h), content = content)
 }
 
 @Composable
 private fun Tag(text: String, cx: Float, y: Float, u: Dp, theme: KidTheme, bg: Color) {
-    Box(Modifier.offset(u * (cx - 150f), u * y).size(u * 300f, u * 50f), contentAlignment = Alignment.TopCenter) {
+    Box(Modifier.offset(u * (cx - 160f), u * y).size(u * 320f, u * 60f), contentAlignment = Alignment.TopCenter) {
         Text(
-            text, fontFamily = DotFont, fontSize = (u.value * 22).sp, color = theme.outline,
-            modifier = Modifier.clip(RoundedCornerShape(50)).background(bg).border(2.dp, theme.outline, RoundedCornerShape(50)).padding(horizontal = u * 14f, vertical = u * 2f),
+            text, fontFamily = DotFont, fontSize = (u.value * 28).sp, color = theme.outline, maxLines = 1, softWrap = false,
+            modifier = Modifier.clip(RoundedCornerShape(50)).background(bg).border(2.dp, theme.outline, RoundedCornerShape(50)).padding(horizontal = u * 16f, vertical = u * 2f),
         )
+    }
+}
+
+@Composable
+private fun NamePlate(theme: KidTheme, profile: Profile, u: Dp) {
+    val profiles = Store.config.profiles
+    Box(Modifier.offset(u * PLATE.x, u * PLATE.y).size(u * PLATE.w, u * PLATE.h)) {
+        Canvas(Modifier.fillMaxSize()) {
+            val k = size.width / PLATE.w
+            withTransform({ scale(k, k, pivot = Offset.Zero) }) {
+                drawLine(theme.outline, Offset(60f, 0f), Offset(160f, -40f), 4f)
+                drawLine(theme.outline, Offset(260f, 0f), Offset(160f, -40f), 4f)
+                box(Color(0xFFF2D3A6), 0f, 0f, PLATE.w, PLATE.h, theme.outline, 20f)
+            }
+        }
+        Row(Modifier.fillMaxSize().padding(horizontal = u * 14f), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(profile.name, fontFamily = DotFont, fontSize = (u.value * 24).sp, color = theme.outline, maxLines = 1, softWrap = false)
+                Text("の へや", fontFamily = DotFont, fontSize = (u.value * 20).sp, color = theme.outline)
+            }
+            if (profiles.size > 1) profiles.forEach { p ->
+                val t = themeById(p.themeId)
+                val on = p.id == profile.id
+                Box(
+                    Modifier.padding(start = u * 4f).size(u * (if (on) 62f else 48f)).clip(CircleShape)
+                        .background(if (on) t.titleBars[0] else Color.White).border(2.dp, theme.outline, CircleShape)
+                        .clickable { Store.update { it.copy(currentProfileId = p.id) } },
+                    contentAlignment = Alignment.Center,
+                ) { Text(t.mascot, fontSize = (u.value * (if (on) 40 else 30)).sp) }
+            }
+        }
+    }
+}
+
+/** でんきの スイッチ：2 びょう ながおし で おうちのひと */
+@Composable
+private fun LightSwitch(theme: KidTheme, u: Dp, badge: Boolean, onTriggered: () -> Unit) {
+    var progress by remember { mutableStateOf(0f) }
+    var holding by remember { mutableStateOf(false) }
+    LaunchedEffect(holding) {
+        if (!holding) { progress = 0f; return@LaunchedEffect }
+        val start = System.currentTimeMillis()
+        while (holding) {
+            progress = ((System.currentTimeMillis() - start) / 2000f).coerceAtMost(1f)
+            if (progress >= 1f) { holding = false; onTriggered(); break }
+            delay(30)
+        }
+    }
+    Box(
+        Modifier.size(u * SWITCH.w, u * SWITCH.h).clip(RoundedCornerShape(u * 8f)).background(Color.White)
+            .border(2.dp, theme.outline, RoundedCornerShape(u * 8f))
+            .pointerInputHold { holding = it },
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(Modifier.size(u * 18f, u * 34f).clip(RoundedCornerShape(u * 5f)).background(lerp(Color(0xFFE0E0E0), theme.accent, progress)))
+        if (badge) Box(Modifier.align(Alignment.TopEnd).size(u * 14f).clip(CircleShape).background(Color(0xFFE85D75)))
+    }
+}
+
+private fun Modifier.pointerInputHold(onHold: (Boolean) -> Unit) = this.then(
+    Modifier.pointerInput(Unit) {
+        detectTapGestures(onPress = { onHold(true); tryAwaitRelease(); onHold(false) })
+    },
+)
+
+// ---------------------------------------------------------------- けいじばん
+
+@Composable
+private fun Board(theme: KidTheme, now: Long, profile: Profile, u: Dp, onOpen: (String) -> Unit) {
+    val slides = buildList { add(Slide.CLOCK); add(Slide.CALENDAR); if (profile.hasTimetable) add(Slide.TIMETABLE) }
+    var index by remember { mutableIntStateOf(0) }
+    var auto by remember { mutableIntStateOf(0) }
+    LaunchedEffect(index, auto, slides.size) {
+        delay(10_000)
+        index = (index + 1) % slides.size
+    }
+    val slide = slides[index.coerceIn(0, slides.lastIndex)]
+    Box(Modifier.offset(u * BOARD.x, u * BOARD.y).size(u * BOARD.w, u * BOARD.h)) {
+        Canvas(Modifier.fillMaxSize()) {
+            val k = size.width / BOARD.w
+            withTransform({ scale(k, k, pivot = Offset.Zero) }) { corkBoard(theme) }
+        }
+        // かみ（スライド）
+        Box(
+            Modifier.padding(start = u * 70f, end = u * 70f, top = u * 34f, bottom = u * 60f).fillMaxSize()
+                .clip(RoundedCornerShape(u * 10f)).background(Color.White).border(3.dp, theme.outline, RoundedCornerShape(u * 10f))
+                .pointerInput(slides.size) {
+                    var dx = 0f
+                    detectHorizontalDragGestures(onDragStart = { dx = 0f }, onDragEnd = {
+                        if (abs(dx) > 60) { index = (index + (if (dx < 0) 1 else -1) + slides.size) % slides.size; auto++ }
+                    }) { _, d -> dx += d }
+                }
+                .clickable { onOpen(if (slide == Slide.TIMETABLE) "timetable" else "clock") },
+        ) {
+            AnimatedContent(slide, transitionSpec = { fadeIn(tween(400)) togetherWith fadeOut(tween(400)) }, label = "slide") { s ->
+                when (s) {
+                    Slide.CLOCK -> ClockSlide(theme, now, u)
+                    Slide.CALENDAR -> CalendarSlide(theme, now, u)
+                    Slide.TIMETABLE -> TimetableSlide(theme, profile, now, u)
+                }
+            }
+            // ピン
+            Box(Modifier.align(Alignment.TopCenter).offset(y = -u * 10f).size(u * 22f).clip(CircleShape).background(Color(0xFFE85D75)).border(2.dp, theme.outline, CircleShape))
+        }
+        // ◀ ▶ と ●○○
+        listOf(-1 to Alignment.CenterStart, 1 to Alignment.CenterEnd).forEach { (d, a) ->
+            Box(
+                Modifier.align(a).padding(horizontal = u * 12f).size(u * 50f).clip(CircleShape).background(Color.White.copy(alpha = 0.85f))
+                    .border(2.dp, theme.outline, CircleShape).clickable { index = (index + d + slides.size) % slides.size; auto++ },
+                contentAlignment = Alignment.Center,
+            ) { Text(if (d < 0) "◀" else "▶", fontSize = (u.value * 22).sp, color = theme.outline) }
+        }
+        Row(Modifier.align(Alignment.BottomCenter).padding(bottom = u * 18f), horizontalArrangement = Arrangement.spacedBy(u * 12f)) {
+            slides.indices.forEach { i ->
+                Box(Modifier.size(u * 18f).clip(CircleShape).background(if (i == index) theme.outline else Color.White).border(2.dp, theme.outline, CircleShape))
+            }
+        }
+    }
+}
+
+@Composable
+private fun ClockSlide(theme: KidTheme, now: Long, u: Dp) {
+    val cal = Calendar.getInstance().apply { timeInMillis = now }
+    val f = Weather.forecast
+    Row(Modifier.fillMaxSize().padding(u * 20f), verticalAlignment = Alignment.CenterVertically) {
+        Canvas(Modifier.size(u * 240f)) {
+            val k = size.width / 150f
+            withTransform({ scale(k, k, pivot = Offset.Zero) }) { clock(theme, cal) }
+        }
+        Column(Modifier.weight(1f).padding(start = u * 24f), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("%d:%02d".format(cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE)), fontFamily = DotFont, fontSize = (u.value * 64).sp, color = theme.outline)
+            if (f != null) {
+                Text(Weather.emoji(f.code, f.isDay), fontSize = (u.value * 70).sp)
+                Text(Weather.label(f.code), fontFamily = DotFont, fontSize = (u.value * 24).sp, color = theme.outline, textAlign = TextAlign.Center)
+                Text("いま ${f.temp.toInt()}℃", fontFamily = DotFont, fontSize = (u.value * 30).sp, color = theme.outline)
+                f.days.firstOrNull()?.let { d -> Text("${d.max.toInt()}℃ / ${d.min.toInt()}℃  ☂${d.rain}%", fontFamily = DotFont, fontSize = (u.value * 22).sp, color = theme.outline.copy(alpha = 0.7f)) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CalendarSlide(theme: KidTheme, now: Long, u: Dp) {
+    val today = Calendar.getInstance().apply { timeInMillis = now }
+    val start = (today.clone() as Calendar).apply {
+        set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+        add(Calendar.DAY_OF_MONTH, -(get(Calendar.DAY_OF_WEEK) - 1))
+    }
+    val names = listOf("にち", "げつ", "か", "すい", "もく", "きん", "ど")
+    Column(Modifier.fillMaxSize().padding(u * 18f), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text("${today.get(Calendar.MONTH) + 1}がつ ${today.get(Calendar.DAY_OF_MONTH)}にち ${names[today.get(Calendar.DAY_OF_WEEK) - 1]}ようび", fontFamily = DotFont, fontSize = (u.value * 34).sp, color = theme.outline)
+        Row(Modifier.fillMaxWidth().padding(top = u * 10f), horizontalArrangement = Arrangement.SpaceEvenly) {
+            for (i in 0 until 7) {
+                val d = (start.clone() as Calendar).apply { add(Calendar.DAY_OF_MONTH, i) }
+                val isToday = d.get(Calendar.DAY_OF_YEAR) == today.get(Calendar.DAY_OF_YEAR)
+                val ev = Events.on(d.timeInMillis)
+                Column(
+                    Modifier.width(u * 66f).clip(RoundedCornerShape(u * 10f)).background(if (isToday) theme.titleBars[0] else Color.Transparent).padding(vertical = u * 4f),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(names[i], fontFamily = DotFont, fontSize = (u.value * 18).sp, color = if (i == 0) Color(0xFFE85D75) else if (i == 6) Color(0xFF3D7BE0) else theme.outline)
+                    Text("${d.get(Calendar.DAY_OF_MONTH)}", fontFamily = DotFont, fontSize = (u.value * 34).sp, color = theme.outline)
+                    Row { ev.take(3).forEach { e -> Box(Modifier.padding(u * 1f).size(u * 9f).clip(CircleShape).background(Color(e.color))) } }
+                }
+            }
+        }
+        val todayStart = (today.clone() as Calendar).apply { set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0) }.timeInMillis
+        val list = (Events.on(todayStart).map { "きょう" to it } + Events.on(todayStart + 86_400_000L).map { "あした" to it }).take(3)
+        Column(Modifier.fillMaxWidth().padding(top = u * 10f)) {
+            if (list.isEmpty()) Text("よていは ないよ", fontFamily = DotFont, fontSize = (u.value * 24).sp, color = theme.outline.copy(alpha = 0.6f), modifier = Modifier.align(Alignment.CenterHorizontally))
+            list.forEach { (day, e) ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(u * 16f).clip(CircleShape).background(Color(e.color)))
+                    Text(" $day  ${e.title}", fontFamily = DotFont, fontSize = (u.value * 24).sp, color = theme.outline, maxLines = 1)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TimetableSlide(theme: KidTheme, profile: Profile, now: Long, u: Dp) {
+    val (day, tomorrow) = timetableDay(now)
+    val list = profile.timetable.getOrNull(day).orEmpty().filter { it.isNotBlank() }
+    val bring = profile.belongings.getOrNull(day).orEmpty()
+    Column(Modifier.fillMaxSize().padding(u * 18f), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text("${if (tomorrow) "あした" else "きょう"}の じかんわり（${SchoolDays.getOrElse(day) { "" }}）", fontFamily = DotFont, fontSize = (u.value * 30).sp, color = theme.outline)
+        Row(Modifier.fillMaxWidth().padding(top = u * 12f), horizontalArrangement = Arrangement.SpaceEvenly) {
+            list.take(7).forEachIndexed { i, s ->
+                val (emoji, color) = subjectStyle(s)
+                Column(
+                    Modifier.width(u * 74f).clip(RoundedCornerShape(u * 10f)).background(color).border(2.dp, theme.outline.copy(alpha = 0.4f), RoundedCornerShape(u * 10f)).padding(vertical = u * 6f),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text("${i + 1}", fontFamily = DotFont, fontSize = (u.value * 16).sp, color = theme.outline.copy(alpha = 0.6f))
+                    Text(emoji, fontSize = (u.value * 34).sp)
+                    Text(s, fontFamily = DotFont, fontSize = (u.value * 15).sp, color = theme.outline, maxLines = 1)
+                }
+            }
+        }
+        if (bring.isNotBlank()) Text("もちもの：$bring", fontFamily = DotFont, fontSize = (u.value * 24).sp, color = theme.outline, modifier = Modifier.padding(top = u * 12f))
+    }
+}
+
+// ---------------------------------------------------------------- ほんだな
+
+@Composable
+private fun Bookshelf(theme: KidTheme, shelves: List<Shelf>, u: Dp, onShelf: (Shelf) -> Unit) {
+    val o = theme.outline
+    Box(Modifier.offset(u * SHELF.x, u * SHELF.y).size(u * SHELF.w, u * SHELF.h)) {
+        Canvas(Modifier.fillMaxSize()) {
+            val k = size.width / SHELF.w
+            withTransform({ scale(k, k, pivot = Offset.Zero) }) { box(WoodDark, 0f, 0f, SHELF.w, SHELF.h, o, 14f) }
+        }
+        Column(Modifier.fillMaxSize().padding(u * 16f), verticalArrangement = Arrangement.spacedBy(u * 10f)) {
+            shelves.forEachIndexed { i, s ->
+                val interaction = remember { MutableInteractionSource() }
+                val pressed by interaction.collectIsPressedAsState()
+                Box(
+                    Modifier.weight(1f).fillMaxWidth().scale(if (pressed) 0.95f else 1f).clip(RoundedCornerShape(u * 8f)).background(Wood)
+                        .clickable(interactionSource = interaction, indication = null) { onShelf(s) },
+                ) {
+                    // 本（なかみ の えもじ を せびょうし に）
+                    Row(Modifier.align(Alignment.BottomStart).padding(start = u * 8f, bottom = u * 8f), verticalAlignment = Alignment.Bottom) {
+                        val books = s.tiles.map { it.emoji }.ifEmpty { listOf(s.emoji) }
+                        books.take(5).forEachIndexed { j, e ->
+                            Box(
+                                Modifier.padding(end = u * 4f).size(u * 54f, u * (96f + (j % 3) * 12f)).clip(RoundedCornerShape(u * 6f))
+                                    .background(BookColors[(i * 3 + j) % BookColors.size]).border(2.dp, o, RoundedCornerShape(u * 6f)),
+                                contentAlignment = Alignment.Center,
+                            ) { Text(e, fontSize = (u.value * 30).sp) }
+                        }
+                    }
+                    // なふだ
+                    Text(
+                        "${s.emoji} ${s.title}", fontFamily = DotFont, fontSize = (u.value * 24).sp, color = o, maxLines = 1, softWrap = false,
+                        modifier = Modifier.align(Alignment.TopEnd).padding(u * 6f).clip(RoundedCornerShape(u * 8f)).background(Color.White).border(2.dp, o, RoundedCornerShape(u * 8f)).padding(horizontal = u * 10f),
+                    )
+                    Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(u * 8f).background(WoodDark))
+                }
+            }
+        }
+    }
+}
+
+private val BookColors = listOf(Color(0xFFFF8FB1), Color(0xFF6FB7FF), Color(0xFFFFD84D), Color(0xFF8BD17C), Color(0xFFB79CFF), Color(0xFFFFB067))
+
+@Composable
+private fun ShelfPicker(theme: KidTheme, shelves: List<Shelf>, key: String?, u: Dp, onPick: (Shelf) -> Unit, tileView: @Composable (Tile, Int) -> Unit) {
+    val cur = shelves.firstOrNull { it.key == key } ?: shelves.first()
+    Column(Modifier.fillMaxSize()) {
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 8.dp)) {
+            shelves.forEach { s ->
+                RetroButton("${s.emoji} ${s.title}", theme, if (s.key == cur.key) theme.titleBars[1 % theme.titleBars.size] else Color.White, fontSize = 18, modifier = Modifier.padding(end = 8.dp)) {
+                    if (s.open != null && s.tiles.isEmpty()) s.open.invoke() else onPick(s)
+                }
+            }
+        }
+        Row(Modifier.fillMaxSize().horizontalScroll(rememberScrollState()).padding(16.dp), horizontalArrangement = Arrangement.spacedBy(20.dp), verticalAlignment = Alignment.CenterVertically) {
+            cur.tiles.forEachIndexed { i, t -> Box(Modifier.width(200.dp)) { tileView(t, i) } }
+        }
+    }
+}
+
+// ---------------------------------------------------------------- おもちゃばこ（ショーウインドウ）
+
+@Composable
+private fun Showcase(theme: KidTheme, toys: List<Shelf>, u: Dp, tileView: @Composable (Tile, Int) -> Unit) {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp)) {
+        toys.forEach { s ->
+            Text(
+                "${s.emoji} ${s.title}", fontFamily = DotFont, fontSize = 20.sp, color = theme.outline,
+                modifier = Modifier.padding(top = 10.dp, bottom = 6.dp).clip(RoundedCornerShape(8.dp)).background(Color.White).border(2.dp, theme.outline, RoundedCornerShape(8.dp)).padding(horizontal = 12.dp, vertical = 2.dp),
+            )
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+                s.tiles.forEachIndexed { i, t -> Box(Modifier.width(180.dp)) { tileView(t, i) } }
+            }
+            // ガラスの たな
+            Box(Modifier.fillMaxWidth().padding(top = 6.dp).height(14.dp).clip(RoundedCornerShape(4.dp)).background(WoodDark).border(2.dp, theme.outline, RoundedCornerShape(4.dp)))
+        }
+    }
+}
+
+@Composable
+private fun Popup(theme: KidTheme, title: String, u: Dp, onClose: () -> Unit, glass: Boolean = false, content: @Composable () -> Unit) {
+    Box(
+        Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.28f)).pointerInput(Unit) { detectTapGestures { onClose() } },
+        contentAlignment = Alignment.Center,
+    ) {
+        RetroWindow(
+            theme, Modifier.size(u * 1250f, u * 820f).pointerInput(Unit) { detectTapGestures { } },
+            title = title, titleColor = theme.titleBars[0],
+            body = if (glass) Color(0xFFEAF6FF) else Color(0xFFFFFDFE),
+        ) {
+            Box(Modifier.fillMaxSize()) {
+                if (glass) Canvas(Modifier.fillMaxSize()) {
+                    // ガラスの ひかり
+                    for (i in 0 until 3) drawLine(Color.White.copy(alpha = 0.7f), Offset(size.width * (0.1f + i * 0.08f), 0f), Offset(size.width * (0.0f + i * 0.08f), size.height * 0.4f), 14f)
+                }
+                content()
+                Box(Modifier.align(Alignment.TopEnd).padding(8.dp)) { RetroIconButton("✖️", theme, size = 52.dp, onClick = onClose) }
+            }
+        }
     }
 }
 
@@ -234,30 +530,78 @@ private fun Mascot(theme: KidTheme, line: String, u: Dp, playful: Boolean, onTap
     val bob by idle.animateFloat(0f, -10f, infiniteRepeatable(tween(900), RepeatMode.Reverse), label = "bob")
     var shown by remember(line) { mutableStateOf(true) }
     LaunchedEffect(line) { delay(9000); shown = false }
-    val x = 730f; val y = 790f
-    // かげ
-    Box(Modifier.offset(u * (x + 40f), u * (y + 200f)).size(u * 120f, u * 22f).clip(RoundedCornerShape(50)).background(Color.Black.copy(alpha = 0.12f)))
+    val x = MASCOT.x; val y = MASCOT.y
+    Box(Modifier.offset(u * (x + 40f), u * (y + 214f)).size(u * 120f, u * 22f).clip(RoundedCornerShape(50)).background(Color.Black.copy(alpha = 0.12f)))
     var center by remember { mutableStateOf(Offset.Zero) }
     Box(
-        Modifier.offset(u * x, u * (y + (if (playful) bob else 0f))).size(u * 200f, u * 210f)
+        Modifier.offset(u * x, u * (y + (if (playful) bob else 0f))).size(u * MASCOT.w, u * MASCOT.h)
             .onGloballyPositioned { center = it.boundsInRoot().center }
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
                 shown = true
                 onTap(center)
             },
         contentAlignment = Alignment.BottomCenter,
-    ) { Text(theme.mascot, fontSize = (u.value * 130).sp, maxLines = 1, softWrap = false) }
+    ) { Text(theme.mascot, fontSize = (u.value * 140).sp, maxLines = 1, softWrap = false) }
     if (shown && line.isNotBlank()) {
-        Box(Modifier.offset(u * (x - 40f), u * (y - 120f)).size(u * 330f, u * 110f), contentAlignment = Alignment.BottomCenter) {
+        Box(Modifier.offset(u * (x - 80f), u * (y - 110f)).size(u * 360f, u * 110f), contentAlignment = Alignment.BottomCenter) {
             Box(
                 Modifier.wrapContentSize().clip(RoundedCornerShape(u * 22f)).background(theme.bubbles[0])
                     .border(2.5.dp, theme.outline, RoundedCornerShape(u * 22f)).padding(horizontal = u * 18f, vertical = u * 8f),
-            ) { Text(line, fontFamily = DotFont, fontSize = (u.value * 24).sp, color = theme.outline, textAlign = TextAlign.Center) }
+            ) { Text(line, fontFamily = DotFont, fontSize = (u.value * 28).sp, color = theme.outline, textAlign = TextAlign.Center) }
         }
     }
 }
 
-// ---------------------------------------------------------------- え（目盛りは その もの の 中の 座標）
+// ---------------------------------------------------------------- へや の え
+
+private fun DrawScope.roomBack(t: KidTheme) {
+    val k = size.width / RW
+    withTransform({ scale(k, k, pivot = Offset.Zero) }) {
+        drawRect(t.bgTop, size = Size(RW, FLOOR))
+        for (x in 0..32) for (y in 0..14) {
+            if ((x + y) % 2 == 0) drawCircle(t.grid.copy(alpha = 0.55f), 5f, Offset(x * 50f + 25f, y * 50f + 25f))
+        }
+        drawRect(Wood, Offset(0f, FLOOR), Size(RW, RH - FLOOR))
+        for (i in 0..6) drawLine(WoodDark.copy(alpha = 0.55f), Offset(0f, FLOOR + 30f + i * 48f), Offset(RW, FLOOR + 30f + i * 48f), 3f)
+        for (i in 0..20) {
+            val row = i % 6
+            drawLine(WoodDark.copy(alpha = 0.4f), Offset((i * 173f + row * 61f) % RW, FLOOR + 30f + row * 48f), Offset((i * 173f + row * 61f) % RW, FLOOR + 78f + row * 48f), 3f)
+        }
+        drawRect(Color.White, Offset(0f, FLOOR - 16f), Size(RW, 22f))
+        drawLine(t.outline, Offset(0f, FLOOR - 16f), Offset(RW, FLOOR - 16f), 4f)
+        drawLine(t.outline, Offset(0f, FLOOR + 6f), Offset(RW, FLOOR + 6f), 4f)
+        val o = t.outline
+        // テレビ台
+        box(WoodDark, 40f, 790f, 600f, 170f, o, 12f)
+        box(Wood, 56f, 812f, 280f, 130f, o, 8f)
+        box(Wood, 344f, 812f, 280f, 130f, o, 8f)
+        dot(o, 320f, 877f, 7f); dot(o, 360f, 877f, 7f)
+        // ラグ
+        drawOval(lerp(t.titleBars[0], Color.White, 0.3f), Offset(600f, 900f), Size(560f, 90f))
+        drawOval(o, Offset(600f, 900f), Size(560f, 90f), style = Stroke(5f))
+        // でんわ の たな
+        box(Wood, PHONE.x - 10f, PHONE.y + PHONE.h - 6f, PHONE.w + 20f, 18f, o, 6f)
+    }
+}
+
+private fun DrawScope.corkBoard(t: KidTheme) {
+    box(WoodDark, 0f, 0f, BOARD.w, BOARD.h, t.outline, 16f)
+    drawRoundRect(Color(0xFFE6BC86), Offset(16f, 16f), Size(BOARD.w - 32f, BOARD.h - 32f), CornerRadius(8f))
+    for (i in 0 until 140) drawCircle(Color(0xFFCF9F66), 3f, Offset(24f + (i * 53f) % (BOARD.w - 48f), 24f + (i * 31f) % (BOARD.h - 48f)))
+}
+
+/** ふた の あいた おもちゃばこ（270×330） */
+private fun DrawScope.toyChest(t: KidTheme) {
+    val o = t.outline
+    val c = t.titleBars[2 % t.titleBars.size]
+    // ふた（うしろに ひらいている）
+    val lid = Path().apply { moveTo(20f, 160f); lineTo(40f, 40f); lineTo(250f, 40f); lineTo(250f, 160f); close() }
+    drawPath(lid, lerp(c, Color.Black, 0.1f)); drawPath(lid, o, style = Stroke(5f))
+    box(c, 0f, 150f, 270f, 175f, o, 14f)
+    drawRoundRect(Color.White.copy(alpha = 0.5f), Offset(24f, 190f), Size(222f, 14f), CornerRadius(7f))
+    listOf(60f, 135f, 210f).forEach { dot(Color(0xFFFFD84D), it, 268f, 16f, o, 3f) }
+}
+
 
 private val Wood = Color(0xFFF2D3A6)
 private val WoodDark = Color(0xFFD9A46B)
@@ -272,43 +616,6 @@ private fun DrawScope.dot(c: Color, x: Float, y: Float, r: Float, line: Color? =
     if (line != null) drawCircle(line, r, Offset(x, y), style = Stroke(sw))
 }
 
-private fun DrawScope.room(t: KidTheme) {
-    val k = size.width / RW
-    withTransform({ scale(k, k, pivot = Offset.Zero) }) {
-        // かべ（もようつき）
-        drawRect(t.bgTop, size = Size(RW, FLOOR))
-        for (x in 0..32) for (y in 0..14) {
-            if ((x + y) % 2 == 0) drawCircle(t.grid.copy(alpha = 0.55f), 5f, Offset(x * 50f + 25f, y * 50f + 25f))
-        }
-        // ゆか（いた）
-        drawRect(Wood, Offset(0f, FLOOR), Size(RW, RH - FLOOR))
-        for (i in 0..6) drawLine(WoodDark.copy(alpha = 0.55f), Offset(0f, FLOOR + 30f + i * 48f), Offset(RW, FLOOR + 30f + i * 48f), 3f)
-        for (i in 0..20) {
-            val row = i % 6
-            drawLine(WoodDark.copy(alpha = 0.4f), Offset((i * 173f + row * 61f) % RW, FLOOR + 30f + row * 48f), Offset((i * 173f + row * 61f) % RW, FLOOR + 78f + row * 48f), 3f)
-        }
-        // はばき
-        drawRect(Color.White, Offset(0f, FLOOR - 16f), Size(RW, 22f))
-        drawLine(t.outline, Offset(0f, FLOOR - 16f), Offset(RW, FLOOR - 16f), 4f)
-        drawLine(t.outline, Offset(0f, FLOOR + 6f), Offset(RW, FLOOR + 6f), 4f)
-        // つくえ（もの は 上に のる）
-        val o = t.outline
-        box(Wood, 315f, 562f, 580f, 44f, o, 10f)
-        box(lerp(Wood, Color.White, 0.25f), 330f, 606f, 230f, 130f, o, 8f)
-        dot(o, 445f, 671f, 7f)
-        box(Wood, 330f, 736f, 30f, 150f, o, 6f)
-        box(Wood, 850f, 606f, 30f, 280f, o, 6f)
-        // テレビ台
-        box(WoodDark, 1158f, 520f, 264f, 340f, o, 12f)
-        box(Wood, 1172f, 560f, 114f, 280f, o, 8f)
-        box(Wood, 1294f, 560f, 114f, 280f, o, 8f)
-        dot(o, 1272f, 700f, 6f); dot(o, 1308f, 700f, 6f)
-        // ラグ
-        drawOval(lerp(t.titleBars[0], Color.White, 0.3f), Offset(360f, 885f), Size(460f, 112f))
-        drawOval(o, Offset(360f, 885f), Size(460f, 112f), style = Stroke(5f))
-        drawOval(Color.White.copy(alpha = 0.5f), Offset(390f, 900f), Size(400f, 82f), style = Stroke(4f))
-    }
-}
 
 private fun DrawScope.window(t: KidTheme, hour: Int) {
     val o = t.outline
@@ -380,25 +687,8 @@ private fun DrawScope.clock(t: KidTheme, cal: Calendar) {
     dot(o, 75f, 75f, 6f)
 }
 
-private fun DrawScope.paper(t: KidTheme, top: Color) {
-    val w = size.width; val h = size.height
-    box(Color.White, 6f, 14f, w - 12f, h - 20f, t.outline, 8f)
-    drawRect(top, Offset(8f, 16f), Size(w - 16f, 30f))
-    drawLine(t.outline, Offset(8f, 46f), Offset(w - 8f, 46f), 4f)
-    dot(Color(0xFFE85D75), w / 2, 14f, 8f, t.outline, 3f)
-}
 
-private fun DrawScope.cork(t: KidTheme) {
-    box(WoodDark, 0f, 0f, 340f, 260f, t.outline, 12f)
-    drawRoundRect(Color(0xFFE6BC86), Offset(14f, 14f), Size(312f, 232f), CornerRadius(6f))
-    for (i in 0 until 90) dot(Color(0xFFCF9F66), 20f + (i * 53f) % 300f, 20f + (i * 31f) % 220f, 3f)
-}
 
-private fun DrawScope.card(t: KidTheme, c: Color) {
-    val w = size.width; val h = size.height
-    box(lerp(c, Color.White, 0.35f), 3f, 8f, w - 6f, h - 12f, t.outline, 8f)
-    dot(Color(0xFF5FA8FF), w / 2, 10f, 7f, t.outline, 3f)
-}
 
 private fun DrawScope.radio(t: KidTheme) {
     val o = t.outline
@@ -409,103 +699,13 @@ private fun DrawScope.radio(t: KidTheme) {
     dot(o, 82f, 64f, 5f); dot(o, 104f, 64f, 5f)
 }
 
-private fun DrawScope.shelf(t: KidTheme) {
-    val o = t.outline
-    box(WoodDark, 0f, 0f, 155f, 640f, o, 10f)
-    val shelves = listOf(20f, 170f, 320f, 470f)
-    val cols = listOf(Color(0xFFFF8FB1), Color(0xFF6FB7FF), Color(0xFFFFD84D), Color(0xFF8BD17C), Color(0xFFB79CFF), Color(0xFFFFB067))
-    shelves.forEachIndexed { si, sy ->
-        drawRect(Wood, Offset(12f, sy), Size(131f, 140f))
-        var x = 16f
-        var i = si
-        while (x < 130f) {
-            val bw = 16f + (i * 7 % 3) * 5f
-            val bh = 100f + (i * 13 % 4) * 10f
-            if (x + bw > 140f) break
-            box(cols[i % cols.size], x, sy + 140f - bh, bw, bh, o, 4f, 3f)
-            x += bw + 2f; i++
-        }
-        drawLine(o, Offset(10f, sy + 140f), Offset(145f, sy + 140f), 5f)
-    }
-}
 
-private fun DrawScope.easel(t: KidTheme) {
-    val o = t.outline
-    drawLine(WoodDark, Offset(130f, 10f), Offset(130f, 500f), 14f)
-    drawLine(WoodDark, Offset(120f, 60f), Offset(30f, 510f), 14f)
-    drawLine(WoodDark, Offset(140f, 60f), Offset(230f, 510f), 14f)
-    box(Color.White, 20f, 40f, 220f, 230f, o, 8f)
-    // え
-    listOf(Color(0xFFFF8FB1), Color(0xFFFFD84D), Color(0xFF8BD17C), Color(0xFF6FB7FF)).forEachIndexed { i, c ->
-        drawArc(c, 180f, 180f, false, Offset(50f + i * 16f, 110f + i * 16f), Size(160f - i * 32f, 160f - i * 32f), style = Stroke(14f))
-    }
-    dot(Color(0xFFFFD84D), 195f, 85f, 18f)
-    drawLine(o, Offset(30f, 230f), Offset(230f, 230f), 4f)
-    box(Wood, 10f, 270f, 240f, 22f, o, 6f)
-    // パレット
-    drawOval(Color(0xFFF7E3C4), Offset(60f, 330f), Size(150f, 90f))
-    drawOval(o, Offset(60f, 330f), Size(150f, 90f), style = Stroke(4f))
-    listOf(Color(0xFFE85D75), Color(0xFF3D7BE0), Color(0xFFFFD84D), Color(0xFF2E9E5B)).forEachIndexed { i, c -> dot(c, 90f + i * 28f, 360f + (i % 2) * 22f, 10f) }
-}
 
-private fun DrawScope.laptop(t: KidTheme) {
-    val o = t.outline
-    box(Color(0xFFE9EEF5), 18f, 6f, 114f, 80f, o, 8f)
-    drawRoundRect(Color(0xFF9ED7FF), Offset(28f, 15f), Size(94f, 60f), CornerRadius(4f))
-    for (i in 0 until 3) drawLine(Color.White, Offset(40f, 30f + i * 15f), Offset(80f + i * 10f, 30f + i * 15f), 5f)
-    val p = Path().apply { moveTo(10f, 88f); lineTo(140f, 88f); lineTo(150f, 112f); lineTo(0f, 112f); close() }
-    drawPath(p, Color(0xFFD5DCE6)); drawPath(p, o, style = Stroke(4f))
-    for (r in 0 until 2) for (c in 0 until 8) drawRect(o.copy(alpha = 0.35f), Offset(20f + c * 14f, 93f + r * 8f), Size(10f, 5f))
-}
 
-private fun DrawScope.notebook(t: KidTheme) {
-    val o = t.outline
-    box(Color.White, 4f, 6f, 54f, 60f, o, 4f)
-    box(Color.White, 56f, 6f, 54f, 60f, o, 4f)
-    for (i in 0 until 4) drawLine(Color(0xFFBFD7F5), Offset(10f, 18f + i * 12f), Offset(52f, 18f + i * 12f), 2f)
-    drawLine(Color(0xFFE85D75), Offset(100f, 2f), Offset(76f, 54f), 7f)
-}
 
-private fun DrawScope.pad(t: KidTheme) {
-    val o = t.outline
-    box(Color(0xFF4A4F63), 8f, 4f, 76f, 92f, o, 10f)
-    drawRoundRect(Color.White, Offset(16f, 12f), Size(60f, 70f), CornerRadius(4f))
-    drawArc(t.accent, 0f, 300f, false, Offset(26f, 22f), Size(40f, 40f), style = Stroke(6f))
-    drawArc(Color(0xFF6FB7FF), 90f, 250f, false, Offset(36f, 32f), Size(20f, 20f), style = Stroke(5f))
-}
 
-private fun DrawScope.papers(t: KidTheme) {
-    val o = t.outline
-    box(Color(0xFFF6F2EA), 12f, 10f, 64f, 52f, o, 4f)
-    box(Color.White, 4f, 4f, 64f, 52f, o, 4f)
-    for (i in 0 until 3) drawLine(o.copy(alpha = 0.4f), Offset(12f, 18f + i * 11f), Offset(56f, 18f + i * 11f), 3f)
-    drawLine(Color(0xFFFFC94D), Offset(50f, 60f), Offset(82f, 30f), 8f)
-}
 
-private fun DrawScope.globe(t: KidTheme) {
-    val o = t.outline
-    drawArc(WoodDark, 200f, 140f, false, Offset(4f, 6f), Size(72f, 92f), style = Stroke(5f))
-    dot(Color(0xFF6FB7FF), 40f, 52f, 32f, o, 4f)
-    drawOval(Color(0xFF8BD17C), Offset(24f, 32f), Size(22f, 16f))
-    drawOval(Color(0xFF8BD17C), Offset(44f, 56f), Size(18f, 22f))
-    drawLine(o, Offset(40f, 86f), Offset(40f, 120f), 6f)
-    box(WoodDark, 14f, 118f, 52f, 22f, o, 8f)
-}
 
-private fun DrawScope.piano(t: KidTheme) {
-    val o = t.outline
-    val body = t.titleBars[1 % t.titleBars.size]
-    box(body, 0f, 0f, 250f, 330f, o, 14f)
-    box(Color.White, 60f, 22f, 130f, 80f, o, 6f)
-    for (i in 0 until 3) drawLine(o.copy(alpha = 0.5f), Offset(70f, 40f + i * 18f), Offset(180f, 40f + i * 18f), 2f)
-    dot(o, 100f, 58f, 7f); dot(o, 140f, 76f, 7f)
-    box(Color.White, 10f, 150f, 230f, 60f, o, 4f)
-    for (i in 1 until 10) drawLine(o, Offset(10f + i * 23f, 150f), Offset(10f + i * 23f, 210f), 2f)
-    listOf(1, 2, 4, 5, 6, 8, 9).forEach { i -> drawRect(o, Offset(10f + i * 23f - 7f, 150f), Size(14f, 34f)) }
-    box(lerp(body, Color.Black, 0.12f), 0f, 210f, 250f, 26f, o, 6f)
-    box(body, 18f, 236f, 26f, 160f, o, 6f)
-    box(body, 206f, 236f, 26f, 160f, o, 6f)
-}
 
 private fun DrawScope.phone(t: KidTheme) {
     val o = t.outline
@@ -531,14 +731,3 @@ private fun DrawScope.toybox(t: KidTheme) {
     listOf(50f, 117f, 185f).forEach { dot(Color(0xFFFFD84D), it, 105f, 12f, o, 3f) }
 }
 
-private fun DrawScope.puzzle(t: KidTheme) {
-    val o = t.outline
-    val cols = listOf(Color(0xFFFF8FB1), Color(0xFF6FB7FF), Color(0xFFFFD84D), Color(0xFF8BD17C))
-    listOf(Triple(90f, 30f, -12f), Triple(170f, 40f, 8f), Triple(250f, 26f, 20f), Triple(320f, 44f, -6f)).forEachIndexed { i, (x, y, r) ->
-        rotate(r, Offset(x + 25f, y + 25f)) {
-            box(cols[i], x, y, 50f, 50f, o, 6f, 4f)
-            dot(cols[i], x + 50f, y + 25f, 10f, o, 4f)
-            drawRect(cols[i], Offset(x + 44f, y + 17f), Size(6f, 16f))
-        }
-    }
-}

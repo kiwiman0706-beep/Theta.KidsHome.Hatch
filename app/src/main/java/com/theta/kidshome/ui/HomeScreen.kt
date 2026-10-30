@@ -192,27 +192,20 @@ fun HomeScreen(
         profile.tiles.filter { it.type == TileType.APP && it.isVideo }.let { if (it.isNotEmpty()) listOf("room:tvapps") else emptyList() }
     val tvApps = profile.tiles.filter { it.type == TileType.APP && it.isVideo }
     val roomTabs = allTabs + listOfNotNull(tvApps.takeIf { it.isNotEmpty() }?.let { KidTab("room:tvapps", TabKind.CATEGORY, "📺", "どうがアプリ", tiles = it) })
-    val toyKeys = listOfNotNull("room:apps".takeIf { appTiles.isNotEmpty() }) + tabs.filter { it.kind == TabKind.CATEGORY }.map { it.key }
-    fun has(type: TileType) = profile.tiles.any { it.type == type }
-    val roomThings = buildSet {
-        add(RoomThing.WINDOW); add(RoomThing.CLOCK); add(RoomThing.CALENDAR); add(RoomThing.RADIO)
-        if (has(TileType.MAP)) { add(RoomThing.MAP); add(RoomThing.GLOBE) }
-        if (has(TileType.KUKU)) add(RoomThing.KUKU)
-        if (has(TileType.TASU)) add(RoomThing.TASU)
-        if (profile.hasTimetable) add(RoomThing.TIMETABLE)
-        if (config.widgetIds.isNotEmpty()) add(RoomThing.CORK)
-        if (has(TileType.DRAWING)) add(RoomThing.EASEL)
-        if (has(TileType.TYPING)) add(RoomThing.LAPTOP)
-        if (has(TileType.MOJI)) add(RoomThing.NOTEBOOK)
-        if (has(TileType.EDUPAD)) add(RoomThing.PAD)
-        if (has(TileType.WORDPRO)) add(RoomThing.PAPER)
-        if (has(TileType.INSTRUMENT)) add(RoomThing.PIANO)
-        if (callTiles.isNotEmpty()) add(RoomThing.PHONE)
-        if (tvKeys.isNotEmpty()) add(RoomThing.TV)
-        if (tabs.any { it.kind == TabKind.BOOKS }) add(RoomThing.SHELF)
-        if (toyKeys.isNotEmpty()) add(RoomThing.TOYBOX)
-        if (has(TileType.PUZZLE)) add(RoomThing.PUZZLE)
-    }
+    fun open(keys: List<String>) { if (keys.isNotEmpty()) { overlay = keys; overlayKey = keys.first() } }
+    fun builtins(vararg types: TileType) = types.mapNotNull { t -> profile.tiles.firstOrNull { it.type == t } }
+    // ほんだな：1 だん ＝ 1 つの なかま（なかみ が ないものは おかない）
+    val shelves = listOfNotNull(
+        Shelf("book", "🎧", "おはなし", emptyList()) { open(listOf("local:book")) }.takeIf { tabs.any { it.key == "local:book" } },
+        Shelf("math", "🔢", "さんすう", builtins(TileType.KUKU, TileType.TASU, TileType.EDUPAD)),
+        Shelf("lang", "✏️", "こくご", builtins(TileType.MOJI, TileType.TYPING, TileType.WORDPRO)),
+        Shelf("look", "🔍", "しらべる", builtins(TileType.MAP)),
+    ).filter { it.open != null || it.tiles.isNotEmpty() }
+    // おもちゃばこ：あそぶ もの と、仕分けた アプリ
+    val toys = listOf(Shelf("play", "🎨", "あそぶ", builtins(TileType.DRAWING, TileType.INSTRUMENT, TileType.PUZZLE))) +
+        listOfNotNull(appTiles.takeIf { it.isNotEmpty() }?.let { Shelf("apps", "📱", "アプリ", it) }) +
+        tabs.filter { it.kind == TabKind.CATEGORY }.map { Shelf(it.key, it.emoji, it.label, it.tiles) }
+    val toyShelves = toys.filter { it.tiles.isNotEmpty() }
 
     val onTile: (Tile) -> Unit = { tile ->
         when {
@@ -231,30 +224,6 @@ fun HomeScreen(
         }
     }
 
-    fun open(keys: List<String>) { if (keys.isNotEmpty()) { overlay = keys; overlayKey = keys.first() } }
-    fun builtin(type: TileType) { profile.tiles.firstOrNull { it.type == type }?.let(onTile) }
-    fun openThing(t: RoomThing) {
-        when (t) {
-            RoomThing.WINDOW, RoomThing.CLOCK, RoomThing.CALENDAR -> open(listOf("clock"))
-            RoomThing.TIMETABLE -> open(listOf("timetable"))
-            RoomThing.CORK -> open(listOf("widgets"))
-            RoomThing.MAP, RoomThing.GLOBE -> builtin(TileType.MAP)
-            RoomThing.KUKU -> builtin(TileType.KUKU)
-            RoomThing.TASU -> builtin(TileType.TASU)
-            RoomThing.EASEL -> builtin(TileType.DRAWING)
-            RoomThing.LAPTOP -> builtin(TileType.TYPING)
-            RoomThing.NOTEBOOK -> builtin(TileType.MOJI)
-            RoomThing.PAD -> builtin(TileType.EDUPAD)
-            RoomThing.PAPER -> builtin(TileType.WORDPRO)
-            RoomThing.PIANO -> builtin(TileType.INSTRUMENT)
-            RoomThing.PUZZLE -> builtin(TileType.PUZZLE)
-            RoomThing.PHONE -> if (callTiles.size == 1) onTile(callTiles[0]) else open(listOf("room:calls"))
-            RoomThing.TV -> if (locked) showLockedDialog = true else open(tvKeys)
-            RoomThing.RADIO -> open(listOfNotNull("local:music".takeIf { k -> tabs.any { it.key == k } }) + "room:music")
-            RoomThing.SHELF -> open(listOf("local:book"))
-            RoomThing.TOYBOX -> open(toyKeys)
-        }
-    }
     val tabContent: @Composable (KidTab) -> Unit = { t ->
         when (t.kind) {
             TabKind.HOME -> {}
@@ -284,20 +253,27 @@ fun HomeScreen(
                 .windowInsetsPadding(WindowInsets.safeDrawing)
                 .padding(start = 20.dp, top = 12.dp, bottom = 12.dp)
         ) {
-            Header(config, theme, now, updateBadge = SelfUpdate.state.newer, onGate = { showGate = true })
-            VSpace(14)
+            if (!room) {
+                Header(config, theme, now, updateBadge = SelfUpdate.state.newer, onGate = { showGate = true })
+                VSpace(14)
+            }
             if (room) {
                 RoomView(
-                    theme, now, roomThings, locked,
+                    theme, now, profile, shelves, toyShelves, callTiles, hasTv = tvKeys.isNotEmpty(), locked = locked,
                     lockText = if (locked) "🔒 あと ${remainingText(config.videoLockUntil, now)}" else null,
                     tvEmoji = tabs.firstOrNull { it.kind == TabKind.VIDEO }?.emoji ?: "📺",
-                    mascotLine = mascotLine, playful = playful,
+                    mascotLine = mascotLine, playful = playful, updateBadge = SelfUpdate.state.newer,
                     modifier = Modifier.weight(1f).fillMaxWidth().padding(end = 20.dp),
+                    tileView = { t, i -> TileWindow(t, theme, i, locked && t.isVideo) { onTile(t) } },
+                    onGate = { showGate = true },
                     onMascot = { at ->
                         mascotLine = (theme.lines + "${profile.name}、だいすき！").random()
                         burst(at, listOf("💗", "💖", "✨"))
                     },
-                    onThing = ::openThing,
+                    onBoard = { k -> open(listOf(k)) },
+                    onTv = { if (locked) showLockedDialog = true else open(tvKeys) },
+                    onRadio = { open(listOfNotNull("local:music".takeIf { k -> tabs.any { it.key == k } }) + "room:music") },
+                    onCall = { if (callTiles.size == 1) onTile(callTiles[0]) else open(listOf("room:calls")) },
                 )
             } else Row(Modifier.weight(1f)) {
                 Box(Modifier.weight(1f).fillMaxHeight()) {
@@ -319,7 +295,7 @@ fun HomeScreen(
                 Box(
                     Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.25f))
                         .pointerInput(Unit) { detectTapGestures { overlay = null } }
-                        .windowInsetsPadding(WindowInsets.safeDrawing).padding(28.dp),
+                        .windowInsetsPadding(WindowInsets.safeDrawing).padding(horizontal = maxWidth * 0.1f, vertical = maxHeight * 0.08f),
                 ) {
                     RetroWindow(
                         theme, Modifier.fillMaxSize().pointerInput(Unit) { detectTapGestures { } },
