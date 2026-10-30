@@ -50,6 +50,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
@@ -70,6 +71,7 @@ private class GuideBridge(private val tapped: () -> Unit, private val readied: (
     @JavascriptInterface fun onReady(json: String) { main.post { readied(json) } }
     @JavascriptInterface fun onError(msg: String) { main.post { failed(msg) } }
     @JavascriptInterface fun onStage(stage: String) { main.post { GuidePack.stage(stage) } }
+    @JavascriptInterface fun onInfo(info: String) { main.post { GuidePack.viewInfo = info } }
 }
 
 /**
@@ -88,7 +90,7 @@ fun GuideView(
     val context = LocalContext.current
     val m = GuidePack.manifest ?: return
     val parts = remember(profileId, GuidePack.outfitVersion) { GuidePack.outfit(context, profileId) }
-    val web = remember(m, view) {
+    val web = remember(m, view, GuidePack.paintBg) {
         val loader = WebViewAssetLoader.Builder()
             .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(context))
             .addPathHandler("/pack/", WebViewAssetLoader.InternalStoragePathHandler(context, File(context.filesDir, "packs")))
@@ -128,7 +130,8 @@ fun GuideView(
                 onReady(runCatching { JSONObject(j).getJSONArray("parts").let { a -> (0 until a.length()).map { a.getString(it) } } }.getOrDefault(emptyList()))
             }, { e -> GuidePack.reportError(e) }), "KidsHomeGuide")
             val p = android.net.Uri.encode(JSONArray(parts).toString())
-            loadUrl("https://appassets.androidplatform.net/assets/guide/guide.html?pack=${GuidePack.packPath}&view=$view&parts=$p")
+            val bg = if (GuidePack.paintBg) "&bg=" + "%06x".format(0xFFFFFF and themeById(com.theta.kidshome.data.Store.config.currentProfile.themeId).bgTop.toArgb()) else ""
+            loadUrl("https://appassets.androidplatform.net/assets/guide/guide.html?pack=${GuidePack.packPath}&view=$view&parts=$p$bg")
         }
     }
     LaunchedEffect(parts) { web.evaluateJavascript("window.KH && KH.setParts(${JSONArray(parts)})", null) }
@@ -227,6 +230,11 @@ fun GuideSection() {
             if (m != null && !GuidePack.builtin) TextButton(onClick = { GuidePack.remove(context) }) { Text("はずして デフォルトに もどす", color = Color(0xFFD03B5C)) }
         }
         GuidePack.viewStatus?.let { Text("3D の ようす：$it", fontSize = 13.sp, color = Color(0xFFD03B5C)) }
+        if (GuidePack.viewReady) Text("3D の ようす：うごいています（${GuidePack.viewInfo ?: "…"}）", fontSize = 13.sp, color = Color.Gray)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("3D の まわり を ぬる（へや で ガイド が 見えない ときに ためす）", fontSize = 14.sp, modifier = Modifier.weight(1f))
+            androidx.compose.material3.Switch(GuidePack.paintBg, { GuidePack.setPaintBg(context, it) })
+        }
         Text("新しい版 は 1 日 1 かい たしかめます。パック の 作りかた は 非公開リポジトリ の README に あります。", fontSize = 12.sp, color = Color.Gray)
     }
     parts?.let { list ->

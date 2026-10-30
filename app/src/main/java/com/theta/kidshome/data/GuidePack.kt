@@ -52,6 +52,12 @@ object GuidePack {
     /** 3D の ひょうじ の ようす："よみこみ中" / null（うごいている）/ エラー の なかみ */
     var viewStatus by mutableStateOf<String?>(null)
     var viewReady by mutableStateOf(false)
+    /** うごいている ときの ようす（大きさ・WebGL・コマ数） */
+    var viewInfo by mutableStateOf<String?>(null)
+    /** とうめい で 出ない 端末 むけ：3D の まわり を へや の 色 で ぬる */
+    var paintBg by mutableStateOf(false)
+        private set
+    fun setPaintBg(c: Context, on: Boolean) { prefs(c).edit().putBoolean("paintBg", on).apply(); paintBg = on }
 
     /** どこまで すすんだか（エラー が なければ 出す） */
     fun stage(s: String) {
@@ -90,6 +96,7 @@ object GuidePack {
 
     fun init(c: Context) {
         enabled = prefs(c).getBoolean("enabled", true)
+        paintBg = prefs(c).getBoolean("paintBg", false)
         load(c)
     }
 

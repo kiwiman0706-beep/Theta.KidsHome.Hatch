@@ -22,7 +22,9 @@ window.addEventListener('unhandledrejection', (e) => bridge.onError(String(e.rea
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setClearColor(0x000000, 0);
+const bg = params.get('bg'); // 「はいけい を ぬる」とき（とうめい が うまく 出ない 端末 むけ）
+if (bg) { renderer.setClearColor(new THREE.Color('#' + bg), 1); document.documentElement.style.background = document.body.style.background = '#' + bg; }
+else renderer.setClearColor(0x000000, 0);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.appendChild(renderer.domElement);
 
@@ -58,6 +60,24 @@ function frame() {
   camera.position.set(center.x, cy, center.z + dist);
   camera.lookAt(center.x, cy, center.z);
 }
+
+/** いまの 大きさ に あわせる（高さ・はば の どちらか が 0 の ときは まつ） */
+let lastW = 0, lastH = 0;
+function syncSize() {
+  const w = window.innerWidth || document.documentElement.clientWidth;
+  const h = window.innerHeight || document.documentElement.clientHeight;
+  if (!w || !h || (w === lastW && h === lastH)) return;
+  lastW = w; lastH = h;
+  renderer.setSize(w, h);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  frame();
+  info();
+}
+if (window.ResizeObserver) new ResizeObserver(syncSize).observe(document.documentElement);
+let frames = 0;
+function info() { try { bridge.onInfo && bridge.onInfo(`${lastW}×${lastH}・${renderer.capabilities.isWebGL2 ? 'WebGL2' : 'WebGL1'}・${frames} コマ`); } catch (e) { /* ふるい アプリ */ } }
+setInterval(info, 5000);
 
 window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
@@ -137,13 +157,9 @@ function animate(now) {
   if (document.hidden) return;
   if (now - lastFrame < 1000 / 31) return; // 30 コマ で じゅうぶん（でんち の ため）
   lastFrame = now;
-  // WebView が あとから 大きさ を もらったとき（resize が こない 端末 むけ）
-  if (renderer.domElement.width !== Math.floor(window.innerWidth * renderer.getPixelRatio()) && window.innerWidth > 0) {
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    frame();
-  }
+  syncSize();
+  if (!lastW || !lastH) return;
+  frames++;
   const dt = Math.min(clock.getDelta(), 0.1);
   const t = clock.elapsedTime;
   if (vrm) {
