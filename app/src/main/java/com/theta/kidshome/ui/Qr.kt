@@ -101,6 +101,10 @@ fun applyQrSetup(context: Context, raw: String): String? {
             )
         }
     }
+    if (s.packRepo != null || s.packToken != null) {
+        com.theta.kidshome.data.GuidePack.setSource(context, s.packRepo, s.packToken)
+        com.theta.kidshome.data.GuidePack.update(context, force = true)
+    }
     if (s.sheetUrl != null) SheetSync.sync(context, force = true)
     if (s.calendarUrls.isNotEmpty()) Events.refresh(context, force = true)
     val msg = "📷 ${s.summary()} を設定しました"

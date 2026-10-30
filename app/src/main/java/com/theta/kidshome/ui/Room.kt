@@ -70,6 +70,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.theta.kidshome.data.Events
+import com.theta.kidshome.data.GuidePack
 import com.theta.kidshome.data.Profile
 import com.theta.kidshome.data.Store
 import com.theta.kidshome.data.Tile
@@ -101,6 +102,7 @@ private val RADIO = R(460f, 690f, 150f, 95f)
 private val PHONE = R(1010f, 480f, 110f, 100f)
 private val TOYBOX = R(860f, 640f, 270f, 330f)
 private val MASCOT = R(650f, 720f, 200f, 230f)
+private val GUIDE = R(610f, 520f, 260f, 470f)
 
 private enum class Slide { CLOCK, CALENDAR, TIMETABLE }
 
@@ -171,7 +173,19 @@ fun RoomView(
                     Text("🧸🪀⚽", fontSize = (u.value * 54).sp, modifier = Modifier.align(Alignment.TopCenter).offset(y = u * 92f))
                 }
             }
-            Mascot(theme, mascotLine, u, playful, onMascot)
+            if (GuidePack.installed) {
+                // 3D の ガイド役（パック が あるとき）
+                var center by remember { mutableStateOf(Offset.Zero) }
+                Box(Modifier.offset(u * GUIDE.x, u * GUIDE.y).size(u * GUIDE.w, u * GUIDE.h).onGloballyPositioned { center = it.boundsInRoot().center }) {
+                    GuideView(profile.id, Modifier.fillMaxSize(), onTap = { onMascot(center) })
+                }
+                Bubble(theme, mascotLine, GUIDE.x + GUIDE.w / 2, GUIDE.y - 10f, u)
+                Box(
+                    Modifier.offset(u * (GUIDE.x + GUIDE.w - 40f), u * (GUIDE.y + GUIDE.h - 110f)).size(u * 84f).clip(CircleShape)
+                        .background(Color.White).border(2.dp, theme.outline, CircleShape).clickable { popup = "wardrobe" },
+                    contentAlignment = Alignment.Center,
+                ) { Text("👗", fontSize = (u.value * 44).sp) }
+            } else Mascot(theme, mascotLine, u, playful, onMascot)
             if (night) Box(Modifier.fillMaxSize().background(Color(0xFF1B1F4A).copy(alpha = 0.22f)))
 
             // 小さな まど（本棚・ショーウインドウ）
@@ -182,6 +196,7 @@ fun RoomView(
                 "toys" -> Popup(theme, "🧸 おもちゃばこ", u, onClose = { popup = null }, glass = true) {
                     Showcase(theme, toys, u, tileView)
                 }
+                "wardrobe" -> Popup(theme, "👗 きせかえ", u, onClose = { popup = null }) { Wardrobe(theme, profile.id) }
             }
         }
     }
@@ -731,3 +746,16 @@ private fun DrawScope.toybox(t: KidTheme) {
     listOf(50f, 117f, 185f).forEach { dot(Color(0xFFFFD84D), it, 105f, 12f, o, 3f) }
 }
 
+
+@Composable
+private fun Bubble(theme: KidTheme, line: String, cx: Float, bottom: Float, u: Dp) {
+    var shown by remember(line) { mutableStateOf(true) }
+    LaunchedEffect(line) { delay(9000); shown = false }
+    if (!shown || line.isBlank()) return
+    Box(Modifier.offset(u * (cx - 200f), u * (bottom - 110f)).size(u * 400f, u * 110f), contentAlignment = Alignment.BottomCenter) {
+        Box(
+            Modifier.wrapContentSize().clip(RoundedCornerShape(u * 22f)).background(theme.bubbles[0])
+                .border(2.5.dp, theme.outline, RoundedCornerShape(u * 22f)).padding(horizontal = u * 18f, vertical = u * 8f),
+        ) { Text(line, fontFamily = DotFont, fontSize = (u.value * 28).sp, color = theme.outline, textAlign = TextAlign.Center) }
+    }
+}

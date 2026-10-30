@@ -267,7 +267,8 @@ fun HomeScreen(
                     tileView = { t, i -> TileWindow(t, theme, i, locked && t.isVideo) { onTile(t) } },
                     onGate = { showGate = true },
                     onMascot = { at ->
-                        mascotLine = (theme.lines + "${profile.name}、だいすき！").random()
+                        mascotLine = (com.theta.kidshome.data.GuidePack.manifest?.tap?.takeIf { it.isNotEmpty() }
+                            ?: (theme.lines + "${profile.name}、だいすき！")).random().replace("{name}", profile.name)
                         burst(at, listOf("💗", "💖", "✨"))
                     },
                     onBoard = { k -> open(listOf(k)) },

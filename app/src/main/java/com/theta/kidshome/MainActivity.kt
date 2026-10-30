@@ -109,6 +109,7 @@ class MainActivity : ComponentActivity() {
         healthy.removeCallbacks(markHealthy)
         healthy.postDelayed(markHealthy, 8000)
         if (Store.config.autoUpdate) SelfUpdate.check(this)
+        com.theta.kidshome.data.GuidePack.update(this)
         Weather.refresh(this)
         Remote.sync(this)
         com.theta.kidshome.data.SheetSync.sync(this)

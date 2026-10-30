@@ -184,6 +184,8 @@ private fun SettingsTab(modifier: Modifier) {
 
         GeminiSection()
 
+        GuideSection()
+
         StampLibrarySection(config)
 
         CategorySection(config)

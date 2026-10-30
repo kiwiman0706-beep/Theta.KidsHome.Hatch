@@ -1,0 +1,216 @@
+package com.theta.kidshome.ui
+
+import android.annotation.SuppressLint
+import android.content.Context
+import android.graphics.BitmapFactory
+import android.os.Handler
+import android.os.Looper
+import android.webkit.JavascriptInterface
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.webkit.WebViewAssetLoader
+import com.theta.kidshome.data.GuidePack
+import com.theta.kidshome.data.QrSetup
+import org.json.JSONArray
+import org.json.JSONObject
+import java.io.File
+
+private class GuideBridge(private val onTap: () -> Unit, private val onReady: (String) -> Unit, private val onError: (String) -> Unit) {
+    private val main = Handler(Looper.getMainLooper())
+    @JavascriptInterface fun onTap() { main.post(onTap) }
+    @JavascriptInterface fun onReady(json: String) { main.post { onReady(json) } }
+    @JavascriptInterface fun onError(msg: String) { main.post { onError(msg) } }
+}
+
+/**
+ * ガイド役（VRM）を 3D で うごかす。WebView の 中で three.js と three-vrm（アプリに 同梱）。
+ * パック は filesDir/packs/guide/ から よむ（ネット は つかわない）。
+ */
+@SuppressLint("SetJavaScriptEnabled")
+@Composable
+fun GuideView(
+    profileId: String,
+    modifier: Modifier = Modifier,
+    view: String = "full",
+    onTap: () -> Unit = {},
+    onReady: (List<String>) -> Unit = {},
+) {
+    val context = LocalContext.current
+    val m = GuidePack.manifest ?: return
+    val parts = remember(profileId, GuidePack.outfitVersion) { GuidePack.outfit(context, profileId) }
+    val web = remember(m, view) {
+        val loader = WebViewAssetLoader.Builder()
+            .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(context))
+            .addPathHandler("/pack/", WebViewAssetLoader.InternalStoragePathHandler(context, File(context.filesDir, "packs")))
+            .build()
+        WebView(context).apply {
+            setBackgroundColor(android.graphics.Color.TRANSPARENT)
+            settings.javaScriptEnabled = true
+            settings.allowFileAccess = false
+            settings.allowContentAccess = false
+            webViewClient = object : WebViewClient() {
+                override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? = loader.shouldInterceptRequest(request.url)
+                override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest) = true
+            }
+            addJavascriptInterface(GuideBridge({ onTap() }, { j ->
+                onReady(runCatching { JSONObject(j).getJSONArray("parts").let { a -> (0 until a.length()).map { a.getString(it) } } }.getOrDefault(emptyList()))
+            }, { e -> Toast.makeText(context, "ガイドを よめません（$e）", Toast.LENGTH_LONG).show() }), "KidsHomeGuide")
+            val p = android.net.Uri.encode(JSONArray(parts).toString())
+            loadUrl("https://appassets.androidplatform.net/assets/guide/guide.html?pack=/pack/guide/&view=$view&parts=$p")
+        }
+    }
+    LaunchedEffect(parts) { web.evaluateJavascript("window.KH && KH.setParts(${JSONArray(parts)})", null) }
+    DisposableEffect(web) { web.onResume(); onDispose { web.onPause(); web.destroy() } }
+    AndroidView({ web }, modifier)
+}
+
+/** きせかえ：左に 大きく ガイド、右に スロットごとの アイテム */
+@Composable
+fun Wardrobe(theme: KidTheme, profileId: String) {
+    val context = LocalContext.current
+    val m = GuidePack.manifest ?: return
+    val chosen = remember(profileId, GuidePack.outfitVersion) { GuidePack.outfit(context, profileId).toSet() }
+    Row(Modifier.fillMaxSize().padding(12.dp)) {
+        GuideView(profileId, Modifier.width(320.dp).fillMaxHeight())
+        Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(start = 12.dp)) {
+            if (m.slots.isEmpty()) DotText("きせかえ は まだ ないよ", theme, 20)
+            m.slots.forEach { slot ->
+                DotText(slot.name, theme, 20, modifier = Modifier.padding(top = 8.dp, bottom = 6.dp))
+                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    val cur = slot.items.firstOrNull { it.id in chosen } ?: if (slot.optional) null else slot.items.firstOrNull()
+                    if (slot.optional) ItemCard(theme, "🚫", "なし", null, cur == null) { GuidePack.choose(context, profileId, slot, null) }
+                    slot.items.forEach { item ->
+                        ItemCard(theme, item.emoji, item.name, item.thumbnail, cur?.id == item.id) { GuidePack.choose(context, profileId, slot, item) }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ItemCard(theme: KidTheme, emoji: String, name: String, thumb: String?, on: Boolean, onClick: () -> Unit) {
+    val context = LocalContext.current
+    val bmp = remember(thumb) { thumb?.let { runCatching { BitmapFactory.decodeFile(File(GuidePack.dir(context), it).path)?.asImageBitmap() }.getOrNull() } }
+    Column(
+        Modifier.width(120.dp).clip(RoundedCornerShape(16.dp)).background(if (on) theme.titleBars[0] else Color.White)
+            .border(if (on) 4.dp else 2.dp, theme.outline, RoundedCornerShape(16.dp)).clickable(onClick = onClick).padding(8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        if (bmp != null) Image(bmp, null, Modifier.size(90.dp)) else Text(emoji, fontSize = 52.sp)
+        DotText(name, theme, 15)
+    }
+}
+
+// ---------------------------------------------------------------- おやメニュー
+
+@Composable
+fun GuideSection() {
+    val context = LocalContext.current
+    var repo by remember { mutableStateOf(GuidePack.repo(context)) }
+    var token by remember { mutableStateOf(GuidePack.token(context)) }
+    var parts by remember { mutableStateOf<List<String>?>(null) }
+    val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> uri?.let { GuidePack.importZip(context, it) } }
+    val scan = rememberQrScanner("パックの QR コードを うつしてください") { v ->
+        val s = QrSetup.parse(v)
+        if (s.packRepo != null || s.packToken != null) {
+            GuidePack.setSource(context, s.packRepo, s.packToken)
+            repo = GuidePack.repo(context); token = GuidePack.token(context)
+            GuidePack.update(context, force = true)
+        } else applyQrSetup(context, v)
+    }
+    Section("🧸 ガイド役（3D キャラ・きせかえ）") {
+        Text(
+            "へや の マスコット を、VRM の 3D キャラ に できます。モデル は アプリに 入れず、非公開リポジトリ の Release（${GuidePack.ASSET}）から " +
+                "読み取り専用トークン で とってくる か、zip を じかに 読みこみます。トークン は このタブレット だけに 保存します。",
+            fontSize = 14.sp,
+        )
+        val m = GuidePack.manifest
+        Text(
+            if (m != null) "✅ ${m.name}（${m.version}・${GuidePack.installedTag(context)}）きせかえ ${m.slots.sumOf { it.items.size }} こ" else "まだ ありません",
+            fontSize = 15.sp, modifier = Modifier.padding(top = 6.dp),
+        )
+        GuidePack.status?.let { Text(it, fontSize = 13.sp, color = Color.Gray) }
+        OutlinedTextField(repo, { repo = it }, singleLine = true, label = { Text("リポジトリ（例：kiwiman0706-beep/Theta.Kidshome.Hatch.Closed）") }, modifier = Modifier.fillMaxWidth().padding(top = 6.dp))
+        OutlinedTextField(
+            token, { token = it }, singleLine = true, label = { Text("読み取り専用トークン（github_pat_…）") },
+            visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth(),
+        )
+        FlowRow8 {
+            Button(enabled = !GuidePack.busy, onClick = {
+                GuidePack.setSource(context, repo, token)
+                GuidePack.update(context, force = true)
+            }) { Text(if (GuidePack.busy) "とってきています…" else "保存して いま とってくる") }
+            OutlinedButton(onClick = scan) { Text("📷 QR で 読む") }
+            OutlinedButton(enabled = !GuidePack.busy, onClick = { pick.launch(arrayOf("application/zip", "application/octet-stream")) }) { Text("zip を 読みこむ") }
+            if (m != null) {
+                OutlinedButton(onClick = { parts = emptyList() }) { Text("パーツ名を 見る") }
+                TextButton(onClick = { GuidePack.remove(context) }) { Text("はずす", color = Color(0xFFD03B5C)) }
+            }
+        }
+        Text("新しい版 は 1 日 1 かい たしかめます。パック の 作りかた は 非公開リポジトリ の README に あります。", fontSize = 12.sp, color = Color.Gray)
+    }
+    parts?.let { list ->
+        AlertDialog(
+            onDismissRequest = { parts = null },
+            title = { Text("パーツ名（manifest の show / hide に かく）") },
+            text = {
+                Row(Modifier.heightIn(max = 420.dp)) {
+                    GuideView("parts-check", Modifier.width(200.dp).fillMaxHeight(), onReady = { parts = it })
+                    Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(start = 12.dp)) {
+                        if (list.isEmpty()) Text("よみこみ中…")
+                        list.forEach { Text(it, fontFamily = FontFamily.Monospace, fontSize = 14.sp) }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { parts = null }) { Text("とじる") } },
+        )
+    }
+}

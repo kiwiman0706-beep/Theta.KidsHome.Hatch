@@ -27,6 +27,16 @@ class QrTest {
         assertEquals("スプレッドシート・Gemini キー・Gemini モデル・カレンダー 2こ", back.summary())
     }
 
+    @Test fun guidePack() {
+        val tok = "github_pat_11ABCDEFG0123456789_abcdefghijklmnopqrstuvwxyz"
+        val s = QrSetup.parse("kidshome:setup?pack=kiwiman0706-beep%2FTheta.Kidshome.Hatch.Closed&packtoken=$tok")
+        assertEquals("kiwiman0706-beep/Theta.Kidshome.Hatch.Closed", s.packRepo)
+        assertEquals(tok, s.packToken)
+        assertEquals(s, QrSetup.parse(QrSetup.encode(s)))
+        assertEquals(tok, QrSetup.parse(tok).packToken)
+        assertNull(QrSetup.parse("kidshome:setup?pack=..%2F..%2Fx%20y").packRepo)
+    }
+
     @Test fun badValuesDropped() {
         val s = QrSetup.parse("kidshome:setup?sheet=https%3A%2F%2Fevil.example%2F&gemini=nope&model=a%20b&ical=javascript%3Ax")
         assertTrue(s.isEmpty)
