@@ -94,14 +94,15 @@ private class R(val x: Float, val y: Float, val w: Float, val h: Float)
 
 private val BOARD = R(40f, 40f, 700f, 450f)
 private val WINDOW = R(790f, 45f, 300f, 274f)
-private val PLATE = R(780f, 345f, 320f, 110f)
+private val PLATE = R(775f, 340f, 280f, 100f)
 private val SWITCH = R(1100f, 360f, 44f, 64f)
 private val SHELF = R(1160f, 35f, 410f, 910f)
 private val GEAR = R(1470f, 18f, 100f, 100f)
 private val APPS = R(1160f, 905f, 410f, 82f)
 private val TV = R(80f, 515f, 360f, 292f)
 private val RADIO = R(460f, 690f, 150f, 95f)
-private val PHONE = R(1010f, 480f, 110f, 100f)
+private val PHONE = R(1072f, 362f, 82f, 70f)
+private val PIANO = R(880f, 430f, 270f, 400f)
 private val TOYBOX = R(860f, 640f, 270f, 330f)
 private val MASCOT = R(650f, 720f, 200f, 230f)
 private val GUIDE = R(610f, 520f, 260f, 470f)
@@ -135,6 +136,7 @@ fun RoomView(
     onTv: () -> Unit,
     onRadio: () -> Unit,
     onCall: () -> Unit,
+    onPiano: (() -> Unit)? = null,
     apps: List<Shelf> = emptyList(),
     initialPopup: String? = null,
 ) {
@@ -167,6 +169,8 @@ fun RoomView(
             if (locked && lockText != null && hasTv) Tag(lockText, TV.x + TV.w / 2, TV.y + TV.h - 12f, u, theme, theme.titleBars[0])
             Thing(RADIO, u, 135f, 85f, onClick = onRadio) { radio(theme) }
             // でんわ
+            // ピアノ（がっき）：かべぎわ に。でんわ は ピアノ の うえ
+            onPiano?.let { Thing(PIANO, u, 250f, 400f, onClick = it) { piano(theme) } }
             if (calls.isNotEmpty()) Thing(PHONE, u, 72f, 62f, onClick = onCall) { phone(theme) }
             // おもちゃばこ
             if (toys.isNotEmpty()) {
@@ -587,8 +591,6 @@ private fun DrawScope.roomBack(t: KidTheme) {
         // ラグ
         drawOval(lerp(t.titleBars[0], Color.White, 0.3f), Offset(600f, 900f), Size(560f, 90f))
         drawOval(o, Offset(600f, 900f), Size(560f, 90f), style = Stroke(5f))
-        // でんわ の たな
-        box(Wood, PHONE.x - 10f, PHONE.y + PHONE.h - 6f, PHONE.w + 20f, 18f, o, 6f)
     }
 }
 
@@ -714,6 +716,21 @@ private fun DrawScope.radio(t: KidTheme) {
 
 
 
+
+private fun DrawScope.piano(t: KidTheme) {
+    val o = t.outline
+    val body = t.titleBars[1 % t.titleBars.size]
+    box(body, 0f, 0f, 250f, 330f, o, 14f)
+    box(Color.White, 60f, 22f, 130f, 80f, o, 6f)
+    for (i in 0 until 3) drawLine(o.copy(alpha = 0.5f), Offset(70f, 40f + i * 18f), Offset(180f, 40f + i * 18f), 2f)
+    dot(o, 100f, 58f, 7f); dot(o, 140f, 76f, 7f)
+    box(Color.White, 10f, 150f, 230f, 60f, o, 4f)
+    for (i in 1 until 10) drawLine(o, Offset(10f + i * 23f, 150f), Offset(10f + i * 23f, 210f), 2f)
+    listOf(1, 2, 4, 5, 6, 8, 9).forEach { i -> drawRect(o, Offset(10f + i * 23f - 7f, 150f), Size(14f, 34f)) }
+    box(lerp(body, Color.Black, 0.12f), 0f, 210f, 250f, 26f, o, 6f)
+    box(body, 18f, 236f, 26f, 160f, o, 6f)
+    box(body, 206f, 236f, 26f, 160f, o, 6f)
+}
 
 private fun DrawScope.phone(t: KidTheme) {
     val o = t.outline

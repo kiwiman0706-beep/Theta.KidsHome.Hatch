@@ -93,7 +93,7 @@ private val PAD_COLORS = listOf(
  * どちらも音色を変えられて、いくつ同時に押しても鳴る。
  */
 @Composable
-fun InstrumentScreen(onBack: () -> Unit) {
+fun InstrumentScreen(onBack: () -> Unit, loopPreview: ((Looper) -> Unit)? = null) {
     BackHandler(onBack = onBack)
     val context = LocalContext.current
     val theme = themeById(Store.config.currentProfile.themeId)
@@ -109,12 +109,14 @@ fun InstrumentScreen(onBack: () -> Unit) {
     var demo by remember { mutableStateOf<Job?>(null) }
     val scope = rememberCoroutineScope()
     val looper = remember {
-        Looper(scope) { h ->
+        Looper(scope, play = { h ->
             if (h.key != null && h.voice != null) synth.playKey(h.voice, h.key, h.octave)
             else if (h.pad != null && h.kit != null) synth.playPad(h.kit, h.pad)
-        }
+        }, click = { synth.click(it) })
     }
     var recordingPad by remember { mutableStateOf<Int?>(null) }
+    var loopOpen by remember { mutableStateOf(loopPreview != null) }
+    remember { loopPreview?.invoke(looper) }
     val micPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
     fun startSample(pad: Int) {
         if (!Sampler.hasPermission(context)) { micPermission.launch(android.Manifest.permission.RECORD_AUDIO); return }
@@ -140,9 +142,14 @@ fun InstrumentScreen(onBack: () -> Unit) {
                 DotText("がっき", theme, 28, theme.text, modifier = Modifier.padding(start = 10.dp))
                 if (!synth.ready) DotText("　じゅんびちゅう…", theme, 16, theme.text)
                 Spacer(Modifier.weight(1f))
-                LooperBar(theme, looper)
+                if (!loopOpen && looper.playing) DotText(if (looper.recording) "⏺ ろくおん中　" else "🔁 くりかえし中　", theme, 16, theme.text)
+                RetroButton(if (loopOpen) "🔁 ループ を とじる" else "🔁 ループ", theme, if (loopOpen) theme.titleBars[1] else androidx.compose.ui.graphics.Color.White, fontSize = 16) { loopOpen = !loopOpen }
             }
             Spacer(Modifier.height(10.dp))
+            if (loopOpen) {
+                LoopPanel(theme, looper, kit, Modifier.weight(1.4f).fillMaxWidth().padding(end = 6.dp, bottom = 6.dp)) { k, p -> synth.playPad(k, p) }
+                Spacer(Modifier.height(10.dp))
+            }
 
             // ---- ドラムパッド（れんしゅう中は けんばん を大きく）
             if (!practice) {
@@ -164,7 +171,7 @@ fun InstrumentScreen(onBack: () -> Unit) {
                                     onHoldEnd = { if (recordingPad == i) { Sampler.stop(); recordingPad = null } },
                                 ) {
                                     synth.playPad(kit, i)
-                                    looper.record(Looper.Hit(0, pad = i, kit = kit))
+                                    looper.record(Looper.Hit(0f, pad = i, kit = kit))
                                 }
                             }
                         }
@@ -223,7 +230,7 @@ fun InstrumentScreen(onBack: () -> Unit) {
                     glow = if (practice) notes.getOrNull(pos)?.key else null,
                 ) { key ->
                     synth.playKey(voice, key, octave)
-                    looper.record(Looper.Hit(0, key = key, voice = voice, octave = octave))
+                    looper.record(Looper.Hit(0f, key = key, voice = voice, octave = octave))
                     // 光っている けん を押したら つぎへ（まちがえても まってくれる）
                     if (practice && demo?.isActive != true && notes.getOrNull(pos)?.key == key) pos++
                 }
@@ -382,28 +389,122 @@ private fun PracticeBar(
     }
 }
 
-/** かんたんループの ボタン と すすみぐあい */
+/** ループ：テンポ・はく・しょうせつ と、マス（タイムライン）。ドラム の マス は タップ で おける */
 @Composable
-private fun LooperBar(theme: KidTheme, looper: Looper) {
-    val m = looper.mode
-    DotText(
-        when (m) {
-            Looper.Mode.EMPTY -> "ループ"
-            Looper.Mode.FIRST -> "とってるよ… もういちど ⏺ で くりかえし"
-            Looper.Mode.PLAYING -> "くりかえし中"
-            Looper.Mode.OVERDUB -> "かさねて とってるよ"
-            Looper.Mode.PAUSED -> "とまってるよ"
+private fun LoopPanel(theme: KidTheme, looper: Looper, kit: Kit, modifier: Modifier, preview: (Kit, Int) -> Unit) {
+    val countIn = looper.playing && looper.countIn
+    RetroWindow(
+        theme, modifier,
+        title = "🔁 ループ　${looper.bpm} BPM・${looper.beats} びょうし・${looper.bars} しょうせつ" + when {
+            countIn -> "　…カウント"
+            looper.recording -> "　⏺ ろくおん中"
+            looper.playing -> "　▶ くりかえし中"
+            else -> ""
         },
-        theme, 14, theme.text,
-    )
-    if (m == Looper.Mode.PLAYING || m == Looper.Mode.OVERDUB) {
-        Box(Modifier.padding(horizontal = 8.dp).width(90.dp).height(14.dp).clip(RoundedCornerShape(50)).background(Color.White).border(2.dp, theme.outline, RoundedCornerShape(50))) {
-            Box(Modifier.fillMaxWidth(looper.progress).fillMaxHeight().background(if (m == Looper.Mode.OVERDUB) Color(0xFFFF4D6D) else theme.accent))
+        titleColor = if (looper.recording) Color(0xFFFFB3C1) else theme.titleBars[1],
+    ) {
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            RetroIconButton(if (looper.playing) "⏹" else "▶️", theme, size = 46.dp) { looper.togglePlay() }
+            RetroIconButton("⏺", theme, selected = looper.recording, size = 46.dp) { looper.pressRecord() }
+            RetroIconButton("↩️", theme, size = 46.dp) { looper.undo() }
+            RetroIconButton("🗑️", theme, size = 46.dp) { looper.clear() }
+            Spacer(Modifier.width(8.dp))
+            RetroIconButton("🔔", theme, selected = looper.metronome, size = 46.dp) { looper.metronome = !looper.metronome }
+            RetroIconButton("🧲", theme, selected = looper.quantize, size = 46.dp) { looper.quantize = !looper.quantize }
+            Spacer(Modifier.width(8.dp))
+            DotText("はやさ", theme, 14)
+            RetroIconButton("➖", theme, size = 40.dp) { looper.bpm = (looper.bpm - 2).coerceIn(Looper.BPMS) }
+            DotText("${looper.bpm}", theme, 22)
+            RetroIconButton("➕", theme, size = 40.dp) { looper.bpm = (looper.bpm + 2).coerceIn(Looper.BPMS) }
+            Spacer(Modifier.width(8.dp))
+            DotText("はく", theme, 14)
+            Looper.BEATS.forEach { b -> RetroButton("$b", theme, if (looper.beats == b) theme.titleBars[0] else Color.White, fontSize = 15) { looper.changeBeats(b) } }
+            Spacer(Modifier.width(8.dp))
+            DotText("しょうせつ", theme, 14)
+            Looper.BARS.forEach { b -> RetroButton("$b", theme, if (looper.bars == b) theme.titleBars[0] else Color.White, fontSize = 15) { looper.changeBars(b) } }
+        }
+        LoopGrid(theme, looper, kit, Modifier.weight(1f).fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp), preview)
+        DotText(
+            "🔔 メトロノーム　🧲 マスに ぴったり　⏺ で 1 しょうせつ かぞえてから ろくおん（もう一度 ⏺ で おわり）。ドラム の マス を タップ しても おける",
+            theme, 12, theme.outline.copy(alpha = 0.7f), modifier = Modifier.padding(start = 10.dp, bottom = 4.dp),
+        )
+    }
+}
+
+@Composable
+private fun LoopGrid(theme: KidTheme, looper: Looper, kit: Kit, modifier: Modifier, preview: (Kit, Int) -> Unit) {
+    val measurer = rememberTextMeasurer()
+    val steps = looper.steps
+    val perBar = looper.stepsPerBar
+    val rows = kit.pads.size
+    val labelW = 40.dp
+    Canvas(
+        modifier.clip(RoundedCornerShape(10.dp)).background(Color.White).border(2.dp, theme.outline, RoundedCornerShape(10.dp))
+            .pointerInput(kit, steps) {
+                awaitEachGesture {
+                    val down = awaitFirstDown()
+                    val lw = labelW.toPx()
+                    val rowH = size.height / (rows + 2f)
+                    val col = ((down.position.x - lw) / ((size.width - lw) / steps)).toInt()
+                    val row = (down.position.y / rowH).toInt()
+                    if (col in 0 until steps && row in 0 until rows) {
+                        if (looper.toggleStep(kit, row, col)) preview(kit, row)
+                    }
+                }
+            },
+    ) {
+        val lw = labelW.toPx()
+        val rowH = size.height / (rows + 2f)
+        val cw = (size.width - lw) / steps
+        // しょうせつ ごと に いろ を かえる
+        for (bar in 0 until steps / perBar) {
+            if (bar % 2 == 1) drawRect(theme.titleBars[0].copy(alpha = 0.18f), Offset(lw + bar * perBar * cw, 0f), Size(perBar * cw, size.height))
+        }
+        // よこ の せん と ラベル
+        for (r in 0..rows) drawLine(theme.outline.copy(alpha = 0.15f), Offset(0f, r * rowH), Offset(size.width, r * rowH), 1.5f)
+        kit.pads.forEachIndexed { r, (emoji, _) ->
+            val t = measurer.measure(emoji, TextStyle(fontSize = (rowH * 0.55f / density).sp))
+            drawText(t, topLeft = Offset((lw - t.size.width) / 2, r * rowH + (rowH - t.size.height) / 2))
+        }
+        val kt = measurer.measure("🎹", TextStyle(fontSize = (rowH * 0.7f / density).sp))
+        drawText(kt, topLeft = Offset((lw - kt.size.width) / 2, rows * rowH + (rowH * 2 - kt.size.height) / 2))
+        // たて の せん：マス・はく・しょうせつ
+        for (c in 0..steps) {
+            val x = lw + c * cw
+            val (col, w) = when {
+                c % perBar == 0 -> theme.outline to 3f
+                c % Looper.STEPS_PER_BEAT == 0 -> theme.outline.copy(alpha = 0.45f) to 2f
+                else -> theme.outline.copy(alpha = 0.12f) to 1f
+            }
+            drawLine(col, Offset(x, 0f), Offset(x, size.height), w)
+        }
+        // ならした もの
+        looper.hits.forEach { h ->
+            val x = lw + h.step * cw
+            if (h.pad != null && h.kit != null) {
+                val c = if (h.kit == kit) PAD_COLORS[h.pad % PAD_COLORS.size] else Color(0xFFBBBBBB)
+                drawRoundRect(c, Offset(x + 1.5f, h.pad * rowH + 3f), Size(cw - 3f, rowH - 6f), CornerRadius(5f))
+                drawRoundRect(theme.outline.copy(alpha = 0.6f), Offset(x + 1.5f, h.pad * rowH + 3f), Size(cw - 3f, rowH - 6f), CornerRadius(5f), style = Stroke(1.5f))
+            } else if (h.key != null) {
+                val top = rows * rowH
+                val kh = rowH * 2
+                val y = top + kh - (h.key + (h.octave + 1) * 12f) / (Synth.KEYS + 24f) * kh
+                drawRoundRect(theme.accent, Offset(x + 1f, y - 4f), Size(cw * 1.6f, 8f), CornerRadius(4f))
+            }
+        }
+        // いま の ばしょ
+        val p = looper.position
+        if (looper.playing && p >= 0) {
+            val x = lw + p * cw
+            drawLine(if (looper.recording) Color(0xFFFF4D6D) else theme.accent, Offset(x, 0f), Offset(x, size.height), 5f)
+        } else if (looper.playing) {
+            // カウント：のこり はく
+            val left = kotlin.math.ceil(-p / Looper.STEPS_PER_BEAT).toInt()
+            val t = measurer.measure("$left", TextStyle(fontSize = (size.height * 0.5f / density).sp, color = Color(0xFFFF4D6D), fontFamily = DotFont))
+            drawText(t, topLeft = Offset((size.width - t.size.width) / 2, (size.height - t.size.height) / 2))
         }
     }
-    RetroIconButton("⏺", theme, selected = m == Looper.Mode.FIRST || m == Looper.Mode.OVERDUB, size = 46.dp) { looper.pressRecord() }
-    if (m == Looper.Mode.PLAYING || m == Looper.Mode.OVERDUB || m == Looper.Mode.PAUSED) {
-        RetroIconButton(if (m == Looper.Mode.PAUSED) "▶️" else "⏸", theme, size = 46.dp) { looper.togglePlay() }
-    }
-    if (m != Looper.Mode.EMPTY) RetroIconButton("🗑️", theme, size = 46.dp) { looper.clear() }
 }

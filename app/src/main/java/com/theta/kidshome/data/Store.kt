@@ -75,6 +75,11 @@ object Store {
             }
             prefs.edit().putBoolean("added:map", true).apply()
         }
+        // くるくる の アイコン は のうみそ（🧠）を やめて 🌀
+        if (!prefs.getBoolean("icon:edupad", false)) {
+            update { c -> c.copy(profiles = c.profiles.map { p -> p.copy(tiles = p.tiles.map { if (it.type == TileType.EDUPAD && it.emoji == "\uD83E\uDDE0") it.copy(emoji = "🌀") else it }) }) }
+            prefs.edit().putBoolean("icon:edupad", true).apply()
+        }
         if (!prefs.getBoolean("added:tasu", false)) {
             if (config.profiles.none { p -> p.tiles.any { it.type == TileType.TASU } }) {
                 update { c -> c.copy(profiles = c.profiles.map { it.copy(tiles = it.tiles + AppConfig.tasuTile()) }) }

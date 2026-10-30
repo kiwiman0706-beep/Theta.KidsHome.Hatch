@@ -466,7 +466,7 @@ private fun ProfileEditor(profile: Profile, canDelete: Boolean, onDelete: () -> 
         Button(onClick = { showAppPicker = true }) { Text("📱 アプリを追加") }
         OutlinedButton(onClick = { addingCall = true }) { Text("📞 でんわボタンを追加") }
         if (profile.tiles.none { it.type == TileType.EDUPAD }) {
-            OutlinedButton(onClick = { Store.addTiles(profile.id, listOf(AppConfig.edupadTile())) }) { Text("🧠 くるくる思考パッドを追加") }
+            OutlinedButton(onClick = { Store.addTiles(profile.id, listOf(AppConfig.edupadTile())) }) { Text("🌀 くるくる思考パッドを追加") }
         }
         if (profile.tiles.none { it.type == TileType.MAP }) {
             OutlinedButton(onClick = { Store.addTiles(profile.id, listOf(AppConfig.mapTile())) }) { Text("🗺️ ちずを追加") }

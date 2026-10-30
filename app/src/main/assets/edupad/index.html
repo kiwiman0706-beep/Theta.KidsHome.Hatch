@@ -1281,7 +1281,7 @@ function MemoryModule(){
 
   function draw(){ ctx.clearRect(0,0,W,H);
     if(st.phase==='idle'){ ctx.textAlign='center'; ctx.fillStyle='#334'; ctx.font='bold 26px sans-serif';
-      ctx.fillText('🧠 きおくゲーム', cx, cy-40); ctx.font='16px sans-serif'; ctx.fillStyle='#678';
+      ctx.fillText('🃏 きおくゲーム', cx, cy-40); ctx.font='16px sans-serif'; ctx.fillStyle='#678';
       ctx.fillText(`${cfg.k}この 絵と むき を おぼえて、あとで あてよう`, cx, cy);
       ctx.fillText('「▶ スタート」で はじまるよ', cx, cy+28); return; }
     if(st.phase==='show'){ const n=st.items.length, cellW=Math.min(W/(n+1),160), sz=cellW*0.7, y=cy;
@@ -1479,7 +1479,7 @@ const MODULES={
   compose:{ title:'図形構成', icon:'🧩', desc:'パーツをドラッグ＆回転して形を作る。', make:ComposeModule, tag:'構成' },
   divide:{ title:'線で分ける', icon:'〰️', desc:'ペンで線を引いて両がわの数をくらべる。', make:DivideModule, tag:'数量' },
   draw:{ title:'ホワイトボード', icon:'🖊️', desc:'じゆうにお絵かき。ペン対応・保存・画像書き出し・共有。板書にも。', make:DrawModule, tag:'えがく' },
-  memory:{ title:'きおくゲーム', icon:'🧠', desc:'絵と向き（右/左）を覚えて、同じものを当てる。正誤つき・ランダム出題。', make:MemoryModule, tag:'記憶' },
+  memory:{ title:'きおくゲーム', icon:'🃏', desc:'絵と向き（右/左）を覚えて、同じものを当てる。正誤つき・ランダム出題。', make:MemoryModule, tag:'記憶' },
   money:{ title:'おかね', icon:'🪙', desc:'コインを置く・動かす・薄くする（使った）・両替。ペン書き込み。のこりを自動集計。', make:MoneyModule, tag:'数量' },
   story:{ title:'おはなしづくり', icon:'🖼️', desc:'絵を見てお話しする練習（口頭試問）。12場面の絵カード＋自分の絵を追加。質問つき・📷保存/印刷。', make:StoryModule, tag:'口頭試問' },
 };

@@ -10,6 +10,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -88,16 +90,28 @@ private fun minutes(ms: Long): String {
 @Composable
 fun VideoLibraryPage(theme: KidTheme, locked: Boolean, onPlay: (List<MediaEntry>, Int) -> Unit, onLocked: () -> Unit) {
     val context = LocalContext.current
-    val shelves = visibleVideos().groupBy { it.folder }
+    val all = visibleVideos().groupBy { it.folder }
+    // フォルダ を えらんで その中 だけ 出す（ぜんぶ ならべると スクロール が たいへん）
+    var folder by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
+    val cur = folder?.takeIf { it in all } ?: all.keys.firstOrNull()
+    val shelves = all.filterKeys { it == cur }
+    Column(Modifier.fillMaxSize()) {
+    if (all.size > 1) {
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(end = 8.dp, bottom = 12.dp)) {
+            all.forEach { (f, list) ->
+                RetroButton("📁 $f（${list.size}）", theme, if (f == cur) theme.titleBars[0] else Color.White, fontSize = 18, modifier = Modifier.padding(end = 8.dp)) { folder = f }
+            }
+        }
+    }
     LazyVerticalGrid(
         columns = GridCells.Adaptive(230.dp),
         horizontalArrangement = Arrangement.spacedBy(18.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
         contentPadding = PaddingValues(end = 8.dp, bottom = 28.dp),
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.weight(1f).fillMaxWidth(),
     ) {
         shelves.forEach { (folder, list) ->
-            item(span = { GridItemSpan(maxLineSpan) }, key = "shelf:$folder") {
+            if (all.size <= 1) item(span = { GridItemSpan(maxLineSpan) }, key = "shelf:$folder") {
                 DotText("📼 $folder", theme, 22, theme.text, modifier = Modifier.padding(top = 6.dp))
             }
             itemsIndexed(list, key = { _, e -> e.id }) { i, e ->
@@ -123,6 +137,7 @@ fun VideoLibraryPage(theme: KidTheme, locked: Boolean, onPlay: (List<MediaEntry>
                 }
             }
         }
+    }
     }
 }
 

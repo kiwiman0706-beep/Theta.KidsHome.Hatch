@@ -10,6 +10,7 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -478,7 +479,23 @@ fun MediaSection(config: AppConfig) {
         if (!calendar) {
             OutlinedButton(onClick = { askCalendar.launch(Manifest.permission.READ_CALENDAR) }) { Text("この端末のカレンダーを表示する") }
         } else {
-            Text("✅ この端末のカレンダーを表示しています", fontSize = 14.sp)
+            Text("✅ この端末のカレンダーを表示しています。出すカレンダーを えらべます：", fontSize = 14.sp)
+            val cals = remember { com.theta.kidshome.data.Events.calendars(context) }
+            if (cals.isEmpty()) Text("（カレンダーが 見つかりません。端末に Google アカウントを 入れると 出ます）", fontSize = 12.sp, color = Color.Gray)
+            cals.groupBy { it.account }.forEach { (account, list) ->
+                Text(account, fontSize = 12.sp, color = Color.Gray, modifier = Modifier.padding(top = 4.dp))
+                list.forEach { cal ->
+                    val on = cal.id !in config.hiddenCalendars
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable {
+                        Store.update { c -> c.copy(hiddenCalendars = if (on) c.hiddenCalendars + cal.id else c.hiddenCalendars - cal.id) }
+                        Events.refresh(context, force = true)
+                    }) {
+                        androidx.compose.material3.Checkbox(on, null)
+                        androidx.compose.foundation.layout.Box(Modifier.size(14.dp).clip(androidx.compose.foundation.shape.CircleShape).background(Color(cal.color)))
+                        Text("  ${cal.name}", fontSize = 15.sp)
+                    }
+                }
+            }
         }
         Spacer(Modifier.height(8.dp))
         Text("Google カレンダー（ログインなし）", fontWeight = FontWeight.Bold)

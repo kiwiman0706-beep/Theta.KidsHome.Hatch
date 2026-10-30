@@ -16,6 +16,9 @@ import java.util.Calendar
 
 data class CalEvent(val title: String, val begin: Long, val end: Long, val allDay: Boolean, val color: Int)
 
+/** 端末の カレンダー 1 つ（Google アカウント の「家族」「しごと」など） */
+data class DeviceCalendar(val id: String, val name: String, val account: String, val color: Int)
+
 /**
  * 端末のカレンダー（子どものアカウントの Google カレンダーなど）の予定。許可が無ければ出さない。
  * 今月の初めから、来月の初めまで（月表示と週表示の両方に使う）。
@@ -80,12 +83,30 @@ object Events {
         }.build()
         val cols = arrayOf(
             CalendarContract.Instances.TITLE, CalendarContract.Instances.BEGIN, CalendarContract.Instances.END,
-            CalendarContract.Instances.ALL_DAY, CalendarContract.Instances.DISPLAY_COLOR,
+            CalendarContract.Instances.ALL_DAY, CalendarContract.Instances.DISPLAY_COLOR, CalendarContract.Instances.CALENDAR_ID,
         )
+        val hidden = Store.config.hiddenCalendars
         val out = mutableListOf<CalEvent>()
         context.contentResolver.query(uri, cols, null, null, "${CalendarContract.Instances.BEGIN} ASC")?.use { c ->
             while (c.moveToNext()) {
+                if (c.getLong(5).toString() in hidden) continue
                 out += CalEvent(c.getString(0).orEmpty(), c.getLong(1), c.getLong(2), c.getInt(3) == 1, c.getInt(4))
+            }
+        }
+        return out
+    }
+
+    /** 端末に ある カレンダー の いちらん（おやメニュー で えらぶ） */
+    fun calendars(context: Context): List<DeviceCalendar> {
+        if (!hasPermission(context)) return emptyList()
+        val cols = arrayOf(
+            CalendarContract.Calendars._ID, CalendarContract.Calendars.CALENDAR_DISPLAY_NAME,
+            CalendarContract.Calendars.ACCOUNT_NAME, CalendarContract.Calendars.CALENDAR_COLOR,
+        )
+        val out = mutableListOf<DeviceCalendar>()
+        runCatching {
+            context.contentResolver.query(CalendarContract.Calendars.CONTENT_URI, cols, null, null, CalendarContract.Calendars.ACCOUNT_NAME)?.use { c ->
+                while (c.moveToNext()) out += DeviceCalendar(c.getLong(0).toString(), c.getString(1).orEmpty(), c.getString(2).orEmpty(), c.getInt(3))
             }
         }
         return out

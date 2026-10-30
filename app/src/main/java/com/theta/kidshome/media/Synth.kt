@@ -25,6 +25,7 @@ enum class Voice(val emoji: String, val label: String) {
     MUSICBOX("🎁", "オルゴール"),
     ORGAN("⛪", "オルガン"),
     XYLO("🪵", "もっきん"),
+    MARIMBA("🎶", "マリンバ"),
     SYNTH("🤖", "シンセ"),
 }
 
@@ -67,6 +68,7 @@ class Synth(private val context: Context) {
         .build()
     private val voiceIds = HashMap<Voice, IntArray>()
     private val kitIds = HashMap<Kit, IntArray>()
+    private var clickIds: IntArray? = null
     private var pending = 0
     var ready by mutableStateOf(false)
         private set
@@ -82,9 +84,14 @@ class Synth(private val context: Context) {
     suspend fun prepare(voice: Voice, kit: Kit) {
         val needVoice = voice !in voiceIds
         val needKit = kit !in kitIds
+        val dir = File(context.cacheDir, "instrument").apply { mkdirs() }
+        if (clickIds == null) {
+            val c = withContext(Dispatchers.Default) { listOf(true, false).map { a -> wav(File(dir, "click_$a.wav"), Tones.click(a)) } }
+            pending += 2
+            clickIds = c.map { pool.load(it.path, 1) }.toIntArray()
+        }
         if (!needVoice && !needKit) return
         ready = false
-        val dir = File(context.cacheDir, "instrument").apply { mkdirs() }
         val files = withContext(Dispatchers.Default) {
             val v = if (needVoice) (0 until KEYS).map { k -> wav(File(dir, "${voice.name}_$k.wav"), Tones.note(voice, BASE_MIDI + k)) } else emptyList()
             val d = if (!needKit) emptyList() else if (kit == Kit.MINE) {
@@ -101,7 +108,7 @@ class Synth(private val context: Context) {
     fun playKey(voice: Voice, key: Int, octave: Int = 0) {
         val id = voiceIds[voice]?.getOrNull(key) ?: return
         val rate = when (octave) { -1 -> 0.5f; 1 -> 2f; else -> 1f }
-        pool.play(id, 0.9f, 0.9f, 1, 0, rate)
+        pool.play(id, 0.75f, 0.75f, 1, 0, rate)
     }
 
     /** 録音しなおしたパッドを読み込みなおす */
@@ -112,6 +119,12 @@ class Synth(private val context: Context) {
         pool.unload(ids[pad])
         pending++
         ids[pad] = pool.load(f.path, 1)
+    }
+
+    /** メトロノーム（accent：しょうせつ の あたま） */
+    fun click(accent: Boolean) {
+        val id = clickIds?.getOrNull(if (accent) 0 else 1) ?: return
+        pool.play(id, 0.6f, 0.6f, 2, 0, 1f)
     }
 
     fun playPad(kit: Kit, pad: Int) {
@@ -173,6 +186,11 @@ object Tones {
                 0.32 * (s(f, t) + 0.6 * s(2 * f, t) + 0.35 * s(3 * f, t) + 0.2 * s(4 * f, t) + 0.12 * s(6 * f, t)) * env *
                     (1 + 0.05 * s(5.5, t))
             }
+            Voice.MARIMBA -> render(1.0) { t, _ ->
+                // 木の いた を マレット で たたく：きほん と 4 ばい の 音、こもった あたたかい 音
+                0.7 * (s(f, t) * exp(-4.5 * t) + 0.25 * s(f * 3.99, t) * exp(-18.0 * t) + 0.12 * s(f * 9.9, t) * exp(-40.0 * t)) *
+                    (1 - exp(-t * 600))
+            }
             Voice.XYLO -> render(0.7) { t, _ ->
                 0.6 * (s(f * 2, t) + 0.3 * s(f * 2 * 3.93, t) * exp(-20.0 * t)) * exp(-7.0 * t)
             }
@@ -184,7 +202,23 @@ object Tones {
         }
     }
 
-    fun drum(kit: Kit, pad: Int): FloatArray {
+    /** メトロノーム の カチッ */
+    fun click(accent: Boolean): FloatArray = render(0.05) { t, _ -> 0.8 * s(if (accent) 1760.0 else 1175.0, t) * exp(-90.0 * t) }
+
+    /** うちがっき は けんばん より 小さく きこえがち なので、いちばん 大きいところ を そろえて すこし あつく する */
+    private fun loud(x: FloatArray): FloatArray {
+        val peak = x.maxOfOrNull { abs(it) } ?: return x
+        if (peak <= 0f) return x
+        for (i in x.indices) {
+            val v = x[i] / peak * 1.8
+            x[i] = (kotlin.math.tanh(v) / kotlin.math.tanh(1.8) * 0.95).toFloat()
+        }
+        return x
+    }
+
+    fun drum(kit: Kit, pad: Int): FloatArray = loud(drumRaw(kit, pad))
+
+    private fun drumRaw(kit: Kit, pad: Int): FloatArray {
         val rnd = Random(kit.ordinal * 31 + pad)
         fun noise() = rnd.nextDouble() * 2 - 1
         var last = 0.0

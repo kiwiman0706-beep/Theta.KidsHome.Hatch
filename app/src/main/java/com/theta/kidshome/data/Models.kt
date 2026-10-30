@@ -84,6 +84,8 @@ data class AppConfig(
     val homeStyle: String = "room",
     /** よる（19 時〜6 時）は へや を くらくして「おやすみ」と いう（車で 見るなら オフ） */
     val nightDim: Boolean = false,
+    /** 出さない 端末カレンダー（CalendarContract の id） */
+    val hiddenCalendars: Set<String> = emptySet(),
 ) {
     fun categoryOf(packageName: String): AppCategory? =
         appCategory[packageName]?.let { id -> categories.firstOrNull { it.id == id } }
@@ -96,7 +98,7 @@ data class AppConfig(
     companion object {
         fun drawingTile() = Tile(type = TileType.DRAWING, label = "おえかき", emoji = "🎨")
         fun instrumentTile() = Tile(type = TileType.INSTRUMENT, label = "がっき", emoji = "🎹")
-        fun edupadTile() = Tile(type = TileType.EDUPAD, label = "くるくる思考パッド", emoji = "🧠")
+        fun edupadTile() = Tile(type = TileType.EDUPAD, label = "くるくる思考パッド", emoji = "🌀")
         fun wordproTile() = Tile(type = TileType.WORDPRO, label = "わーぷろ", emoji = "📝")
         fun puzzleTile() = Tile(type = TileType.PUZZLE, label = "パズル", emoji = "🧩")
         fun typingTile() = Tile(type = TileType.TYPING, label = "タイピング", emoji = "⌨️")
@@ -220,6 +222,7 @@ fun AppConfig.toJson(): JSONObject = JSONObject().apply {
     put("calendarUrls", JSONArray(calendarUrls))
     put("homeStyle", homeStyle)
     put("nightDim", nightDim)
+    put("hiddenCalendars", JSONArray(hiddenCalendars.toList()))
 }
 
 fun appConfigFromJson(o: JSONObject): AppConfig {
@@ -265,5 +268,6 @@ fun appConfigFromJson(o: JSONObject): AppConfig {
         calendarUrls = o.optJSONArray("calendarUrls")?.let { a -> (0 until a.length()).map { a.getString(it) } } ?: emptyList(),
         homeStyle = o.optString("homeStyle", "room"),
         nightDim = o.optBoolean("nightDim", false),
+        hiddenCalendars = o.optJSONArray("hiddenCalendars")?.let { a -> (0 until a.length()).map { a.getString(it) }.toSet() } ?: emptySet(),
     )
 }
