@@ -39,6 +39,12 @@ object GuidePack {
 
     var manifest by mutableStateOf<GuideManifest?>(null)
         private set
+    /** アプリに 入っている デフォルト の ガイド（パック が ないとき） */
+    var builtin by mutableStateOf(false)
+        private set
+    /** おやメニュー で ガイド役 を つかうか（つかわない なら えもじ の マスコット） */
+    var enabled by mutableStateOf(true)
+        private set
     var busy by mutableStateOf(false)
         private set
     var status by mutableStateOf<String?>(null)
@@ -64,10 +70,33 @@ object GuidePack {
     fun installedTag(c: Context): String = prefs(c).getString("tag", "").orEmpty()
 
     fun init(c: Context) {
-        manifest = runCatching { parse(File(dir(c), "manifest.json").readText()) }.getOrNull()
+        enabled = prefs(c).getBoolean("enabled", true)
+        load(c)
     }
 
-    val installed get() = manifest != null
+    /** いれた パック、なければ アプリの デフォルト */
+    private fun load(c: Context) {
+        val own = runCatching { parse(File(dir(c), "manifest.json").readText()) }.getOrNull()
+        builtin = own == null
+        manifest = own ?: runCatching { parse(c.assets.open("guide/default/manifest.json").bufferedReader().readText()) }.getOrNull()
+        outfitVersion++
+    }
+
+    fun setEnabled(c: Context, on: Boolean) {
+        prefs(c).edit().putBoolean("enabled", on).apply()
+        enabled = on
+    }
+
+    /** へや に ガイド を だすか */
+    val installed get() = enabled && manifest != null
+
+    /** WebView から みた パック の ばしょ */
+    val packPath get() = if (builtin) "/assets/guide/default/" else "/pack/guide/"
+
+    /** サムネイル（パック の 中 か アプリの 中） */
+    fun open(c: Context, path: String): java.io.InputStream? = runCatching {
+        if (builtin) c.assets.open("guide/default/$path") else File(dir(c), path).inputStream()
+    }.getOrNull()
 
     fun parse(text: String): GuideManifest {
         val o = JSONObject(text)
@@ -146,7 +175,7 @@ object GuidePack {
         } finally { rel.disconnect() }
         val o = JSONObject(body)
         val tag = o.optString("tag_name")
-        if (tag == installedTag(c) && installed) return "さいしん です（$tag）"
+        if (tag == installedTag(c) && !builtin) return "さいしん です（$tag）"
         val assets = o.optJSONArray("assets") ?: JSONArray()
         val asset = (0 until assets.length()).map { assets.getJSONObject(it) }.firstOrNull { it.optString("name") == ASSET }
             ?: throw IllegalStateException("Release に $ASSET が ありません")
@@ -215,13 +244,14 @@ object GuidePack {
         target.parentFile?.mkdirs()
         if (!root.renameTo(target)) error("いれかえ できませんでした")
         tmp.deleteRecursively()
-        scope.launch { manifest = m; outfitVersion++ }
+        scope.launch { builtin = false; manifest = m; outfitVersion++ }
     }
 
+    /** いれた パック を はずして デフォルト に もどす */
     fun remove(c: Context) {
         dir(c).deleteRecursively()
         prefs(c).edit().remove("tag").apply()
-        manifest = null
         status = null
+        load(c)
     }
 }

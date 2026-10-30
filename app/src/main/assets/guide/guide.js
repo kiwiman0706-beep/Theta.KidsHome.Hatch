@@ -118,7 +118,7 @@ function tap() {
 renderer.domElement.addEventListener('pointerdown', tap);
 
 window.KH = {
-  setParts: (json) => setParts(typeof json === 'string' ? JSON.parse(json) : json),
+  setParts: (json) => dress(typeof json === 'string' ? JSON.parse(json) : json),
   tap,
   setView: (v) => { location.search = `?pack=${encodeURIComponent(pack)}&view=${v}`; },
 };
@@ -156,13 +156,25 @@ function animate(now) {
   renderer.render(scene, camera);
 }
 
-async function start() {
-  try {
-    manifest = await (await fetch(pack + 'manifest.json')).json();
-  } catch (e) { manifest = {}; }
+/** えらんだ アイテム の なかに "model" が あれば その モデル（VRoid で 服ごとに 書き出した とき） */
+function modelFor(ids) {
+  const chosen = new Set(ids || []);
+  for (const sl of manifest.slots || []) for (const it of sl.items || []) if (it.model && chosen.has(it.id)) return it.model;
+  return manifest.model || 'model/guide.vrm';
+}
+
+let currentModel = null;
+let loading = null;
+let wantParts = [];
+
+function loadModel(path) {
+  if (path === currentModel) return Promise.resolve();
+  currentModel = path;
   const loader = new GLTFLoader();
   loader.register((p) => new VRMLoaderPlugin(p));
-  loader.load(pack + (manifest.model || 'model/guide.vrm'), (gltf) => {
+  loading = new Promise((resolve) => loader.load(pack + path, (gltf) => {
+    if (path !== currentModel) { resolve(); return; } // とちゅうで べつの ふく に なった
+    if (root) { scene.remove(root); VRMUtils.deepDispose(root); tinted.clear(); }
     vrm = gltf.userData.vrm || null;
     if (vrm) {
       VRMUtils.removeUnnecessaryVertices(gltf.scene);
@@ -174,15 +186,31 @@ async function start() {
     scene.add(root);
     // うで を おろして から 大きさ を はかる
     if (vrm) {
-      const lu = bone('leftUpperArm'); if (lu) lu.rotation.z = -1.15;
-      const ru = bone('rightUpperArm'); if (ru) ru.rotation.z = 1.15;
+      const lu = bone('leftUpperArm'); if (lu) lu.rotation.z = -1.3;
+      const ru = bone('rightUpperArm'); if (ru) ru.rotation.z = 1.3;
       vrm.update(0);
     }
     root.updateMatrixWorld(true);
     frame();
-    setParts(JSON.parse(params.get('parts') || '[]'));
+    setParts(wantParts);
     bridge.onReady(JSON.stringify({ parts: partNames(), expressions: vrm && vrm.expressionManager ? vrm.expressionManager.expressions.map((e) => e.expressionName) : [] }));
-  }, undefined, (e) => bridge.onError(String(e && e.message || e)));
+    resolve();
+  }, undefined, (e) => { bridge.onError(String(e && e.message || e)); resolve(); }));
+  return loading;
+}
+
+/** きせかえ：モデル が かわるなら よみなおして から パーツ */
+function dress(ids) {
+  wantParts = ids || [];
+  const m = modelFor(wantParts);
+  if (m !== currentModel) loadModel(m); else setParts(wantParts);
+}
+
+async function start() {
+  try {
+    manifest = await (await fetch(pack + 'manifest.json')).json();
+  } catch (e) { manifest = {}; }
+  dress(JSON.parse(params.get('parts') || '[]'));
   requestAnimationFrame(animate);
 }
 start();

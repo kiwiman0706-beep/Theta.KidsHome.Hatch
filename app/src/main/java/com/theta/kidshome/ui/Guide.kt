@@ -103,7 +103,7 @@ fun GuideView(
                 onReady(runCatching { JSONObject(j).getJSONArray("parts").let { a -> (0 until a.length()).map { a.getString(it) } } }.getOrDefault(emptyList()))
             }, { e -> Toast.makeText(context, "ガイドを よめません（$e）", Toast.LENGTH_LONG).show() }), "KidsHomeGuide")
             val p = android.net.Uri.encode(JSONArray(parts).toString())
-            loadUrl("https://appassets.androidplatform.net/assets/guide/guide.html?pack=/pack/guide/&view=$view&parts=$p")
+            loadUrl("https://appassets.androidplatform.net/assets/guide/guide.html?pack=${GuidePack.packPath}&view=$view&parts=$p")
         }
     }
     LaunchedEffect(parts) { web.evaluateJavascript("window.KH && KH.setParts(${JSONArray(parts)})", null) }
@@ -138,7 +138,7 @@ fun Wardrobe(theme: KidTheme, profileId: String) {
 @Composable
 private fun ItemCard(theme: KidTheme, emoji: String, name: String, thumb: String?, on: Boolean, onClick: () -> Unit) {
     val context = LocalContext.current
-    val bmp = remember(thumb) { thumb?.let { runCatching { BitmapFactory.decodeFile(File(GuidePack.dir(context), it).path)?.asImageBitmap() }.getOrNull() } }
+    val bmp = remember(thumb) { thumb?.let { t -> GuidePack.open(context, t)?.use { BitmapFactory.decodeStream(it) }?.asImageBitmap() } }
     Column(
         Modifier.width(120.dp).clip(RoundedCornerShape(16.dp)).background(if (on) theme.titleBars[0] else Color.White)
             .border(if (on) 4.dp else 2.dp, theme.outline, RoundedCornerShape(16.dp)).clickable(onClick = onClick).padding(8.dp),
@@ -173,9 +173,17 @@ fun GuideSection() {
             fontSize = 14.sp,
         )
         val m = GuidePack.manifest
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 6.dp)) {
+            Text("へや に ガイド役 を だす（オフ なら えもじ の マスコット）", modifier = Modifier.weight(1f))
+            androidx.compose.material3.Switch(GuidePack.enabled, { GuidePack.setEnabled(context, it) })
+        }
         Text(
-            if (m != null) "✅ ${m.name}（${m.version}・${GuidePack.installedTag(context)}）きせかえ ${m.slots.sumOf { it.items.size }} こ" else "まだ ありません",
-            fontSize = 15.sp, modifier = Modifier.padding(top = 6.dp),
+            when {
+                m == null -> "まだ ありません"
+                GuidePack.builtin -> "いまは アプリに 入っている ガイドちゃん（きせかえ ${m.slots.sumOf { it.items.size }} こ）"
+                else -> "✅ ${m.name}（${m.version}・${GuidePack.installedTag(context)}）きせかえ ${m.slots.sumOf { it.items.size }} こ"
+            },
+            fontSize = 15.sp,
         )
         GuidePack.status?.let { Text(it, fontSize = 13.sp, color = Color.Gray) }
         OutlinedTextField(repo, { repo = it }, singleLine = true, label = { Text("リポジトリ（例：kiwiman0706-beep/Theta.Kidshome.Hatch.Closed）") }, modifier = Modifier.fillMaxWidth().padding(top = 6.dp))
@@ -190,10 +198,8 @@ fun GuideSection() {
             }) { Text(if (GuidePack.busy) "とってきています…" else "保存して いま とってくる") }
             OutlinedButton(onClick = scan) { Text("📷 QR で 読む") }
             OutlinedButton(enabled = !GuidePack.busy, onClick = { pick.launch(arrayOf("application/zip", "application/octet-stream")) }) { Text("zip を 読みこむ") }
-            if (m != null) {
-                OutlinedButton(onClick = { parts = emptyList() }) { Text("パーツ名を 見る") }
-                TextButton(onClick = { GuidePack.remove(context) }) { Text("はずす", color = Color(0xFFD03B5C)) }
-            }
+            if (m != null) OutlinedButton(onClick = { parts = emptyList() }) { Text("パーツ名を 見る") }
+            if (m != null && !GuidePack.builtin) TextButton(onClick = { GuidePack.remove(context) }) { Text("はずして デフォルトに もどす", color = Color(0xFFD03B5C)) }
         }
         Text("新しい版 は 1 日 1 かい たしかめます。パック の 作りかた は 非公開リポジトリ の README に あります。", fontSize = 12.sp, color = Color.Gray)
     }

@@ -1,0 +1,13 @@
+ガイド役の デフォルト モデル（assets/guide/default/model/guide.vrm）
+
+VRM1_Constraint_Twist_Sample v1.0.1
+(c) 2022 pixiv Inc.
+https://github.com/pixiv/three-vrm （packages/three-vrm/examples/models）
+
+ライセンス: VRM Public License 1.0  https://vrm.dev/licenses/1.0/
+- アバターとしての利用: だれでも
+- 商用利用: 法人まで可
+- 再配布: 可
+- 改変: 改変・改変物の再配布も可
+- クレジット表記: 不要
+（モデルに埋め込まれた VRMC_vrm meta より）
