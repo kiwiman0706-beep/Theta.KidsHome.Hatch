@@ -80,6 +80,12 @@ object Store {
             update { c -> c.copy(profiles = c.profiles.map { p -> p.copy(tiles = p.tiles.map { if (it.type == TileType.EDUPAD && it.emoji == "\uD83E\uDDE0") it.copy(emoji = "🌀") else it }) }) }
             prefs.edit().putBoolean("icon:edupad", true).apply()
         }
+        if (!prefs.getBoolean("added:dict", false)) {
+            if (config.profiles.none { p -> p.tiles.any { it.type == TileType.DICT } }) {
+                update { c -> c.copy(profiles = c.profiles.map { it.copy(tiles = it.tiles + AppConfig.dictTile()) }) }
+            }
+            prefs.edit().putBoolean("added:dict", true).apply()
+        }
         if (!prefs.getBoolean("added:tasu", false)) {
             if (config.profiles.none { p -> p.tiles.any { it.type == TileType.TASU } }) {
                 update { c -> c.copy(profiles = c.profiles.map { it.copy(tiles = it.tiles + AppConfig.tasuTile()) }) }

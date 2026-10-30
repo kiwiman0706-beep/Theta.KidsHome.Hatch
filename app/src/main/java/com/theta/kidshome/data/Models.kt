@@ -5,7 +5,7 @@ import org.json.JSONObject
 import java.util.UUID
 
 /** CALL：Google Meet などの通話リンク（どうがロック中も押せる） */
-enum class TileType { APP, VIDEO, DRAWING, CALL, INSTRUMENT, EDUPAD, WORDPRO, PUZZLE, TYPING, MOJI, KUKU, MAP, TASU }
+enum class TileType { APP, VIDEO, DRAWING, CALL, INSTRUMENT, EDUPAD, WORDPRO, PUZZLE, TYPING, MOJI, KUKU, MAP, TASU, DICT }
 
 /** ホーム画面に並ぶ1つのボタン */
 data class Tile(
@@ -86,6 +86,8 @@ data class AppConfig(
     val nightDim: Boolean = false,
     /** 出さない 端末カレンダー（CalendarContract の id） */
     val hiddenCalendars: Set<String> = emptySet(),
+    /** じしょ：子どもに 見せる 辞書 の レベル（1 こども向け・2 もっと くわしく・3 おとな向け も） */
+    val dictLevel: Int = 2,
 ) {
     fun categoryOf(packageName: String): AppCategory? =
         appCategory[packageName]?.let { id -> categories.firstOrNull { it.id == id } }
@@ -104,6 +106,7 @@ data class AppConfig(
         fun typingTile() = Tile(type = TileType.TYPING, label = "タイピング", emoji = "⌨️")
         fun mojiTile() = Tile(type = TileType.MOJI, label = "もじ れんしゅう", emoji = "✍️")
         fun mapTile() = Tile(type = TileType.MAP, label = "ちず", emoji = "🗺️")
+        fun dictTile() = Tile(type = TileType.DICT, label = "じしょ", emoji = "📖")
         fun tasuTile() = Tile(type = TileType.TASU, label = "たしざん の ひょう", emoji = "➕")
         fun kukuTile() = Tile(type = TileType.KUKU, label = "くくの ひょう", emoji = "✖️")
 
@@ -223,6 +226,7 @@ fun AppConfig.toJson(): JSONObject = JSONObject().apply {
     put("homeStyle", homeStyle)
     put("nightDim", nightDim)
     put("hiddenCalendars", JSONArray(hiddenCalendars.toList()))
+    put("dictLevel", dictLevel)
 }
 
 fun appConfigFromJson(o: JSONObject): AppConfig {
@@ -268,6 +272,7 @@ fun appConfigFromJson(o: JSONObject): AppConfig {
         calendarUrls = o.optJSONArray("calendarUrls")?.let { a -> (0 until a.length()).map { a.getString(it) } } ?: emptyList(),
         homeStyle = o.optString("homeStyle", "room"),
         nightDim = o.optBoolean("nightDim", false),
+        dictLevel = o.optInt("dictLevel", 2),
         hiddenCalendars = o.optJSONArray("hiddenCalendars")?.let { a -> (0 until a.length()).map { a.getString(it) }.toSet() } ?: emptySet(),
     )
 }

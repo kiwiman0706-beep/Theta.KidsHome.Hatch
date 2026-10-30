@@ -186,6 +186,8 @@ private fun SettingsTab(modifier: Modifier) {
 
         GuideSection()
 
+        DictSection(config)
+
         StampLibrarySection(config)
 
         CategorySection(config)
@@ -472,6 +474,9 @@ private fun ProfileEditor(profile: Profile, canDelete: Boolean, onDelete: () -> 
         if (profile.tiles.none { it.type == TileType.MAP }) {
             OutlinedButton(onClick = { Store.addTiles(profile.id, listOf(AppConfig.mapTile())) }) { Text("🗺️ ちずを追加") }
         }
+        if (profile.tiles.none { it.type == TileType.DICT }) {
+            OutlinedButton(onClick = { Store.addTiles(profile.id, listOf(AppConfig.dictTile())) }) { Text("📖 じしょ を追加") }
+        }
         if (profile.tiles.none { it.type == TileType.TASU }) {
             OutlinedButton(onClick = { Store.addTiles(profile.id, listOf(AppConfig.tasuTile())) }) { Text("➕ たしざん の ひょうを追加") }
         }
@@ -580,6 +585,7 @@ private fun TileRow(tile: Tile, onUp: (() -> Unit)?, onDown: (() -> Unit)?, onEd
                     TileType.KUKU -> add("くくの ひょう（内蔵）")
                     TileType.MAP -> add("ちず（内蔵）")
                     TileType.TASU -> add("たしざん の ひょう（内蔵）")
+                    TileType.DICT -> add("じしょ・ひゃっかじてん（内蔵）")
                 }
                 if (tile.isVideo) add("🔒ロック対象")
                 if (missing) add("⚠️ アプリが見つかりません")
