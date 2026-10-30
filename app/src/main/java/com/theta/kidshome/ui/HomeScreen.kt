@@ -203,7 +203,7 @@ fun HomeScreen(
         Shelf("look", "🔍", "しらべる", builtins(TileType.DICT, TileType.MAP)),
     ).filter { it.open != null || it.tiles.isNotEmpty() }
     // おもちゃばこ：あそぶ もの と、仕分けた アプリ
-    val toys = listOf(Shelf("play", "🎨", "あそぶ", builtins(TileType.DRAWING, TileType.PUZZLE))) +
+    val toys = listOf(Shelf("play", "🧩", "あそぶ", builtins(TileType.PUZZLE))) +
         listOfNotNull(appTiles.takeIf { it.isNotEmpty() }?.let { Shelf("apps", "📱", "アプリ", it) }) +
         tabs.filter { it.kind == TabKind.CATEGORY }.map { Shelf(it.key, it.emoji, it.label, it.tiles) }
     val toyShelves = toys.filter { it.tiles.isNotEmpty() }
@@ -283,6 +283,7 @@ fun HomeScreen(
                             onRadio = { open(listOfNotNull("local:music".takeIf { k -> tabs.any { it.key == k } }) + "room:music") },
                             onCall = { if (callTiles.size == 1) onTile(callTiles[0]) else open(listOf("room:calls")) },
                     onPiano = profile.tiles.firstOrNull { it.type == TileType.INSTRUMENT }?.let { t -> { onTile(t) } },
+                    onEasel = profile.tiles.firstOrNull { it.type == TileType.DRAWING }?.let { t -> { id: String? -> DrawingOpen.next = id; onTile(t) } },
                             apps = drawer,
                         )
                         } else if (t.kind == TabKind.HOME) HomePage(config, theme, locked, now, wide, stars, playful, ::burst, onTile)

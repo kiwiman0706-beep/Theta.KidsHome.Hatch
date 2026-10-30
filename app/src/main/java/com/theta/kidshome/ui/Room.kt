@@ -61,6 +61,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -92,20 +93,21 @@ private const val FLOOR = 700f
 
 private class R(val x: Float, val y: Float, val w: Float, val h: Float)
 
-private val BOARD = R(40f, 40f, 700f, 450f)
+private val BOARD = R(40f, 40f, 660f, 440f)
 private val WINDOW = R(790f, 45f, 300f, 274f)
 private val PLATE = R(775f, 340f, 280f, 100f)
 private val SWITCH = R(1100f, 360f, 44f, 64f)
 private val SHELF = R(1160f, 35f, 410f, 910f)
 private val GEAR = R(1470f, 18f, 100f, 100f)
 private val APPS = R(1160f, 905f, 410f, 82f)
-private val TV = R(80f, 515f, 360f, 292f)
-private val RADIO = R(460f, 690f, 150f, 95f)
+private val TV = R(60f, 545f, 320f, 260f)
+private val RADIO = R(385f, 705f, 120f, 80f)
+private val EASEL = R(515f, 470f, 200f, 400f)
 private val PHONE = R(1072f, 362f, 82f, 70f)
 private val PIANO = R(880f, 430f, 270f, 400f)
 private val TOYBOX = R(860f, 640f, 270f, 330f)
-private val MASCOT = R(650f, 720f, 200f, 230f)
-private val GUIDE = R(610f, 520f, 260f, 470f)
+private val MASCOT = R(705f, 720f, 190f, 230f)
+private val GUIDE = R(700f, 520f, 200f, 470f)
 
 private enum class Slide { CLOCK, CALENDAR, TIMETABLE }
 
@@ -137,6 +139,8 @@ fun RoomView(
     onRadio: () -> Unit,
     onCall: () -> Unit,
     onPiano: (() -> Unit)? = null,
+    /** イーゼル：かいた 絵 を ひらく（null なら あたらしい 絵） */
+    onEasel: ((String?) -> Unit)? = null,
     apps: List<Shelf> = emptyList(),
     initialPopup: String? = null,
 ) {
@@ -171,6 +175,8 @@ fun RoomView(
             if (locked && lockText != null && hasTv) Tag(lockText, TV.x + TV.w / 2, TV.y + TV.h - 12f, u, theme, theme.titleBars[0])
             Thing(RADIO, u, 135f, 85f, onClick = onRadio) { radio(theme) }
             // でんわ
+            // イーゼル：いままで かいた 絵 を ときどき かえて かざる
+            onEasel?.let { open -> Easel(theme, u, open) }
             // ピアノ（がっき）：かべぎわ に。でんわ は ピアノ の うえ
             onPiano?.let { Thing(PIANO, u, 250f, 400f, onClick = it) { piano(theme) } }
             if (calls.isNotEmpty()) Thing(PHONE, u, 72f, 62f, onClick = onCall) { phone(theme) }
@@ -371,15 +377,15 @@ private fun ClockSlide(theme: KidTheme, now: Long, u: Dp) {
     val cal = Calendar.getInstance().apply { timeInMillis = now }
     val f = Weather.forecast
     Row(Modifier.fillMaxSize().padding(u * 20f), verticalAlignment = Alignment.CenterVertically) {
-        Canvas(Modifier.size(u * 240f)) {
+        Canvas(Modifier.size(u * 210f)) {
             val k = size.width / 150f
             withTransform({ scale(k, k, pivot = Offset.Zero) }) { clock(theme, cal) }
         }
         Column(Modifier.weight(1f).padding(start = u * 24f), horizontalAlignment = Alignment.CenterHorizontally) {
             Text("%d:%02d".format(cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE)), fontFamily = DotFont, fontSize = (u.value * 64).sp, color = theme.outline)
             if (f != null) {
-                Text(Weather.emoji(f.code, f.isDay), fontSize = (u.value * 70).sp)
-                Text(Weather.label(f.code), fontFamily = DotFont, fontSize = (u.value * 24).sp, color = theme.outline, textAlign = TextAlign.Center)
+                Text(Weather.emoji(f.code, f.isDay), fontSize = (u.value * 56).sp)
+                Text(Weather.label(f.code), fontFamily = DotFont, fontSize = (u.value * 20).sp, color = theme.outline, textAlign = TextAlign.Center, maxLines = 1, softWrap = false)
                 Text("いま ${f.temp.toInt()}℃", fontFamily = DotFont, fontSize = (u.value * 30).sp, color = theme.outline)
                 f.days.firstOrNull()?.let { d -> Text("${d.max.toInt()}℃ / ${d.min.toInt()}℃  ☂${d.rain}%", fontFamily = DotFont, fontSize = (u.value * 22).sp, color = theme.outline.copy(alpha = 0.7f)) }
             }
@@ -600,10 +606,10 @@ private fun DrawScope.roomBack(t: KidTheme) {
         drawLine(t.outline, Offset(0f, FLOOR + 6f), Offset(RW, FLOOR + 6f), 4f)
         val o = t.outline
         // テレビ台
-        box(WoodDark, 40f, 790f, 600f, 170f, o, 12f)
-        box(Wood, 56f, 812f, 280f, 130f, o, 8f)
-        box(Wood, 344f, 812f, 280f, 130f, o, 8f)
-        dot(o, 320f, 877f, 7f); dot(o, 360f, 877f, 7f)
+        box(WoodDark, 40f, 790f, 470f, 170f, o, 12f)
+        box(Wood, 56f, 812f, 213f, 130f, o, 8f)
+        box(Wood, 281f, 812f, 213f, 130f, o, 8f)
+        dot(o, 255f, 877f, 7f); dot(o, 295f, 877f, 7f)
         // ラグ
         drawOval(lerp(t.titleBars[0], Color.White, 0.3f), Offset(600f, 900f), Size(560f, 90f))
         drawOval(o, Offset(600f, 900f), Size(560f, 90f), style = Stroke(5f))
@@ -732,6 +738,43 @@ private fun DrawScope.radio(t: KidTheme) {
 
 
 
+
+/** 260×520 の イーゼル（キャンバス は 20,40 から 220×230） */
+private fun DrawScope.easel(t: KidTheme) {
+    val o = t.outline
+    drawLine(WoodDark, Offset(130f, 10f), Offset(130f, 510f), 14f)
+    drawLine(WoodDark, Offset(120f, 60f), Offset(30f, 515f), 14f)
+    drawLine(WoodDark, Offset(140f, 60f), Offset(230f, 515f), 14f)
+    box(Color.White, 20f, 40f, 220f, 230f, o, 8f)
+    box(Wood, 10f, 270f, 240f, 22f, o, 6f)
+    drawOval(Color(0xFFF7E3C4), Offset(60f, 330f), Size(150f, 90f))
+    drawOval(o, Offset(60f, 330f), Size(150f, 90f), style = Stroke(4f))
+    listOf(Color(0xFFE85D75), Color(0xFF3D7BE0), Color(0xFFFFD84D), Color(0xFF2E9E5B)).forEachIndexed { i, c -> dot(c, 90f + i * 28f, 360f + (i % 2) * 22f, 10f) }
+}
+
+@Composable
+private fun Easel(theme: KidTheme, u: Dp, onOpen: (String?) -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val list = remember { com.theta.kidshome.data.Paintings.list(context) }
+    var pick by remember { mutableStateOf(list.randomOrNull()?.id) }
+    // 20 びょう ごと に べつの 絵
+    LaunchedEffect(list) { while (list.size > 1) { delay(20_000); pick = list.filter { it.id != pick }.randomOrNull()?.id ?: pick } }
+    Thing(EASEL, u, 260f, 520f, onClick = { onOpen(pick) }) { easel(theme) }
+    val k = EASEL.w / 260f
+    Box(Modifier.offset(u * (EASEL.x + 23f * k), u * (EASEL.y + 43f * k)).size(u * (214f * k), u * (224f * k))) {
+        androidx.compose.animation.Crossfade(pick, label = "easel") { id ->
+            val bmp = remember(id) { id?.let { com.theta.kidshome.data.Paintings.thumb(context, it)?.asImageBitmap() } }
+            if (bmp != null) androidx.compose.foundation.Image(bmp, "え", Modifier.fillMaxSize().clickable { onOpen(id) }, contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+            else Canvas(Modifier.fillMaxSize().clickable { onOpen(null) }) {
+                // まだ 絵 が ない とき：にじ
+                val w = size.width
+                listOf(Color(0xFFFF8FB1), Color(0xFFFFD84D), Color(0xFF8BD17C), Color(0xFF6FB7FF)).forEachIndexed { i, c ->
+                    drawArc(c, 180f, 180f, false, Offset(w * (0.12f + i * 0.07f), w * (0.3f + i * 0.07f)), Size(w * (0.76f - i * 0.14f), w * (0.76f - i * 0.14f)), style = Stroke(w * 0.06f))
+                }
+            }
+        }
+    }
+}
 
 private fun DrawScope.piano(t: KidTheme) {
     val o = t.outline

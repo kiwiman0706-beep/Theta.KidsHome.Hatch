@@ -46,6 +46,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -83,6 +84,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.random.Random
 import com.theta.kidshome.data.Stroke as PaintStroke
+
+/** ホーム の イーゼル から「この 絵 を ひらいて」と たのむ */
+object DrawingOpen {
+    var next: String? = null
+}
 
 /** ホームに戻っても絵が消えないように、アプリが動いている間は保持しておく */
 private object Drawing {
@@ -335,6 +341,20 @@ fun DrawingScreen(onBack: () -> Unit) {
                     }
                 }
             }
+        }
+    }
+
+    // イーゼル で えらんだ 絵 を ひらく
+    LaunchedEffect(Unit) {
+        val id = DrawingOpen.next ?: return@LaunchedEffect
+        DrawingOpen.next = null
+        if (id != Drawing.id) {
+            saveNow()
+            val (marks, bg) = Paintings.load(context, id)
+            Drawing.id = id
+            Drawing.marks.clear(); Drawing.marks.addAll(marks)
+            Drawing.background = bg
+            rebuild()
         }
     }
 
