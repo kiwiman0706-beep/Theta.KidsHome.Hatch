@@ -96,7 +96,7 @@ private val BOARD = R(40f, 40f, 700f, 450f)
 private val WINDOW = R(790f, 45f, 300f, 274f)
 private val PLATE = R(780f, 345f, 320f, 110f)
 private val SWITCH = R(1100f, 360f, 44f, 64f)
-private val SHELF = R(1160f, 130f, 410f, 760f)
+private val SHELF = R(1160f, 35f, 410f, 910f)
 private val GEAR = R(1470f, 18f, 100f, 100f)
 private val APPS = R(1160f, 905f, 410f, 82f)
 private val TV = R(80f, 515f, 360f, 292f)
@@ -140,7 +140,7 @@ fun RoomView(
 ) {
     val cal = Calendar.getInstance().apply { timeInMillis = now }
     val hour = cal.get(Calendar.HOUR_OF_DAY)
-    val night = hour >= 19 || hour < 6
+    val night = Store.config.nightDim && (hour >= 19 || hour < 6)
     var popup by remember { mutableStateOf(initialPopup) } // "shelf" / "toys"
     var popupKey by remember { mutableStateOf(shelves.firstOrNull { it.tiles.isNotEmpty() }?.key) }
     BoxWithConstraints(modifier, contentAlignment = Alignment.Center) {
@@ -155,11 +155,6 @@ fun RoomView(
             Weather.forecast?.let { f -> Tag("${Weather.emoji(f.code, f.isDay)} ${f.temp.toInt()}℃", WINDOW.x + WINDOW.w / 2, WINDOW.y + WINDOW.h - 80f, u, theme, Color.White) }
             // なふだ（子どもの きりかえ）と でんきの スイッチ（おうちのひと）
             NamePlate(theme, profile, u)
-            // ⚙️ おうちのひと（2 びょう ながおし）と 📱 アプリ の いちらん
-            Box(Modifier.offset(u * GEAR.x, u * GEAR.y).size(u * GEAR.w, u * GEAR.h), contentAlignment = Alignment.Center) { HoldButton(theme, updateBadge, onGate) }
-            if (apps.isNotEmpty()) Box(Modifier.offset(u * APPS.x, u * APPS.y).size(u * APPS.w, u * APPS.h), contentAlignment = Alignment.Center) {
-                RetroButton("📱 アプリ", theme, theme.titleBars[1 % theme.titleBars.size], fontSize = 20, modifier = Modifier.fillMaxWidth()) { popup = "apps" }
-            }
             // ほんだな
             if (shelves.isNotEmpty()) Bookshelf(theme, shelves, u) { s ->
                 if (s.open != null && s.tiles.isEmpty()) s.open.invoke() else { popup = "shelf"; popupKey = s.key }
@@ -260,16 +255,6 @@ private fun NamePlate(theme: KidTheme, profile: Profile, u: Dp) {
             Column(Modifier.weight(1f)) {
                 Text(profile.name, fontFamily = DotFont, fontSize = (u.value * 24).sp, color = theme.outline, maxLines = 1, softWrap = false)
                 Text("の へや", fontFamily = DotFont, fontSize = (u.value * 20).sp, color = theme.outline)
-            }
-            if (profiles.size > 1) profiles.forEach { p ->
-                val t = themeById(p.themeId)
-                val on = p.id == profile.id
-                Box(
-                    Modifier.padding(start = u * 4f).size(u * (if (on) 62f else 48f)).clip(CircleShape)
-                        .background(if (on) t.titleBars[0] else Color.White).border(2.dp, theme.outline, CircleShape)
-                        .clickable { Store.update { it.copy(currentProfileId = p.id) } },
-                    contentAlignment = Alignment.Center,
-                ) { Text(t.mascot, fontSize = (u.value * (if (on) 40 else 30)).sp) }
             }
         }
     }

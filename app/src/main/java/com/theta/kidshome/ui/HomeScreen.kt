@@ -176,7 +176,7 @@ fun HomeScreen(
                 in 4..9 -> "おはよう！"
                 in 10..16 -> "こんにちは！"
                 in 17..19 -> "こんばんは！"
-                else -> "そろそろ おやすみ…"
+                else -> if (config.nightDim) "そろそろ おやすみ…" else "こんばんは！"
             },
         )
     }
@@ -256,35 +256,33 @@ fun HomeScreen(
                 .windowInsetsPadding(WindowInsets.safeDrawing)
                 .padding(start = 20.dp, top = 12.dp, bottom = 12.dp)
         ) {
-            if (!room) {
-                Header(config, theme, now, updateBadge = SelfUpdate.state.newer, onGate = { showGate = true })
-                VSpace(14)
-            }
-            if (room) {
-                RoomView(
-                    theme, now, profile, shelves, toyShelves, callTiles, hasTv = tvKeys.isNotEmpty(), locked = locked,
-                    lockText = if (locked) "🔒 あと ${remainingText(config.videoLockUntil, now)}" else null,
-                    tvEmoji = tabs.firstOrNull { it.kind == TabKind.VIDEO }?.emoji ?: "📺",
-                    mascotLine = mascotLine, playful = playful, updateBadge = SelfUpdate.state.newer,
-                    modifier = Modifier.weight(1f).fillMaxWidth().padding(end = 20.dp),
-                    tileView = { t, i -> TileWindow(t, theme, i, locked && t.isVideo) { onTile(t) } },
-                    onGate = { showGate = true },
-                    onMascot = { at ->
-                        mascotLine = (com.theta.kidshome.data.GuidePack.manifest?.tap?.takeIf { it.isNotEmpty() }
-                            ?: (theme.lines + "${profile.name}、だいすき！")).random().replace("{name}", profile.name)
-                        burst(at, listOf("💗", "💖", "✨"))
-                    },
-                    onBoard = { k -> open(listOf(k)) },
-                    onTv = { if (locked) showLockedDialog = true else open(tvKeys) },
-                    onRadio = { open(listOfNotNull("local:music".takeIf { k -> tabs.any { it.key == k } }) + "room:music") },
-                    onCall = { if (callTiles.size == 1) onTile(callTiles[0]) else open(listOf("room:calls")) },
-                    apps = drawer,
-                )
-            } else Row(Modifier.weight(1f)) {
+            Header(config, theme, now, updateBadge = SelfUpdate.state.newer, onGate = { showGate = true })
+            VSpace(14)
+            Row(Modifier.weight(1f)) {
                 Box(Modifier.weight(1f).fillMaxHeight()) {
                     Crossfade(tab.key, label = "tab") { key ->
                         val t = tabs.firstOrNull { it.key == key } ?: tabs.first()
-                        if (t.kind == TabKind.HOME) HomePage(config, theme, locked, now, wide, stars, playful, ::burst, onTile)
+                        if (t.kind == TabKind.HOME && room) {
+                        RoomView(
+                            theme, now, profile, shelves, toyShelves, callTiles, hasTv = tvKeys.isNotEmpty(), locked = locked,
+                            lockText = if (locked) "🔒 あと ${remainingText(config.videoLockUntil, now)}" else null,
+                            tvEmoji = tabs.firstOrNull { it.kind == TabKind.VIDEO }?.emoji ?: "📺",
+                            mascotLine = mascotLine, playful = playful, updateBadge = SelfUpdate.state.newer,
+                            modifier = Modifier.fillMaxSize(),
+                            tileView = { t, i -> TileWindow(t, theme, i, locked && t.isVideo) { onTile(t) } },
+                            onGate = { showGate = true },
+                            onMascot = { at ->
+                                mascotLine = (com.theta.kidshome.data.GuidePack.manifest?.tap?.takeIf { it.isNotEmpty() }
+                                    ?: (theme.lines + "${profile.name}、だいすき！")).random().replace("{name}", profile.name)
+                                burst(at, listOf("💗", "💖", "✨"))
+                            },
+                            onBoard = { k -> open(listOf(k)) },
+                            onTv = { if (locked) showLockedDialog = true else open(tvKeys) },
+                            onRadio = { open(listOfNotNull("local:music".takeIf { k -> tabs.any { it.key == k } }) + "room:music") },
+                            onCall = { if (callTiles.size == 1) onTile(callTiles[0]) else open(listOf("room:calls")) },
+                            apps = drawer,
+                        )
+                        } else if (t.kind == TabKind.HOME) HomePage(config, theme, locked, now, wide, stars, playful, ::burst, onTile)
                         else tabContent(t)
                     }
                 }

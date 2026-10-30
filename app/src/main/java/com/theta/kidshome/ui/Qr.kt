@@ -214,6 +214,10 @@ fun DefaultHomeSection() {
                 )
             }
         }
+        androidx.compose.foundation.layout.Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("よる（19 時〜6 時）は へや を くらくして「おやすみ」と いう", fontSize = 14.sp, modifier = Modifier.weight(1f))
+            androidx.compose.material3.Switch(com.theta.kidshome.data.Store.config.nightDim, { v -> com.theta.kidshome.data.Store.update { it.copy(nightDim = v) } })
+        }
         Text("へや：つくえ＝もじ・タイピング・くるくる・わーぷろ、イーゼル＝おえかき、テレビ＝どうが、おもちゃばこ＝アプリ…。この子の ボタンに ない ものは 置きません。", fontSize = 12.sp, color = Color.Gray)
         androidx.compose.foundation.layout.Spacer(Modifier.padding(top = 10.dp))
         Text("いつもの ホーム", fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)

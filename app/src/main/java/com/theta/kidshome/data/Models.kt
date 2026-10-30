@@ -82,6 +82,8 @@ data class AppConfig(
     val calendarUrls: List<String> = emptyList(),
     /** ホームの かたち："room"（へや）か "tabs"（タブ） */
     val homeStyle: String = "room",
+    /** よる（19 時〜6 時）は へや を くらくして「おやすみ」と いう（車で 見るなら オフ） */
+    val nightDim: Boolean = false,
 ) {
     fun categoryOf(packageName: String): AppCategory? =
         appCategory[packageName]?.let { id -> categories.firstOrNull { it.id == id } }
@@ -217,6 +219,7 @@ fun AppConfig.toJson(): JSONObject = JSONObject().apply {
     put("songs", JSONArray(songs.map { JSONObject().put("title", it.title).put("notes", it.notes) }))
     put("calendarUrls", JSONArray(calendarUrls))
     put("homeStyle", homeStyle)
+    put("nightDim", nightDim)
 }
 
 fun appConfigFromJson(o: JSONObject): AppConfig {
@@ -261,5 +264,6 @@ fun appConfigFromJson(o: JSONObject): AppConfig {
         } ?: emptyList(),
         calendarUrls = o.optJSONArray("calendarUrls")?.let { a -> (0 until a.length()).map { a.getString(it) } } ?: emptyList(),
         homeStyle = o.optString("homeStyle", "room"),
+        nightDim = o.optBoolean("nightDim", false),
     )
 }
