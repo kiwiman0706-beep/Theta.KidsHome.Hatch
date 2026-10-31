@@ -56,7 +56,7 @@ object Moji {
         return (p.grade + up).coerceIn(0, 6)
     }
 
-    /** その子が れんしゅう できる まとまり（学年までの漢字が ふえていく） */
+    /** れんしゅう できる まとまり：かな・すうじ と 1〜6 ねんせい の 漢字（学年別漢字配当表） */
     fun sets(context: Context, p: Profile): List<MojiSet> {
         load(context)
         val g = gradeOf(p)
@@ -64,7 +64,10 @@ object Moji {
             add(MojiSet("hira", "あ", "ひらがな", HIRAGANA))
             add(MojiSet("kata", "ア", "カタカナ", KATAKANA))
             add(MojiSet("num", "１", "すうじ・ABC", NUMBERS))
-            grades.forEachIndexed { i, chars -> if (i + 1 <= g) add(MojiSet("g${i + 1}", "${i + 1}", "${i + 1}ねんせい の かんじ", chars, i + 1)) }
+            // 1〜6 ねんせい ぜんぶ えらべる（フォント の 素材 に。まだ ならって いない 学年 は「これから」）
+            grades.forEachIndexed { i, chars ->
+                add(MojiSet("g${i + 1}", "${i + 1}", "${i + 1}ねんせい の かんじ" + if (i + 1 > g) "（これから）" else "", chars, i + 1))
+            }
         }
     }
 

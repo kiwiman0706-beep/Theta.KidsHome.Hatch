@@ -96,7 +96,13 @@ fun MojiScreen(onBack: () -> Unit) {
             Row(Modifier.weight(1f).horizontalScroll(rememberScrollState())) {
                 sets.forEach { s ->
                     val n = s.chars.codePoints().toArray().count { String(Character.toChars(it)) in written }
-                    RetroButton("${s.emoji} ${s.title} $n", theme, if (s == set) theme.titleBars[0] else Color.White, fontSize = 15, modifier = Modifier.padding(end = 6.dp)) { set = s }
+                    val total = s.chars.codePointCount(0, s.chars.length)
+                    val label = if (s.grade > 0) "${s.grade}ねん $n/$total" else "${s.emoji} ${s.title} $n"
+                    val later = s.grade > Moji.gradeOf(profile)
+                    RetroButton(
+                        label, theme, if (s == set) theme.titleBars[0] else if (later) Color(0xFFEFEFEF) else Color.White, fontSize = 15,
+                        modifier = Modifier.padding(end = 6.dp),
+                    ) { set = s }
                 }
             }
         }
@@ -214,7 +220,7 @@ fun MojiScreen(onBack: () -> Unit) {
 @Composable
 fun GradeEditor(profile: com.theta.kidshome.data.Profile) {
     val g = Moji.gradeOf(profile)
-    Text("がくねん（もじ れんしゅう の漢字が この学年まで ふえます。4 月に 自動で 1 つ上がります）", fontSize = 13.sp, color = Color.Gray, modifier = Modifier.padding(top = 12.dp))
+    Text("がくねん（もじ れんしゅう は 1〜6 ねんせい の 漢字 を ぜんぶ えらべます。この学年 より 上 は「これから」と 出ます。4 月に 自動で 1 つ上がります）", fontSize = 13.sp, color = Color.Gray, modifier = Modifier.padding(top = 12.dp))
     FlowRow8 {
         (0..6).forEach { n ->
             androidx.compose.material3.FilterChip(
