@@ -49,6 +49,29 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.theta.kidshome.data.Japan
+import com.theta.kidshome.data.JapanPhotos
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
 import com.theta.kidshome.data.Store
 import kotlin.math.hypot
 
@@ -67,14 +90,16 @@ fun JapanPuzzleScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val theme = themeById(Store.config.currentProfile.themeId)
     val map = remember { Japan.map(context) }
-    var mode by remember { mutableStateOf(-1) } // -1 = ぜんぶ、0.. = 地方
+    var mode by remember { mutableStateOf(-1) } // -1 = ぜんぶ、0.. = 地方、-2 = おもいで（いった ところ）
     var placed by remember { mutableStateOf(setOf<Int>()) }
     var info by remember { mutableStateOf<Int?>(null) }
     var names by remember { mutableStateOf(false) }
+    val memory = mode == -2
+    val visited = remember(JapanPhotos.version) { JapanPhotos.visited(context) }
     val targets = remember(mode) { if (mode < 0) (1..47).toList() else Japan.REGIONS[mode].codes.toList() }
     var queue by remember(mode) { mutableStateOf(targets.shuffled()) }
-    val tray = queue.filter { it !in placed }.take(6)
-    val done = targets.all { it in placed }
+    val tray = if (memory) emptyList() else queue.filter { it !in placed }.take(6)
+    val done = !memory && targets.all { it in placed }
 
     fun start(m: Int) { mode = m; placed = emptySet(); info = null }
 
@@ -84,17 +109,20 @@ fun JapanPuzzleScreen(onBack: () -> Unit) {
             DotText("にっぽん パズル", theme, 28, theme.text, modifier = Modifier.padding(start = 10.dp))
             Spacer(Modifier.width(12.dp))
             Row(Modifier.weight(1f).horizontalScroll(rememberScrollState())) {
-                RetroButton("🗾 ぜんぶ", theme, if (mode < 0) theme.titleBars[0] else Color.White, fontSize = 15, modifier = Modifier.padding(end = 6.dp)) { start(-1) }
+                RetroButton("📷 おもいで", theme, if (memory) theme.titleBars[3] else Color.White, fontSize = 15, modifier = Modifier.padding(end = 6.dp)) { start(-2) }
+                RetroButton("🗾 ぜんぶ", theme, if (mode == -1) theme.titleBars[0] else Color.White, fontSize = 15, modifier = Modifier.padding(end = 6.dp)) { start(-1) }
                 Japan.REGIONS.forEachIndexed { i, r ->
                     RetroButton(r.name, theme, if (mode == i) RegionColors[i] else Color.White, fontSize = 15, modifier = Modifier.padding(end = 6.dp)) { start(i) }
                 }
             }
-            DotText("${targets.count { it in placed }} / ${targets.size}", theme, 18, theme.text, modifier = Modifier.padding(horizontal = 8.dp))
+            DotText(if (memory) "いった ところ ${visited.size}" else "${targets.count { it in placed }} / ${targets.size}", theme, 18, theme.text, modifier = Modifier.padding(horizontal = 8.dp))
             RetroButton(if (names) "🏷 なまえ" else "🙈 なまえ", theme, if (names) theme.titleBars[1] else Color.White, fontSize = 15) { names = !names }
         }
         Spacer(Modifier.height(8.dp))
         Box(Modifier.weight(1f).fillMaxWidth()) {
-            Board(map, mode, targets, placed, tray, names, theme, Modifier.fillMaxSize(),
+            Board(
+                map, mode, targets, if (memory) visited else placed, tray, names, theme, Modifier.fillMaxSize(),
+                tappable = if (memory) targets.toSet() else placed, marks = visited,
                 onPlace = { code -> placed = placed + code; info = code },
                 onTap = { code -> info = code },
             )
@@ -102,9 +130,13 @@ fun JapanPuzzleScreen(onBack: () -> Unit) {
                 val east = mode in 0..3
                 InfoCard(
                     Japan.pref(code), RegionColors[Japan.pref(code).region], theme,
-                    Modifier.align(if (east) Alignment.BottomStart else Alignment.BottomEnd).padding(start = 8.dp, bottom = 8.dp, end = if (east) 8.dp else 308.dp),
+                    Modifier.align(if (east) Alignment.BottomStart else Alignment.BottomEnd).padding(start = 8.dp, bottom = 8.dp, end = if (east || memory) 8.dp else 308.dp),
                 ) { info = null }
             }
+            if (memory && info == null) DotText(
+                if (visited.isEmpty()) "けん を タップ して、あそび に いった ときの しゃしん を いれてね" else "📷 の けん を タップ すると しゃしん が 見られるよ",
+                theme, 18, theme.text, modifier = Modifier.align(Alignment.TopStart).padding(12.dp),
+            )
             if (done) Column(Modifier.align(Alignment.TopStart).padding(8.dp)) {
                 DotText("${theme.mascot} 🏅 ぜんぶ できた！", theme, 26, theme.text)
                 RetroButton("🔁 もういちど", theme, theme.titleBars[2], fontSize = 18) { placed = emptySet(); queue = targets.shuffled(); info = null }
@@ -133,7 +165,7 @@ private fun inside(poly: FloatArray, x: Float, y: Float): Boolean {
 @Composable
 private fun Board(
     map: Japan.Map, mode: Int, targets: List<Int>, placed: Set<Int>, tray: List<Int>, names: Boolean, theme: KidTheme,
-    modifier: Modifier, onPlace: (Int) -> Unit, onTap: (Int) -> Unit,
+    modifier: Modifier, tappable: Set<Int>, marks: Set<Int>, onPlace: (Int) -> Unit, onTap: (Int) -> Unit,
 ) {
     val shapes = remember(map) { map.shapes.associateBy { it.code } }
     val paths = remember(map) {
@@ -156,10 +188,12 @@ private fun Board(
     val density = LocalDensity.current
     val lift = with(density) { 36.dp.toPx() }
     val snap = with(density) { 40.dp.toPx() }
+    val minLabel = with(density) { 11.dp.toPx() }
+    val maxLabel = with(density) { 20.dp.toPx() }
 
     BoxWithConstraints(modifier) {
         val w = constraints.maxWidth.toFloat(); val h = constraints.maxHeight.toFloat()
-        val trayW = with(density) { 300.dp.toPx() }.coerceAtMost(w * 0.32f)
+        val trayW = if (mode == -2) 0f else with(density) { 300.dp.toPx() }.coerceAtMost(w * 0.32f)
         val mapW = w - trayW
         // 見る はんい（地図 の 単位）
         val box = remember(mode) {
@@ -185,7 +219,7 @@ private fun Board(
         }
 
         Canvas(
-            Modifier.fillMaxSize().pointerInput(mode, tray, placed, s) {
+            Modifier.fillMaxSize().pointerInput(mode, tray, placed, tappable, s) {
                 awaitEachGesture {
                     val down = awaitFirstDown()
                     val i = slots.indexOfFirst { it.contains(down.position) }
@@ -193,7 +227,7 @@ private fun Board(
                     if (code == null) {
                         // 地図 を タップ：はめた 県 の カード
                         val m = view.toMap(down.position)
-                        placed.firstOrNull { c -> shapes.getValue(c).polys.any { inside(it, m.x - off(c).x, m.y - off(c).y) } }?.let(onTap)
+                        tappable.firstOrNull { c -> shapes.getValue(c).polys.any { inside(it, m.x - off(c).x, m.y - off(c).y) } }?.let(onTap)
                         return@awaitEachGesture
                     }
                     down.consume()
@@ -235,14 +269,18 @@ private fun Board(
                 }
                 val o0 = view.toScreen(off(code).x, off(code).y)
                 piece(path, o0.x, o0.y, s, fill, if (target) outline.copy(alpha = if (code in placed) 0.9f else 0.35f) else Color(0xFFBBBBBB), dashed = target && code !in placed)
+                if (code in placed && code in marks) {
+                    val o = view.toScreen(sh.cx + off(code).x, sh.cy + off(code).y)
+                    label("📷", Offset(o.x, o.y - (s * 13f).coerceIn(minLabel, maxLabel) * 1.1f), (s * 13f).coerceIn(minLabel, maxLabel), Color.Black)
+                }
                 if (code in placed || (names && target)) {
                     val o = view.toScreen(sh.cx + off(code).x, sh.cy + off(code).y)
-                    label(Japan.pref(code).name.removeSuffix("県").removeSuffix("府").let { if (it == "東京都") "東京" else it }, o, (s * 13f).coerceIn(18f, 40f), outline.copy(alpha = if (code in placed) 1f else 0.45f))
+                    label(Japan.pref(code).name.removeSuffix("県").removeSuffix("府").let { if (it == "東京都") "東京" else it }, o, (s * 13f).coerceIn(minLabel, maxLabel), outline.copy(alpha = if (code in placed) 1f else 0.45f))
                 }
             }
             }
             // トレー
-            drawRoundRect(Color.White.copy(alpha = 0.7f), Offset(mapW + 4f, 0f), Size(trayW - 4f, h), CornerRadius(24f))
+            if (trayW > 0f) drawRoundRect(Color.White.copy(alpha = 0.7f), Offset(mapW + 4f, 0f), Size(trayW - 4f, h), CornerRadius(24f))
             tray.forEachIndexed { i, code ->
                 if (drag?.first == code) return@forEachIndexed
                 val slot = slots[i]
@@ -297,7 +335,62 @@ private fun InfoCard(p: Japan.Pref, color: Color, theme: KidTheme, modifier: Mod
                 }
             }
             Text(p.about, fontSize = 17.sp, color = theme.outline, lineHeight = 24.sp)
+            Photos(p, theme)
             Text("（タップ で とじる）", fontSize = 12.sp, color = theme.outline.copy(alpha = 0.5f), modifier = Modifier.padding(top = 6.dp))
         }
     }
+}
+
+/** あそび に いった ときの しゃしん：ならべて 見る・たす・おおきく 見る */
+@Composable
+private fun Photos(p: Japan.Pref, theme: KidTheme) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val files = remember(p.code, JapanPhotos.version) { JapanPhotos.list(context, p.code) }
+    var open by remember { mutableStateOf<Int?>(null) }
+    var busy by remember { mutableStateOf(false) }
+    val pick = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(20)) { uris ->
+        if (uris.isNotEmpty()) {
+            busy = true
+            scope.launch { withContext(Dispatchers.IO) { JapanPhotos.add(context, p.code, uris) }; busy = false }
+        }
+    }
+    Row(Modifier.padding(top = 10.dp).horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
+        files.forEachIndexed { i, f ->
+            val bmp by produceState<ImageBitmap?>(null, f.path) { value = withContext(Dispatchers.IO) { JapanPhotos.thumb(f)?.asImageBitmap() } }
+            Box(
+                Modifier.padding(end = 6.dp).size(84.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xFFEEEEEE)).clickable { open = i },
+            ) { bmp?.let { Image(it, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) } }
+        }
+        RetroButton(if (busy) "…" else if (files.isEmpty()) "📷 しゃしん を いれる" else "📷 ＋", theme, theme.titleBars[1], fontSize = 15) {
+            if (!busy) pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+        }
+    }
+    open?.let { start -> PhotoViewer(files, start, theme) { open = null } }
+}
+
+@Composable
+private fun PhotoViewer(files: List<File>, start: Int, theme: KidTheme, onClose: () -> Unit) {
+    var i by remember { mutableIntStateOf(start) }
+    var ask by remember { mutableStateOf(false) }
+    val f = files.getOrNull(i) ?: run { onClose(); return }
+    val bmp by produceState<ImageBitmap?>(null, f.path) { value = withContext(Dispatchers.IO) { JapanPhotos.full(f)?.asImageBitmap() } }
+    Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.92f)).clickable(onClick = onClose)) {
+            bmp?.let { Image(it, null, Modifier.fillMaxSize().padding(24.dp), contentScale = ContentScale.Fit) }
+            Row(Modifier.align(Alignment.BottomCenter).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                RetroIconButton("◀", theme) { i = (i - 1 + files.size) % files.size }
+                DotText("${i + 1} / ${files.size}", theme, 20, Color.White, modifier = Modifier.padding(horizontal = 14.dp))
+                RetroIconButton("▶", theme) { i = (i + 1) % files.size }
+                Spacer(Modifier.width(24.dp))
+                RetroIconButton("🗑", theme) { ask = true }
+            }
+        }
+    }
+    if (ask) AlertDialog(
+        onDismissRequest = { ask = false },
+        title = { Text("この しゃしん を けす？") },
+        confirmButton = { TextButton(onClick = { ask = false; JapanPhotos.delete(f); if (files.size <= 1) onClose() else i = i.coerceAtMost(files.size - 2) }) { Text("けす") } },
+        dismissButton = { TextButton(onClick = { ask = false }) { Text("やめる") } },
+    )
 }
