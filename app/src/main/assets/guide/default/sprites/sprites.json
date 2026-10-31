@@ -1,0 +1,27 @@
+{
+ "format": 1,
+ "w": 240,
+ "h": 540,
+ "anims": {
+  "idle": {
+   "frames": 12,
+   "seconds": 2.4
+  },
+  "tap": {
+   "frames": 16,
+   "seconds": 1.6
+  }
+ },
+ "masks": [
+  "Tops_01",
+  "Hair_00",
+  "HairBack_00"
+ ],
+ "variants": [
+  {
+   "id": "v0",
+   "choose": {},
+   "model": null
+  }
+ ]
+}

@@ -108,7 +108,7 @@ private val PHONE = R(1072f, 362f, 82f, 70f)
 private val PIANO = R(880f, 430f, 270f, 400f)
 private val TOYBOX = R(860f, 640f, 270f, 330f)
 private val MASCOT = R(705f, 720f, 190f, 230f)
-private val GUIDE = R(717f, 520f, 141f, 470f)
+private val GUIDE = R(700f, 500f, 200f, 470f)
 
 private enum class Slide { CLOCK, CALENDAR, TIMETABLE }
 
@@ -152,18 +152,6 @@ fun RoomView(
     var popupKey by remember { mutableStateOf(shelves.firstOrNull { it.tiles.isNotEmpty() }?.key) }
     BoxWithConstraints(modifier, contentAlignment = Alignment.Center) {
         val u = minOf(maxWidth / RW, maxHeight / RH)
-        // ガイド の うしろ の へや の 絵（WebView を すけさせずに、この 絵 を 背景 に して 3D を かく）
-        val density = androidx.compose.ui.platform.LocalDensity.current
-        val guideBg = remember(theme, u, density) {
-            val ppu = with(density) { u.toPx() }
-            val w = (GUIDE.w * ppu).toInt().coerceAtLeast(1)
-            val h = (GUIDE.h * ppu).toInt().coerceAtLeast(1)
-            val img = androidx.compose.ui.graphics.ImageBitmap(w, h)
-            androidx.compose.ui.graphics.drawscope.CanvasDrawScope().draw(density, androidx.compose.ui.unit.LayoutDirection.Ltr, androidx.compose.ui.graphics.Canvas(img), Size(w.toFloat(), h.toFloat())) {
-                withTransform({ scale(ppu, ppu, pivot = Offset.Zero); translate(-GUIDE.x, -GUIDE.y) }) { roomArt(theme) }
-            }
-            java.io.ByteArrayOutputStream().also { o -> img.asAndroidBitmap().compress(android.graphics.Bitmap.CompressFormat.PNG, 100, o) }.toByteArray()
-        }
         val ox = (maxWidth - u * RW) / 2
         val oy = (maxHeight - u * RH) / 2
         Box(Modifier.size(u * RW, u * RH).clip(RoundedCornerShape(u * 28f)).border(3.dp, theme.outline, RoundedCornerShape(u * 28f))) {
@@ -200,15 +188,11 @@ fun RoomView(
                     Text("🧸🪀⚽", fontSize = (u.value * 54).sp, modifier = Modifier.align(Alignment.TopCenter).offset(y = u * 92f))
                 }
             }
-            if (GuidePack.installed) {
-                // 3D が うごくまで（うごかないとき も）えもじ の マスコット
-                if (!GuidePack.viewReady) {
-                    Mascot(theme, "", u, playful, onMascot)
-                    GuidePack.viewStatus?.takeIf { !it.startsWith("よみこみ中") }?.let { msg ->
-                        Box(Modifier.offset(u * GUIDE.x, u * (GUIDE.y + GUIDE.h - 60f)).size(u * GUIDE.w, u * 60f)) {
-                            Text("⚠️ 3D：$msg", fontSize = 10.sp, color = Color(0xFFD03B5C), maxLines = 3)
-                        }
-                    }
+            if (GuidePack.installed && GuidePack.sprites != null) {
+                // ガイド役（パラパラ漫画）
+                var center by remember { mutableStateOf(Offset.Zero) }
+                Box(Modifier.offset(u * GUIDE.x, u * GUIDE.y).size(u * GUIDE.w, u * GUIDE.h).onGloballyPositioned { center = it.boundsInRoot().center }) {
+                    GuideSprite(profile.id, Modifier.fillMaxSize(), onTap = { onMascot(center) })
                 }
                 Bubble(theme, mascotLine, GUIDE.x + GUIDE.w / 2, GUIDE.y - 10f, u)
                 Box(
@@ -219,14 +203,6 @@ fun RoomView(
             } else Mascot(theme, mascotLine, u, playful, onMascot)
             if (night) Box(Modifier.fillMaxSize().background(Color(0xFF1B1F4A).copy(alpha = 0.22f)))
 
-        }
-        // 3D の ガイド は、まるく きりとった へや の そと に おく（WebView は きりとり の 中だと 出ないことが ある）
-        if (GuidePack.installed && popup == null) {
-            var center by remember { mutableStateOf(Offset.Zero) }
-            Box(
-                Modifier.align(Alignment.TopStart).offset(ox + u * GUIDE.x, oy + u * GUIDE.y).size(u * GUIDE.w, u * GUIDE.h)
-                    .onGloballyPositioned { center = it.boundsInRoot().center },
-            ) { GuideView(profile.id, Modifier.fillMaxSize(), onTap = { onMascot(center) }, background = guideBg) }
         }
         // 小さな まど（本棚・ショーウインドウ・きせかえ）
         if (popup != null) Box(Modifier.align(Alignment.TopStart).offset(ox, oy).size(u * RW, u * RH)) {

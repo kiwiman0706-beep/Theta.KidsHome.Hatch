@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.asImageBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
@@ -18,7 +19,23 @@ import java.net.URL
 import java.util.zip.ZipInputStream
 
 /** ガイド役 の きせかえ：スロット（ふく・かみ…）と アイテム */
-data class GuideItem(val id: String, val name: String, val emoji: String, val thumbnail: String?)
+data class GuideItem(
+    val id: String, val name: String, val emoji: String, val thumbnail: String?,
+    /** マテリアル名 の 一部 → いろ（#rrggbb） */
+    val tint: Map<String, String> = emptyMap(),
+    /** かたち が かわる（show / hide / model）→ パラパラ漫画 の variant で きりかえ */
+    val shape: Boolean = false,
+)
+
+/** パラパラ漫画（sprites/sprites.json） */
+data class GuideSprites(
+    val w: Int, val h: Int,
+    val anims: Map<String, Anim>,
+    val masks: List<String>,
+    val variants: List<Pair<String, Map<String, String?>>>,
+) {
+    data class Anim(val frames: Int, val seconds: Double)
+}
 data class GuideSlot(val id: String, val name: String, val optional: Boolean, val items: List<GuideItem>)
 data class GuideManifest(
     val name: String,
@@ -101,6 +118,8 @@ object GuidePack {
     fun init(c: Context) {
         // 3D（WebView）は 端末 に よって 画面 を こわす ので、いったん はじめ は オフ（0.27.1）
         if (!prefs(c).getBoolean("off:0271", false)) prefs(c).edit().putBoolean("enabled", false).putBoolean("off:0271", true).apply()
+        // パラパラ漫画 方式 に したので また はじめ は オン（0.28.0）
+        if (!prefs(c).getBoolean("on:0280", false)) prefs(c).edit().putBoolean("enabled", true).putBoolean("on:0280", true).apply()
         enabled = prefs(c).getBoolean("enabled", false)
         transparent = prefs(c).getBoolean("transparent", false)
         simple = prefs(c).getBoolean("simple", false)
@@ -112,7 +131,56 @@ object GuidePack {
         val own = runCatching { parse(File(dir(c), "manifest.json").readText()) }.getOrNull()
         builtin = own == null
         manifest = own ?: runCatching { parse(c.assets.open("guide/default/manifest.json").bufferedReader().readText()) }.getOrNull()
+        sprites = runCatching { open(c, "sprites/sprites.json")?.use { parseSprites(it.bufferedReader().readText()) } }.getOrNull()
+        cache.evictAll()
         outfitVersion++
+    }
+
+    var sprites by mutableStateOf<GuideSprites?>(null)
+        private set
+
+    fun parseSprites(text: String): GuideSprites {
+        val o = JSONObject(text)
+        val anims = o.getJSONObject("anims").let { a -> a.keys().asSequence().associateWith { k -> a.getJSONObject(k).let { GuideSprites.Anim(it.getInt("frames"), it.getDouble("seconds")) } } }
+        val masks = o.optJSONArray("masks")?.let { a -> (0 until a.length()).map { a.getString(it) } } ?: emptyList()
+        val variants = o.getJSONArray("variants").let { a ->
+            (0 until a.length()).map { a.getJSONObject(it) }.map { v ->
+                val ch = v.optJSONObject("choose") ?: JSONObject()
+                v.getString("id") to ch.keys().asSequence().associateWith { k -> if (ch.isNull(k)) null else ch.getString(k) }
+            }
+        }
+        return GuideSprites(o.optInt("w", 240), o.optInt("h", 540), anims, masks, variants)
+    }
+
+    /** えらんだ もの に あう かたち（variant）。なければ さいしょ */
+    fun variantFor(sp: GuideSprites, m: GuideManifest, chosen: List<String>): String {
+        fun pick(slotId: String): String? {
+            val slot = m.slots.firstOrNull { it.id == slotId } ?: return null
+            val item = slot.items.firstOrNull { it.id in chosen } ?: if (slot.optional) null else slot.items.firstOrNull()
+            return item?.takeIf { it.shape }?.id
+        }
+        return sp.variants.firstOrNull { (_, ch) -> ch.all { (slot, id) -> pick(slot) == id } }?.first ?: sp.variants.firstOrNull()?.first ?: "v0"
+    }
+
+    /** えらんだ もの の いろ（マテリアル名 の 一部 → いろ） */
+    fun tintsFor(m: GuideManifest, chosen: List<String>): List<Pair<String, androidx.compose.ui.graphics.Color>> =
+        m.slots.mapNotNull { slot -> slot.items.firstOrNull { it.id in chosen } ?: if (slot.optional) null else slot.items.firstOrNull() }
+            .flatMap { it.tint.entries }
+            .mapNotNull { (k, hex) -> runCatching { k to androidx.compose.ui.graphics.Color(android.graphics.Color.parseColor(hex)) }.getOrNull() }
+
+    private val cache = object : android.util.LruCache<String, androidx.compose.ui.graphics.ImageBitmap>(24 * 1024 * 1024) {
+        override fun sizeOf(key: String, value: androidx.compose.ui.graphics.ImageBitmap) = value.width * value.height * (if (key.contains("/mask_")) 1 else 4)
+    }
+
+    /** パラパラ漫画 の 1 まい（マスク は アルファ だけ で かるく） */
+    fun frame(c: Context, rel: String, mask: Boolean): androidx.compose.ui.graphics.ImageBitmap? {
+        val key = (if (builtin) "b:" else "p:") + rel
+        cache.get(key)?.let { return it }
+        val opts = android.graphics.BitmapFactory.Options().apply { if (mask) inPreferredConfig = android.graphics.Bitmap.Config.ALPHA_8 }
+        val bmp = open(c, "sprites/$rel")?.use { android.graphics.BitmapFactory.decodeStream(it, null, opts) } ?: return null
+        val img = bmp.asImageBitmap()
+        cache.put(key, img)
+        return img
     }
 
     fun setEnabled(c: Context, on: Boolean) {
@@ -146,7 +214,11 @@ object GuidePack {
                         s.optString("id"), s.optString("name"), s.optBoolean("optional"),
                         s.optJSONArray("items")?.let { ia ->
                             (0 until ia.length()).map { ia.getJSONObject(it) }.map { i ->
-                                GuideItem(i.optString("id"), i.optString("name"), i.optString("emoji", "👗"), i.optString("thumbnail").ifBlank { null })
+                                GuideItem(
+                                    i.optString("id"), i.optString("name"), i.optString("emoji", "👗"), i.optString("thumbnail").ifBlank { null },
+                                    tint = i.optJSONObject("tint")?.let { t -> t.keys().asSequence().associateWith { t.getString(it) } } ?: emptyMap(),
+                                    shape = i.has("show") || i.has("hide") || i.has("model"),
+                                )
                             }
                         } ?: emptyList(),
                     )

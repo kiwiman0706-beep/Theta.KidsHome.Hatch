@@ -14,6 +14,11 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import kotlinx.coroutines.delay
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -55,8 +60,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
-import androidx.webkit.WebViewAssetLoader
 import com.theta.kidshome.data.GuidePack
 import com.theta.kidshome.data.QrSetup
 import org.json.JSONArray
@@ -65,90 +68,49 @@ import java.io.File
 
 // しらせ を うける 関数 は、JS から よばれる メソッド と ちがう 名前 に する
 // （おなじ 名前 だと メソッド が じぶん を よびつづけて、しらせ が とどかない）
-private class GuideBridge(private val tapped: () -> Unit, private val readied: (String) -> Unit, private val failed: (String) -> Unit) {
-    private val main = Handler(Looper.getMainLooper())
-    @JavascriptInterface fun onTap() { main.post { tapped() } }
-    @JavascriptInterface fun onReady(json: String) { main.post { readied(json) } }
-    @JavascriptInterface fun onError(msg: String) { main.post { failed(msg) } }
-    @JavascriptInterface fun onStage(stage: String) { main.post { GuidePack.stage(stage) } }
-    @JavascriptInterface fun onInfo(info: String) { main.post { GuidePack.viewInfo = info } }
-}
-
 /**
- * ガイド役（VRM）を 3D で うごかす。WebView の 中で three.js と three-vrm（アプリに 同梱）。
- * パック は filesDir/packs/guide/ から よむ（ネット は つかわない）。
+ * ガイド役：3D キャラ を パソコン で パラパラ漫画 に した 絵 を ならべて 見せる（WebView・3D は つかわない）。
+ * ふだん は「いき・まばたき」を くりかえし、タップ で 手を ふる。服・かみ の 色 は マスク に 色 を かけて ぬる。
  */
-@SuppressLint("SetJavaScriptEnabled")
 @Composable
-fun GuideView(
-    profileId: String,
-    modifier: Modifier = Modifier,
-    view: String = "full",
-    onTap: () -> Unit = {},
-    onReady: (List<String>) -> Unit = {},
-    /** うしろ の 絵（PNG）。あれば WebView を すけさせず、この 絵 を 背景 に して 3D を かく */
-    background: ByteArray? = null,
-    /** 絵 が ない とき の 背景 の 色 */
-    backgroundColor: Color = Color(0xFFFFFDFE),
-) {
+fun GuideSprite(profileId: String, modifier: Modifier = Modifier, onTap: () -> Unit = {}) {
     val context = LocalContext.current
+    val sp = GuidePack.sprites ?: return
     val m = GuidePack.manifest ?: return
-    val parts = remember(profileId, GuidePack.outfitVersion) { GuidePack.outfit(context, profileId) }
-    val transparent = GuidePack.transparent
-    val simpleMode = GuidePack.simple
-    val web = remember(m, view, transparent, simpleMode, background?.contentHashCode()) {
-        val loader = WebViewAssetLoader.Builder()
-            .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(context))
-            .addPathHandler("/mem/") { _ -> background?.let { WebResourceResponse("image/png", null, java.io.ByteArrayInputStream(it)) } }
-            .addPathHandler("/pack/", WebViewAssetLoader.InternalStoragePathHandler(context, File(context.filesDir, "packs")))
-            .build()
-        WebView(context).apply {
-            // すけさせる と 出ない 端末 が ある ので、ふつう は 背景 を ぬった ページ に する
-            setBackgroundColor(if (transparent) android.graphics.Color.TRANSPARENT else backgroundColor.toArgb())
-            settings.javaScriptEnabled = true
-            settings.allowFileAccess = false
-            settings.allowContentAccess = false
-            GuidePack.viewReady = false
-            GuidePack.viewStatus = "よみこみ中…"
-            webViewClient = object : WebViewClient() {
-                override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =
-                    loader.shouldInterceptRequest(request.url)
-                        // アプリの中に ない もの（favicon など）は ネット に いかず「ない」と こたえる
-                        ?: if (request.url.host == "appassets.androidplatform.net") WebResourceResponse("text/plain", "utf-8", 404, "Not Found", emptyMap(), java.io.ByteArrayInputStream(ByteArray(0))) else null
-                override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest) = true
-                override fun onReceivedError(view: WebView, request: WebResourceRequest, error: android.webkit.WebResourceError) {
-                    if (!request.url.path.orEmpty().endsWith("favicon.ico")) GuidePack.reportError("よめない：${request.url.path}（${error.description}）")
-                }
-                override fun onReceivedHttpError(view: WebView, request: WebResourceRequest, response: WebResourceResponse) {
-                    if (!request.url.path.orEmpty().endsWith("favicon.ico")) GuidePack.reportError("ない：${request.url.path}（${response.statusCode}）")
-                }
-            }
-            // ページの エラー を おやメニュー に だす（なおすときの 手がかり）
-            webChromeClient = object : android.webkit.WebChromeClient() {
-                override fun onConsoleMessage(m: android.webkit.ConsoleMessage): Boolean {
-                    if (m.messageLevel() == android.webkit.ConsoleMessage.MessageLevel.ERROR) {
-                        GuidePack.reportError("${m.message()}（${m.sourceId().substringAfterLast('/')}:${m.lineNumber()}）")
-                    }
-                    return true
-                }
-            }
-            addJavascriptInterface(GuideBridge({ onTap() }, { j ->
-                GuidePack.viewReady = true
-                GuidePack.viewStatus = null
-                onReady(runCatching { JSONObject(j).getJSONArray("parts").let { a -> (0 until a.length()).map { a.getString(it) } } }.getOrDefault(emptyList()))
-            }, { e -> GuidePack.reportError(e) }), "KidsHomeGuide")
-            val p = android.net.Uri.encode(JSONArray(parts).toString())
-            val bg = when {
-                transparent -> ""
-                background != null -> "&bgimg=" + android.net.Uri.encode("/mem/room.png?" + background.contentHashCode())
-                else -> "&bg=" + "%06x".format(0xFFFFFF and backgroundColor.toArgb())
-            }
-            loadUrl("https://appassets.androidplatform.net/assets/guide/guide.html?pack=${GuidePack.packPath}&view=$view&parts=$p$bg${if (simpleMode) "&simple=1" else ""}")
+    val chosen = remember(profileId, GuidePack.outfitVersion) { GuidePack.outfit(context, profileId) }
+    val variant = remember(sp, chosen) { GuidePack.variantFor(sp, m, chosen) }
+    val tints = remember(m, chosen) { GuidePack.tintsFor(m, chosen) }
+    var anim by remember { mutableStateOf("idle") }
+    var frame by remember { mutableIntStateOf(0) }
+    LaunchedEffect(anim, sp) {
+        val a = sp.anims[anim] ?: return@LaunchedEffect
+        frame = 0
+        while (true) {
+            delay((a.seconds * 1000 / a.frames).toLong())
+            if (frame + 1 >= a.frames) { if (anim == "tap") { anim = "idle"; break } else frame = 0 } else frame++
         }
     }
-    LaunchedEffect(parts) { web.evaluateJavascript("window.KH && KH.setParts(${JSONArray(parts)})", null) }
-    DisposableEffect(web) { web.onResume(); onDispose { web.onPause(); web.destroy() } }
-    AndroidView({ web }, modifier)
+    val f = frame.coerceAtMost((sp.anims[anim]?.frames ?: 1) - 1)
+    val base = remember(variant, anim, f) { GuidePack.frame(context, "${variant}/${anim}_%02d.webp".format(f), mask = false) }
+    val masks = remember(variant, anim, f, tints) { tints.mapNotNull { (k, c) -> GuidePack.frame(context, "${variant}/mask_${k}_${anim}_%02d.png".format(f), mask = true)?.let { it to c } } }
+    Canvas(
+        modifier.pointerInput(Unit) { detectTapGestures { anim = "tap"; onTap() } },
+    ) {
+        val b = base ?: return@Canvas
+        // たて・よこ を くずさず、下 に そろえて まんなか に
+        val k = minOf(size.width / b.width, size.height / b.height)
+        val w = b.width * k; val h = b.height * k
+        val off = androidx.compose.ui.unit.IntOffset(((size.width - w) / 2).toInt(), (size.height - h).toInt())
+        val dst = androidx.compose.ui.unit.IntSize(w.toInt(), h.toInt())
+        drawImage(b, dstOffset = off, dstSize = dst, filterQuality = androidx.compose.ui.graphics.FilterQuality.Medium)
+        masks.forEach { (mask, color) ->
+            drawImage(
+                mask, dstOffset = off, dstSize = dst,
+                colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(color, androidx.compose.ui.graphics.BlendMode.SrcIn),
+                blendMode = androidx.compose.ui.graphics.BlendMode.Multiply,
+            )
+        }
+    }
 }
 
 /** きせかえ：左に 大きく ガイド、右に スロットごとの アイテム */
@@ -158,7 +120,7 @@ fun Wardrobe(theme: KidTheme, profileId: String) {
     val m = GuidePack.manifest ?: return
     val chosen = remember(profileId, GuidePack.outfitVersion) { GuidePack.outfit(context, profileId).toSet() }
     Row(Modifier.fillMaxSize().padding(12.dp)) {
-        GuideView(profileId, Modifier.width(320.dp).fillMaxHeight())
+        GuideSprite(profileId, Modifier.width(300.dp).fillMaxHeight())
         Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(start = 12.dp)) {
             if (m.slots.isEmpty()) DotText("きせかえ は まだ ないよ", theme, 20)
             m.slots.forEach { slot ->
@@ -196,7 +158,6 @@ fun GuideSection() {
     val context = LocalContext.current
     var repo by remember { mutableStateOf(GuidePack.repo(context)) }
     var token by remember { mutableStateOf(GuidePack.token(context)) }
-    var parts by remember { mutableStateOf<List<String>?>(null) }
     val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> uri?.let { GuidePack.importZip(context, it) } }
     val scan = rememberQrScanner("パックの QR コードを うつしてください") { v ->
         val s = QrSetup.parse(v)
@@ -208,13 +169,14 @@ fun GuideSection() {
     }
     Section("🧸 ガイド役（3D キャラ・きせかえ）") {
         Text(
-            "へや の マスコット を、VRM の 3D キャラ に できます。モデル は アプリに 入れず、非公開リポジトリ の Release（${GuidePack.ASSET}）から " +
+            "へや の マスコット を、3D キャラ の パラパラ漫画 に できます（3D は パソコン で 絵 に して おく ので どの 端末 でも 出ます）。" +
+                "じぶん の モデル は アプリに 入れず、非公開リポジトリ の Release（${GuidePack.ASSET}）から " +
                 "読み取り専用トークン で とってくる か、zip を じかに 読みこみます。トークン は このタブレット だけに 保存します。",
             fontSize = 14.sp,
         )
         val m = GuidePack.manifest
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 6.dp)) {
-            Text("へや に 3D の ガイド役 を だす（ためし中。画面 が おかしく なったら オフ に）", modifier = Modifier.weight(1f))
+            Text("へや に ガイド役 を だす（オフ なら えもじ の マスコット）", modifier = Modifier.weight(1f))
             androidx.compose.material3.Switch(GuidePack.enabled, { GuidePack.setEnabled(context, it) })
         }
         Text(
@@ -238,35 +200,9 @@ fun GuideSection() {
             }) { Text(if (GuidePack.busy) "とってきています…" else "保存して いま とってくる") }
             OutlinedButton(onClick = scan) { Text("📷 QR で 読む") }
             OutlinedButton(enabled = !GuidePack.busy, onClick = { pick.launch(arrayOf("application/zip", "application/octet-stream")) }) { Text("zip を 読みこむ") }
-            if (m != null) OutlinedButton(onClick = { parts = emptyList() }) { Text("パーツ名を 見る") }
             if (m != null && !GuidePack.builtin) TextButton(onClick = { GuidePack.remove(context) }) { Text("はずして デフォルトに もどす", color = Color(0xFFD03B5C)) }
         }
-        GuidePack.viewStatus?.let { Text("3D の ようす：$it", fontSize = 13.sp, color = Color(0xFFD03B5C)) }
-        if (GuidePack.viewReady) Text("3D の ようす：うごいています（${GuidePack.viewInfo ?: "…"}）", fontSize = 13.sp, color = Color.Gray)
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("かんたん な ぬりかた（キャラ が うつらない とき。自動 でも きりかわります）", fontSize = 14.sp, modifier = Modifier.weight(1f))
-            androidx.compose.material3.Switch(GuidePack.simple, { GuidePack.setSimple(context, it) })
-        }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("3D を すけさせて かさねる（ためし。端末 に よっては 見えなくなる）", fontSize = 14.sp, modifier = Modifier.weight(1f))
-            androidx.compose.material3.Switch(GuidePack.transparent, { GuidePack.setTransparent(context, it) })
-        }
+        if (m != null && GuidePack.sprites == null) Text("⚠️ この パック には パラパラ漫画（sprites/）が ありません。非公開リポジトリ で 作りなおしてください", fontSize = 13.sp, color = Color(0xFFD03B5C))
         Text("新しい版 は 1 日 1 かい たしかめます。パック の 作りかた は 非公開リポジトリ の README に あります。", fontSize = 12.sp, color = Color.Gray)
-    }
-    parts?.let { list ->
-        AlertDialog(
-            onDismissRequest = { parts = null },
-            title = { Text("パーツ名（manifest の show / hide に かく）") },
-            text = {
-                Row(Modifier.heightIn(max = 420.dp)) {
-                    GuideView("parts-check", Modifier.width(200.dp).fillMaxHeight(), onReady = { parts = it })
-                    Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(start = 12.dp)) {
-                        if (list.isEmpty()) Text("よみこみ中…")
-                        list.forEach { Text(it, fontFamily = FontFamily.Monospace, fontSize = 14.sp) }
-                    }
-                }
-            },
-            confirmButton = { TextButton(onClick = { parts = null }) { Text("とじる") } },
-        )
     }
 }

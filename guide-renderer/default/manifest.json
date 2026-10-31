@@ -1,0 +1,112 @@
+{
+  "format": 1,
+  "id": "guide",
+  "name": "ガイドちゃん",
+  "version": "builtin-2",
+  "model": "model/guide.vrm",
+  "lines": {
+    "greet": [
+      "やっほー！",
+      "きょうも あそぼ！"
+    ],
+    "tap": [
+      "えへへ",
+      "{name}、だいすき！",
+      "なにして あそぶ？",
+      "くすぐったいよ〜",
+      "きょうも げんき？",
+      "いっしょに がんばろ！"
+    ]
+  },
+  "slots": [
+    {
+      "id": "tops",
+      "name": "ふく",
+      "items": [
+        {
+          "id": "tops_white",
+          "name": "しろ",
+          "emoji": "🤍"
+        },
+        {
+          "id": "tops_pink",
+          "name": "ピンク",
+          "emoji": "🩷",
+          "tint": {
+            "Tops_01": "#ff8fb1"
+          }
+        },
+        {
+          "id": "tops_yellow",
+          "name": "きいろ",
+          "emoji": "💛",
+          "tint": {
+            "Tops_01": "#ffd84d"
+          }
+        },
+        {
+          "id": "tops_blue",
+          "name": "みずいろ",
+          "emoji": "🩵",
+          "tint": {
+            "Tops_01": "#7cc8ff"
+          }
+        },
+        {
+          "id": "tops_mint",
+          "name": "みどり",
+          "emoji": "💚",
+          "tint": {
+            "Tops_01": "#8be0b0"
+          }
+        },
+        {
+          "id": "tops_purple",
+          "name": "むらさき",
+          "emoji": "💜",
+          "tint": {
+            "Tops_01": "#c3a3ff"
+          }
+        }
+      ]
+    },
+    {
+      "id": "hair",
+      "name": "かみ",
+      "items": [
+        {
+          "id": "hair_brown",
+          "name": "ちゃいろ",
+          "emoji": "🤎"
+        },
+        {
+          "id": "hair_pink",
+          "name": "ピンク",
+          "emoji": "🌸",
+          "tint": {
+            "Hair_00": "#ffb0d6",
+            "HairBack_00": "#ffb0d6"
+          }
+        },
+        {
+          "id": "hair_red",
+          "name": "あかちゃいろ",
+          "emoji": "🧡",
+          "tint": {
+            "Hair_00": "#ff8a6a",
+            "HairBack_00": "#ff8a6a"
+          }
+        },
+        {
+          "id": "hair_black",
+          "name": "くろ",
+          "emoji": "🖤",
+          "tint": {
+            "Hair_00": "#6a6a78",
+            "HairBack_00": "#6a6a78"
+          }
+        }
+      ]
+    }
+  ]
+}
