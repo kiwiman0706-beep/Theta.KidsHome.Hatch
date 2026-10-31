@@ -45,6 +45,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -100,7 +101,6 @@ fun InstrumentScreen(onBack: () -> Unit, loopPreview: ((Looper) -> Unit)? = null
     val theme = themeById(Store.config.currentProfile.themeId)
     val synth = remember { Synth(context) }
     var voice by remember { mutableStateOf(Voice.PIANO) }
-    var kit by remember { mutableStateOf(Kit.DRUMS) }
     var octave by remember { mutableIntStateOf(0) }
     var practice by remember { mutableStateOf(false) }
     val songs = Songs.builtIn + Store.config.songs
@@ -135,7 +135,9 @@ fun InstrumentScreen(onBack: () -> Unit, loopPreview: ((Looper) -> Unit)? = null
         }
     }
 
-    LaunchedEffect(voice, kit) { synth.prepare(voice, kit) }
+    // パッド の 3 れつ：それぞれ の れつ の セット（左 の アイコン で きりかえ）
+    val rowKits = remember { mutableStateListOf(Kit.DRUMS, Kit.WORLD, Kit.FUN) }
+    LaunchedEffect(voice, rowKits.toList()) { rowKits.forEach { synth.prepare(voice, it) } }
     DisposableEffect(Unit) {
         AudioPlayer.pause()
         onDispose {
@@ -158,38 +160,43 @@ fun InstrumentScreen(onBack: () -> Unit, loopPreview: ((Looper) -> Unit)? = null
             }
             Spacer(Modifier.height(10.dp))
             if (loopOpen) {
-                LoopPanel(theme, looper, kit, Modifier.weight(1.1f).fillMaxWidth().padding(end = 6.dp, bottom = 6.dp)) { k, p -> synth.playPad(k, p) }
+                LoopPanel(theme, looper, Modifier.weight(1.1f).fillMaxWidth().padding(end = 6.dp, bottom = 6.dp)) { k, p -> synth.playPad(k, p) }
                 Spacer(Modifier.height(6.dp))
             }
 
             // ---- ドラムパッド（れんしゅう中は けんばん を大きく）
             if (!practice) {
-            // パッド は 1 れつ（12 こ）。高さ を おさえて けんばん を 大きく
-            RetroWindow(theme, Modifier.height(if (loopOpen) 120.dp else 150.dp).fillMaxWidth().padding(end = 6.dp, bottom = 6.dp)) {
-                Row(Modifier.fillMaxSize().padding(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    // セット：2 だん
-                    Column(Modifier.padding(end = 6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Kit.entries.chunked(3).forEach { row ->
-                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) { row.forEach { k -> RetroIconButton(k.emoji, theme, kit == k, if (loopOpen) 44.dp else 50.dp) { kit = k } } }
-                        }
-                    }
-                    Row(Modifier.weight(1f).fillMaxHeight(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        kit.pads.forEachIndexed { i, (emoji, label) ->
-                            Pad(
-                                theme, emoji, if (kit == Kit.MINE && recordingPad == i) "🔴" else label,
-                                if (kit == Kit.MINE && recordingPad == i) Color(0xFFFF4D6D) else PAD_COLORS[i % PAD_COLORS.size],
-                                Modifier.weight(1f).fillMaxHeight(),
-                                onHoldStart = if (kit == Kit.MINE) ({ startSample(i) }) else null,
-                                onHoldEnd = { if (recordingPad == i) Sampler.stop() },
-                            ) {
-                                synth.playPad(kit, i)
-                                looper.record(Looper.Hit(0f, pad = i, kit = kit))
+            // パッド は 3 れつ。左 の アイコン で その れつ の セット を かえる（🎤 は じぶん の おと）
+            val padH = if (loopOpen) 44.dp else 58.dp
+            RetroWindow(theme, Modifier.fillMaxWidth().padding(end = 6.dp, bottom = 6.dp)) {
+                Column(Modifier.padding(6.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                    rowKits.forEachIndexed { r, rk ->
+                        Row(Modifier.fillMaxWidth().height(padH), horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
+                            RetroIconButton(rk.emoji, theme, true, padH) {
+                                // つぎ の セット（ほか の れつ に ない もの）
+                                val order = Kit.entries
+                                var n = order[(order.indexOf(rk) + 1) % order.size]
+                                while (n in rowKits && n != rk) n = order[(order.indexOf(n) + 1) % order.size]
+                                rowKits[r] = n
+                                if (n == Kit.MINE) sampleMsg = "🎤 じぶん の おと：パッド を ながおし → 赤い おび が でたら こえ を だす → はなすと おわり"
+                            }
+                            rk.pads.forEachIndexed { i, (emoji, _) ->
+                                val rec = rk == Kit.MINE && recordingPad == i
+                                Pad(
+                                    theme, if (rec) "🔴" else emoji, "",
+                                    if (rec) Color(0xFFFF4D6D) else PAD_COLORS[(i + r * 4) % PAD_COLORS.size],
+                                    Modifier.weight(1f).fillMaxHeight(),
+                                    onHoldStart = if (rk == Kit.MINE) ({ startSample(i) }) else null,
+                                    onHoldEnd = { if (recordingPad == i) Sampler.stop() },
+                                ) {
+                                    synth.playPad(rk, i)
+                                    looper.record(Looper.Hit(0f, pad = i, kit = rk))
+                                }
                             }
                         }
                     }
                 }
             }
-            if (kit == Kit.MINE && recordingPad == null && sampleMsg == null) DotText("🎤 じぶん の おと：パッド を ながおし → 赤く なったら こえ を だす → はなすと おわり（${Sampler.MAX_SECONDS} びょう まで）", theme, 14, theme.text)
             Spacer(Modifier.height(6.dp))
             }
 
@@ -298,8 +305,8 @@ private fun Pad(
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(emoji, fontSize = 34.sp)
-            Text(label, fontFamily = DotFont, fontSize = 16.sp, color = theme.outline)
+            Text(emoji, fontSize = if (label.isEmpty()) 28.sp else 34.sp)
+            if (label.isNotEmpty()) Text(label, fontFamily = DotFont, fontSize = 16.sp, color = theme.outline)
         }
     }
 }
@@ -420,7 +427,7 @@ private fun PracticeBar(
 
 /** ループ：テンポ・はく・しょうせつ と、マス（タイムライン）。ドラム の マス は タップ で おける */
 @Composable
-private fun LoopPanel(theme: KidTheme, looper: Looper, kit: Kit, modifier: Modifier, preview: (Kit, Int) -> Unit) {
+private fun LoopPanel(theme: KidTheme, looper: Looper, modifier: Modifier, preview: (Kit, Int) -> Unit) {
     val countIn = looper.playing && looper.countIn
     RetroWindow(
         theme, modifier,
@@ -455,7 +462,7 @@ private fun LoopPanel(theme: KidTheme, looper: Looper, kit: Kit, modifier: Modif
             DotText("しょうせつ", theme, 14)
             Looper.BARS.forEach { b -> RetroButton("$b", theme, if (looper.bars == b) theme.titleBars[0] else Color.White, fontSize = 15) { looper.changeBars(b) } }
         }
-        LoopGrid(theme, looper, kit, Modifier.weight(1f).fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp), preview)
+        LoopGrid(theme, looper, Modifier.weight(1f).fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp), preview)
         DotText(
             "🔔 メトロノーム　🧲 マスに ぴったり　⏺ で 1 しょうせつ かぞえてから ろくおん（もう一度 ⏺ で おわり）。ドラム の マス を タップ しても おける",
             theme, 12, theme.outline.copy(alpha = 0.7f), modifier = Modifier.padding(start = 10.dp, bottom = 4.dp),
@@ -464,15 +471,18 @@ private fun LoopPanel(theme: KidTheme, looper: Looper, kit: Kit, modifier: Modif
 }
 
 @Composable
-private fun LoopGrid(theme: KidTheme, looper: Looper, kit: Kit, modifier: Modifier, preview: (Kit, Int) -> Unit) {
+private fun LoopGrid(theme: KidTheme, looper: Looper, modifier: Modifier, preview: (Kit, Int) -> Unit) {
     val measurer = rememberTextMeasurer()
     val steps = looper.steps
     val perBar = looper.stepsPerBar
-    val rows = kit.pads.size
+    // だん：ドラム の ドン・タン・チッ・パン と、ならした パッド
+    val padRows = (listOf(0, 1, 2, 3).map { Kit.DRUMS to it } +
+        looper.hits.mapNotNull { h -> if (h.kit != null && h.pad != null) h.kit to h.pad else null }).distinct().take(14)
+    val rows = padRows.size
     val labelW = 40.dp
     Canvas(
         modifier.clip(RoundedCornerShape(10.dp)).background(Color.White).border(2.dp, theme.outline, RoundedCornerShape(10.dp))
-            .pointerInput(kit, steps) {
+            .pointerInput(padRows, steps) {
                 awaitEachGesture {
                     val down = awaitFirstDown()
                     val lw = labelW.toPx()
@@ -480,7 +490,8 @@ private fun LoopGrid(theme: KidTheme, looper: Looper, kit: Kit, modifier: Modifi
                     val col = ((down.position.x - lw) / ((size.width - lw) / steps)).toInt()
                     val row = (down.position.y / rowH).toInt()
                     if (col in 0 until steps && row in 0 until rows) {
-                        if (looper.toggleStep(kit, row, col)) preview(kit, row)
+                        val (k, pd) = padRows[row]
+                        if (looper.toggleStep(k, pd, col)) preview(k, pd)
                     }
                 }
             },
@@ -494,7 +505,8 @@ private fun LoopGrid(theme: KidTheme, looper: Looper, kit: Kit, modifier: Modifi
         }
         // よこ の せん と ラベル
         for (r in 0..rows) drawLine(theme.outline.copy(alpha = 0.15f), Offset(0f, r * rowH), Offset(size.width, r * rowH), 1.5f)
-        kit.pads.forEachIndexed { r, (emoji, _) ->
+        padRows.forEachIndexed { r, (k, pd) ->
+            val emoji = k.pads[pd].first
             val t = measurer.measure(emoji, TextStyle(fontSize = (rowH * 0.55f / density).sp))
             drawText(t, topLeft = Offset((lw - t.size.width) / 2, r * rowH + (rowH - t.size.height) / 2))
         }
@@ -514,9 +526,12 @@ private fun LoopGrid(theme: KidTheme, looper: Looper, kit: Kit, modifier: Modifi
         looper.hits.forEach { h ->
             val x = lw + h.step * cw
             if (h.pad != null && h.kit != null) {
-                val c = if (h.kit == kit) PAD_COLORS[h.pad % PAD_COLORS.size] else Color(0xFFBBBBBB)
-                drawRoundRect(c, Offset(x + 1.5f, h.pad * rowH + 3f), Size(cw - 3f, rowH - 6f), CornerRadius(5f))
-                drawRoundRect(theme.outline.copy(alpha = 0.6f), Offset(x + 1.5f, h.pad * rowH + 3f), Size(cw - 3f, rowH - 6f), CornerRadius(5f), style = Stroke(1.5f))
+                val r = padRows.indexOf(h.kit to h.pad)
+                if (r >= 0) {
+                    val c = PAD_COLORS[(h.pad + h.kit.ordinal * 3) % PAD_COLORS.size]
+                    drawRoundRect(c, Offset(x + 1.5f, r * rowH + 3f), Size(cw - 3f, rowH - 6f), CornerRadius(5f))
+                    drawRoundRect(theme.outline.copy(alpha = 0.6f), Offset(x + 1.5f, r * rowH + 3f), Size(cw - 3f, rowH - 6f), CornerRadius(5f), style = Stroke(1.5f))
+                }
             } else if (h.key != null) {
                 val top = rows * rowH
                 val kh = rowH * 2
