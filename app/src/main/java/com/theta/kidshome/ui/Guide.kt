@@ -86,17 +86,25 @@ fun GuideView(
     view: String = "full",
     onTap: () -> Unit = {},
     onReady: (List<String>) -> Unit = {},
+    /** うしろ の 絵（PNG）。あれば WebView を すけさせず、この 絵 を 背景 に して 3D を かく */
+    background: ByteArray? = null,
+    /** 絵 が ない とき の 背景 の 色 */
+    backgroundColor: Color = Color(0xFFFFFDFE),
 ) {
     val context = LocalContext.current
     val m = GuidePack.manifest ?: return
     val parts = remember(profileId, GuidePack.outfitVersion) { GuidePack.outfit(context, profileId) }
-    val web = remember(m, view, GuidePack.paintBg) {
+    val transparent = GuidePack.transparent
+    val simpleMode = GuidePack.simple
+    val web = remember(m, view, transparent, simpleMode, background?.contentHashCode()) {
         val loader = WebViewAssetLoader.Builder()
             .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(context))
+            .addPathHandler("/mem/") { _ -> background?.let { WebResourceResponse("image/png", null, java.io.ByteArrayInputStream(it)) } }
             .addPathHandler("/pack/", WebViewAssetLoader.InternalStoragePathHandler(context, File(context.filesDir, "packs")))
             .build()
         WebView(context).apply {
-            setBackgroundColor(android.graphics.Color.TRANSPARENT)
+            // すけさせる と 出ない 端末 が ある ので、ふつう は 背景 を ぬった ページ に する
+            setBackgroundColor(if (transparent) android.graphics.Color.TRANSPARENT else backgroundColor.toArgb())
             settings.javaScriptEnabled = true
             settings.allowFileAccess = false
             settings.allowContentAccess = false
@@ -130,8 +138,12 @@ fun GuideView(
                 onReady(runCatching { JSONObject(j).getJSONArray("parts").let { a -> (0 until a.length()).map { a.getString(it) } } }.getOrDefault(emptyList()))
             }, { e -> GuidePack.reportError(e) }), "KidsHomeGuide")
             val p = android.net.Uri.encode(JSONArray(parts).toString())
-            val bg = if (GuidePack.paintBg) "&bg=" + "%06x".format(0xFFFFFF and themeById(com.theta.kidshome.data.Store.config.currentProfile.themeId).bgTop.toArgb()) else ""
-            loadUrl("https://appassets.androidplatform.net/assets/guide/guide.html?pack=${GuidePack.packPath}&view=$view&parts=$p$bg")
+            val bg = when {
+                transparent -> ""
+                background != null -> "&bgimg=" + android.net.Uri.encode("/mem/room.png?" + background.contentHashCode())
+                else -> "&bg=" + "%06x".format(0xFFFFFF and backgroundColor.toArgb())
+            }
+            loadUrl("https://appassets.androidplatform.net/assets/guide/guide.html?pack=${GuidePack.packPath}&view=$view&parts=$p$bg${if (simpleMode) "&simple=1" else ""}")
         }
     }
     LaunchedEffect(parts) { web.evaluateJavascript("window.KH && KH.setParts(${JSONArray(parts)})", null) }
@@ -232,8 +244,12 @@ fun GuideSection() {
         GuidePack.viewStatus?.let { Text("3D の ようす：$it", fontSize = 13.sp, color = Color(0xFFD03B5C)) }
         if (GuidePack.viewReady) Text("3D の ようす：うごいています（${GuidePack.viewInfo ?: "…"}）", fontSize = 13.sp, color = Color.Gray)
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("3D の まわり を ぬる（へや で ガイド が 見えない ときに ためす）", fontSize = 14.sp, modifier = Modifier.weight(1f))
-            androidx.compose.material3.Switch(GuidePack.paintBg, { GuidePack.setPaintBg(context, it) })
+            Text("かんたん な ぬりかた（キャラ が うつらない とき。自動 でも きりかわります）", fontSize = 14.sp, modifier = Modifier.weight(1f))
+            androidx.compose.material3.Switch(GuidePack.simple, { GuidePack.setSimple(context, it) })
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("3D を すけさせて かさねる（ためし。端末 に よっては 見えなくなる）", fontSize = 14.sp, modifier = Modifier.weight(1f))
+            androidx.compose.material3.Switch(GuidePack.transparent, { GuidePack.setTransparent(context, it) })
         }
         Text("新しい版 は 1 日 1 かい たしかめます。パック の 作りかた は 非公開リポジトリ の README に あります。", fontSize = 12.sp, color = Color.Gray)
     }

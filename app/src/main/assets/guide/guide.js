@@ -19,12 +19,23 @@ window.addEventListener('unhandledrejection', (e) => bridge.onError(String(e.rea
   const c = document.createElement('canvas');
   if (!c.getContext('webgl2') && !c.getContext('webgl')) bridge.onError('この 端末の WebView で WebGL（3D）が つかえません');
 })();
-const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+// ぬりかた（MToon）の シェーダー が この 端末 で うごかない ときは、かんたん な ぬりかた に する
+let simple = params.get('simple') === '1';
+let lastProblem = '';
+renderer.debug.onShaderError = (gl, program, vs, fs) => {
+  const log = (gl.getProgramInfoLog(program) || '') + (gl.getShaderInfoLog(fs) || '') + (gl.getShaderInfoLog(vs) || '');
+  lastProblem = 'シェーダー：' + log.trim().split('\n')[0].slice(0, 120);
+  if (!simple) { simple = true; simplify(); }
+};
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
-const bg = params.get('bg'); // 「はいけい を ぬる」とき（とうめい が うまく 出ない 端末 むけ）
-if (bg) { renderer.setClearColor(new THREE.Color('#' + bg), 1); document.documentElement.style.background = document.body.style.background = '#' + bg; }
-else renderer.setClearColor(0x000000, 0);
+// 背景：へや の 絵（bgimg）か 色（bg）を ページ に ぬって、3D は その うえ に（WebView 自体 は すけさせない）
+const bg = params.get('bg');
+const bgimg = params.get('bgimg');
+renderer.setClearColor(0x000000, 0);
+if (bgimg) document.documentElement.style.background = `url("${bgimg}") 0 0 / 100% 100% no-repeat`;
+else if (bg) document.documentElement.style.background = '#' + bg;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.appendChild(renderer.domElement);
 
@@ -76,7 +87,50 @@ function syncSize() {
 }
 if (window.ResizeObserver) new ResizeObserver(syncSize).observe(document.documentElement);
 let frames = 0;
-function info() { try { bridge.onInfo && bridge.onInfo(`${lastW}×${lastH}・${renderer.capabilities.isWebGL2 ? 'WebGL2' : 'WebGL1'}・${frames} コマ`); } catch (e) { /* ふるい アプリ */ } }
+let blank = 0;
+let center = '?';
+function info() {
+  const r = renderer.info.render;
+  const msg = `${lastW}×${lastH}・${renderer.capabilities.isWebGL2 ? 'WebGL2' : 'WebGL1'}・${frames} コマ・三角 ${r.triangles}・まんなか ${center}${simple ? '・かんたん' : ''}${lastProblem ? '・' + lastProblem : ''}`;
+  try { bridge.onInfo && bridge.onInfo(msg); } catch (e) { /* ふるい アプリ */ }
+}
+
+/** MToon を ふつう の いろ と もよう だけ の ぬりかた に かえる */
+function simplify() {
+  if (!root) return;
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    const conv = (m) => {
+      if (!m || m.userData.simple) return m;
+      const n = new THREE.MeshBasicMaterial({
+        map: m.map || null, color: m.color ? m.color.clone() : new THREE.Color(0xffffff),
+        transparent: !!m.transparent, opacity: m.opacity ?? 1, alphaTest: m.alphaTest || 0, side: m.side ?? THREE.FrontSide,
+        depthWrite: m.depthWrite ?? true,
+      });
+      n.name = m.name; n.userData.simple = true;
+      return n;
+    };
+    o.material = Array.isArray(o.material) ? o.material.map(conv) : conv(o.material);
+  });
+}
+
+/** まんなか の 1 ドット が かけているか（かけていなければ かんたん な ぬりかた へ） */
+function checkCenter() {
+  const gl = renderer.getContext();
+  const px = new Uint8Array(4);
+  const w = gl.drawingBufferWidth, h = gl.drawingBufferHeight;
+  // むね の たかさ（下 から 7 わり）の 5 か所 の どこか に かけていれば OK
+  let hit = null;
+  for (const fx of [0.5, 0.45, 0.55, 0.4, 0.6]) {
+    gl.readPixels(Math.floor(w * fx), Math.floor(h * 0.7), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+    if (px[3] > 0) { hit = [px[0], px[1], px[2]]; break; }
+  }
+  center = hit ? `#${hit.map((v) => v.toString(16).padStart(2, '0')).join('')}` : 'から';
+  if (!hit && root) {
+    blank++;
+    if (blank === 3 && !simple) { simple = true; simplify(); lastProblem = lastProblem || 'まんなか が から なので かんたん に'; }
+  } else blank = 0;
+}
 setInterval(info, 5000);
 
 window.addEventListener('resize', () => {
@@ -186,6 +240,7 @@ function animate(now) {
   }
   wave = Math.max(0, wave - dt); jump = Math.max(0, jump - dt); happy = Math.max(0, happy - dt);
   renderer.render(scene, camera);
+  if (root && frames % 30 === 5) checkCenter();
 }
 
 /** えらんだ アイテム の なかに "model" が あれば その モデル（VRoid で 服ごとに 書き出した とき） */
@@ -226,6 +281,7 @@ function loadModel(path) {
     }
     root.updateMatrixWorld(true);
     frame();
+    if (simple) simplify();
     setParts(wantParts);
     bridge.onReady(JSON.stringify({ parts: partNames(), expressions: vrm && vrm.expressionManager ? vrm.expressionManager.expressions.map((e) => e.expressionName) : [] }));
     resolve();

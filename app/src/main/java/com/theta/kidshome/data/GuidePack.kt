@@ -54,10 +54,14 @@ object GuidePack {
     var viewReady by mutableStateOf(false)
     /** うごいている ときの ようす（大きさ・WebGL・コマ数） */
     var viewInfo by mutableStateOf<String?>(null)
-    /** とうめい で 出ない 端末 むけ：3D の まわり を へや の 色 で ぬる */
-    var paintBg by mutableStateOf(false)
+    /** WebView を すけさせて かさねる（はじめ は オフ：すけさせると 出ない 端末 が ある） */
+    var transparent by mutableStateOf(false)
         private set
-    fun setPaintBg(c: Context, on: Boolean) { prefs(c).edit().putBoolean("paintBg", on).apply(); paintBg = on }
+    /** かんたん な ぬりかた（MToon が うごかない 端末 むけ。うまく いかない と 自動 でも きりかわる） */
+    var simple by mutableStateOf(false)
+        private set
+    fun setSimple(c: Context, on: Boolean) { prefs(c).edit().putBoolean("simple", on).apply(); simple = on }
+    fun setTransparent(c: Context, on: Boolean) { prefs(c).edit().putBoolean("transparent", on).apply(); transparent = on }
 
     /** どこまで すすんだか（エラー が なければ 出す） */
     fun stage(s: String) {
@@ -96,7 +100,8 @@ object GuidePack {
 
     fun init(c: Context) {
         enabled = prefs(c).getBoolean("enabled", true)
-        paintBg = prefs(c).getBoolean("paintBg", false)
+        transparent = prefs(c).getBoolean("transparent", false)
+        simple = prefs(c).getBoolean("simple", false)
         load(c)
     }
 

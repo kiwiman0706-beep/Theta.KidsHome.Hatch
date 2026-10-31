@@ -62,6 +62,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -107,7 +108,7 @@ private val PHONE = R(1072f, 362f, 82f, 70f)
 private val PIANO = R(880f, 430f, 270f, 400f)
 private val TOYBOX = R(860f, 640f, 270f, 330f)
 private val MASCOT = R(705f, 720f, 190f, 230f)
-private val GUIDE = R(700f, 520f, 200f, 470f)
+private val GUIDE = R(717f, 520f, 141f, 470f)
 
 private enum class Slide { CLOCK, CALENDAR, TIMETABLE }
 
@@ -151,6 +152,18 @@ fun RoomView(
     var popupKey by remember { mutableStateOf(shelves.firstOrNull { it.tiles.isNotEmpty() }?.key) }
     BoxWithConstraints(modifier, contentAlignment = Alignment.Center) {
         val u = minOf(maxWidth / RW, maxHeight / RH)
+        // ガイド の うしろ の へや の 絵（WebView を すけさせずに、この 絵 を 背景 に して 3D を かく）
+        val density = androidx.compose.ui.platform.LocalDensity.current
+        val guideBg = remember(theme, u, density) {
+            val ppu = with(density) { u.toPx() }
+            val w = (GUIDE.w * ppu).toInt().coerceAtLeast(1)
+            val h = (GUIDE.h * ppu).toInt().coerceAtLeast(1)
+            val img = androidx.compose.ui.graphics.ImageBitmap(w, h)
+            androidx.compose.ui.graphics.drawscope.CanvasDrawScope().draw(density, androidx.compose.ui.unit.LayoutDirection.Ltr, androidx.compose.ui.graphics.Canvas(img), Size(w.toFloat(), h.toFloat())) {
+                withTransform({ scale(ppu, ppu, pivot = Offset.Zero); translate(-GUIDE.x, -GUIDE.y) }) { roomArt(theme) }
+            }
+            java.io.ByteArrayOutputStream().also { o -> img.asAndroidBitmap().compress(android.graphics.Bitmap.CompressFormat.PNG, 100, o) }.toByteArray()
+        }
         val ox = (maxWidth - u * RW) / 2
         val oy = (maxHeight - u * RH) / 2
         Box(Modifier.size(u * RW, u * RH).clip(RoundedCornerShape(u * 28f)).border(3.dp, theme.outline, RoundedCornerShape(u * 28f))) {
@@ -213,7 +226,7 @@ fun RoomView(
             Box(
                 Modifier.align(Alignment.TopStart).offset(ox + u * GUIDE.x, oy + u * GUIDE.y).size(u * GUIDE.w, u * GUIDE.h)
                     .onGloballyPositioned { center = it.boundsInRoot().center },
-            ) { GuideView(profile.id, Modifier.fillMaxSize(), onTap = { onMascot(center) }) }
+            ) { GuideView(profile.id, Modifier.fillMaxSize(), onTap = { onMascot(center) }, background = guideBg) }
         }
         // 小さな まど（本棚・ショーウインドウ・きせかえ）
         if (popup != null) Box(Modifier.align(Alignment.TopStart).offset(ox, oy).size(u * RW, u * RH)) {
@@ -590,7 +603,12 @@ private fun Mascot(theme: KidTheme, line: String, u: Dp, playful: Boolean, onTap
 
 private fun DrawScope.roomBack(t: KidTheme) {
     val k = size.width / RW
-    withTransform({ scale(k, k, pivot = Offset.Zero) }) {
+    withTransform({ scale(k, k, pivot = Offset.Zero) }) { roomArt(t) }
+}
+
+/** へや の かべ・ゆか・家具の うしろ がわ（目盛り で かく） */
+private fun DrawScope.roomArt(t: KidTheme) {
+    run {
         drawRect(t.bgTop, size = Size(RW, FLOOR))
         for (x in 0..32) for (y in 0..14) {
             if ((x + y) % 2 == 0) drawCircle(t.grid.copy(alpha = 0.55f), 5f, Offset(x * 50f + 25f, y * 50f + 25f))
