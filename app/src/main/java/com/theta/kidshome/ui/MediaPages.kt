@@ -103,7 +103,7 @@ private fun ShelfPanes(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     MediaThumb(
-                        list.first().uri, fallback,
+                        MediaLibrary.iconFor(list.first().shelfPath) ?: list.first().uri, fallback,
                         Modifier.width(if (square) 56.dp else 80.dp).height(56.dp).clip(RoundedCornerShape(10.dp)), square = square,
                     )
                     Column(Modifier.padding(start = 8.dp).weight(1f)) {
@@ -225,7 +225,7 @@ fun AudioLibraryPage(theme: KidTheme, kind: MediaKind) {
                             titleColor = theme.titleBars[i % theme.titleBars.size],
                             onClick = { if (tracks.size == 1) AudioPlayer.play(context, tracks, 0) else open = name },
                         ) {
-                            MediaThumb(tracks.first().uri, fallback, Modifier.fillMaxWidth().aspectRatio(1f), square = true)
+                            MediaThumb(MediaLibrary.iconFor(tracks.first().path) ?: tracks.first().uri, fallback, Modifier.fillMaxWidth().aspectRatio(1f), square = true)
                             if (progress > 0f) {
                                 Box(Modifier.fillMaxWidth().height(5.dp).background(Color(0xFFEEEEEE))) {
                                     Box(Modifier.fillMaxWidth(progress).fillMaxHeight().background(theme.accent))

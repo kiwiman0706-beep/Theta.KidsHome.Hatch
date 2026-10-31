@@ -429,9 +429,11 @@ private fun exportSheet(context: android.content.Context, config: AppConfig) {
 fun MediaSection(config: AppConfig) {
     val context = LocalContext.current
     var granted by remember { mutableStateOf(MediaLibrary.hasPermission(context)) }
+    var images by remember { mutableStateOf(MediaLibrary.hasImagePermission(context)) }
     var calendar by remember { mutableStateOf(Events.hasPermission(context)) }
     val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         granted = MediaLibrary.hasPermission(context)
+        images = MediaLibrary.hasImagePermission(context)
         if (granted) MediaLibrary.refresh(context, force = true)
     }
     val askCalendar = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
@@ -446,8 +448,11 @@ fun MediaSection(config: AppConfig) {
         )
         Spacer(Modifier.height(8.dp))
         if (!granted) {
-            Button(onClick = { ask.launch(MediaLibrary.permissions) }) { Text("動画と音楽へのアクセスを許可") }
+            Button(onClick = { ask.launch(MediaLibrary.permissions + MediaLibrary.imagePermission) }) { Text("動画と音楽へのアクセスを許可") }
         } else {
+            if (!images) OutlinedButton(onClick = { ask.launch(arrayOf(MediaLibrary.imagePermission)) }) {
+                Text("🖼 フォルダ の アイコン（folder.jpg など）も 読む ← 写真 の 許可")
+            }
             Text(
                 "見つかったもの：動画 ${MediaLibrary.videos.size}・音楽 ${MediaLibrary.music.size}・おはなし ${MediaLibrary.books.size}",
                 fontSize = 14.sp, fontWeight = FontWeight.Bold,

@@ -36,6 +36,8 @@ data class MediaEntry(
     val shelf: String = folder,
     /** SD・本体 の なか の 場所（Movies/…/、とちゅう の フォルダ で ならべる） */
     val path: String = "",
+    /** ひだり の 一覧 の フォルダ の 場所（アイコン を さがす） */
+    val shelfPath: String = path,
 )
 
 /**
@@ -63,6 +65,21 @@ object MediaLibrary {
     fun hasPermission(context: Context) =
         permissions.all { context.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED }
 
+    /** フォルダ アイコン（folder.jpg など）を 読む ため の 画像 の 許可 */
+    val imagePermission: String
+        get() = if (Build.VERSION.SDK_INT >= 33) Manifest.permission.READ_MEDIA_IMAGES else Manifest.permission.READ_EXTERNAL_STORAGE
+
+    fun hasImagePermission(context: Context) = context.checkSelfPermission(imagePermission) == PackageManager.PERMISSION_GRANTED
+
+    /** フォルダ の 場所（RELATIVE_PATH）→ その フォルダ の アイコン 画像 */
+    var icons by mutableStateOf<kotlin.collections.Map<String, Uri>>(emptyMap())
+        private set
+
+    /** アイコン に する ファイル名（上 ほど 優先） */
+    val ICON_NAMES = listOf("folder.png", "folder.jpg", "folder.jpeg", "folder.webp", "icon.png", "icon.jpg", "icon.jpeg", "icon.webp", "cover.png", "cover.jpg", "cover.jpeg", "cover.webp")
+
+    fun iconFor(path: String): Uri? = icons[path]
+
     /** 5 分に 1 回まで読み直す（新しく入れた動画を拾うため） */
     fun refresh(context: Context, force: Boolean = false) {
         if (loading || !hasPermission(context)) return
@@ -73,6 +90,7 @@ object MediaLibrary {
             runCatching {
                 val v = withContext(Dispatchers.IO) { queryVideos(app) }
                 val a = withContext(Dispatchers.IO) { queryAudio(app) }
+                icons = if (hasImagePermission(app)) withContext(Dispatchers.IO) { runCatching { queryIcons(app) }.getOrDefault(emptyMap()) } else emptyMap()
                 videos = v
                 music = a.filter { it.kind == MediaKind.MUSIC }
                 books = a.filter { it.kind == MediaKind.BOOK }
@@ -80,6 +98,20 @@ object MediaLibrary {
             loadedAt = System.currentTimeMillis()
             loading = false
         }
+    }
+
+    private fun queryIcons(context: Context): kotlin.collections.Map<String, Uri> {
+        val base = MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
+        val cols = arrayOf(MediaStore.Images.Media._ID, MediaStore.Images.Media.DISPLAY_NAME, MediaStore.Images.Media.RELATIVE_PATH)
+        val sel = "lower(${MediaStore.Images.Media.DISPLAY_NAME}) IN (" + ICON_NAMES.joinToString(",") { "?" } + ")"
+        val found = mutableListOf<Triple<String, Int, Uri>>()
+        context.contentResolver.query(base, cols, sel, ICON_NAMES.toTypedArray(), null)?.use { c ->
+            while (c.moveToNext()) {
+                val rank = ICON_NAMES.indexOf(c.getString(1).orEmpty().lowercase())
+                found += Triple(c.getString(2).orEmpty(), rank, ContentUris.withAppendedId(base, c.getLong(0)))
+            }
+        }
+        return found.groupBy { it.first }.mapValues { (_, l) -> l.minBy { it.second }.third }
     }
 
     private fun queryVideos(context: Context): List<MediaEntry> {
@@ -98,6 +130,7 @@ object MediaLibrary {
                     title = clean(c.getString(1)?.takeIf { it.isNotBlank() } ?: name.substringBeforeLast('.')),
                     folder = c.getString(3) ?: "どうが", album = "", artist = "", durationMs = c.getLong(4),
                     shelf = shelfOf(c.getString(5).orEmpty()) ?: c.getString(3) ?: "どうが", path = c.getString(5).orEmpty(),
+                    shelfPath = shelfPathOf(c.getString(5).orEmpty()),
                 )
             }
         }
@@ -136,6 +169,7 @@ object MediaLibrary {
                     track = c.getInt(7) % 1000,
                     shelf = shelfOf(path) ?: c.getString(6)?.takeIf { it.isNotBlank() && it != "<unknown>" } ?: folder.ifEmpty { "おんがく" },
                     path = path,
+                    shelfPath = shelfPathOf(path),
                 )
             }
         }
@@ -152,6 +186,13 @@ object MediaLibrary {
         val seg = path.split('/').filter { it.isNotBlank() }
         val i = seg.indexOfFirst { it.lowercase() in ROOTS }
         return seg.getOrNull(i + 1)?.takeIf { i >= 0 }
+    }
+
+    /** KidsHome/どうが/アンパンマン/シーズン1/ → KidsHome/どうが/アンパンマン/（きまり の 形 で なければ その まま） */
+    fun shelfPathOf(path: String): String {
+        val seg = path.split('/').filter { it.isNotBlank() }
+        val i = seg.indexOfFirst { it.lowercase() in ROOTS }
+        return if (i >= 0 && i + 1 < seg.size) seg.take(i + 2).joinToString("/") + "/" else path
     }
 
     private fun isBookPath(path: String) = path.split('/').any { it == "おはなし" || it.equals("audiobooks", true) }
