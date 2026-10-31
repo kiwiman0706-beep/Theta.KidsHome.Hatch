@@ -51,4 +51,31 @@ object Songs {
         }
         return out
     }
+
+    private val keyNames = listOf("ド", "ド♯", "レ", "レ♯", "ミ", "ファ", "ファ♯", "ソ", "ソ♯", "ラ", "ラ♯", "シ")
+
+    /** 音 を ドレミ書き に もどす（parse の はんたい）。8 はく ごと に すきま */
+    fun format(notes: List<Pair<Int, Int>>): String = buildString {
+        var beat = 0
+        notes.forEach { (key, beats) ->
+            if (beat >= 8) { append(' '); beat = 0 }
+            append(keyNames[key % 12]).append("＋".repeat(key / 12)).append("ー".repeat((beats - 1).coerceAtLeast(0)))
+            beat += beats
+        }
+    }
+
+    /**
+     * ひいた 時間 から 長さ（はく）を きめる：よく ある 間（ま）を 1 はく に して、2・3・4 はく に まるめる。
+     * keys と times（ミリ秒）は おなじ かず。さいご の 音 は 1 はく（つぎ が ないので）
+     */
+    fun fromTaps(keys: List<Int>, times: List<Long>): List<Pair<Int, Int>> {
+        if (keys.isEmpty()) return emptyList()
+        val gaps = times.zipWithNext { a, b -> (b - a).coerceAtLeast(1) }
+        // みじかい ほう から 4 わり の ところ を 1 はく に（はやい 音 が 多い 曲 でも くずれにくい）
+        val unit = gaps.sorted().let { if (it.isEmpty()) 1L else it[(it.size * 0.4).toInt().coerceAtMost(it.lastIndex)] }.coerceAtLeast(120)
+        return keys.mapIndexed { i, k ->
+            val beats = gaps.getOrNull(i)?.let { g -> (g.toDouble() / unit).let { kotlin.math.round(it).toInt() }.coerceIn(1, 4) } ?: 1
+            k to beats
+        }
+    }
 }

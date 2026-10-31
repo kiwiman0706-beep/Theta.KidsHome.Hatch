@@ -33,6 +33,8 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -583,6 +585,7 @@ fun HatchSection() {
 fun SongSection(config: AppConfig) {
     var title by remember { mutableStateOf("") }
     var notes by remember { mutableStateOf("") }
+    var recording by remember { mutableStateOf(false) }
     Section("🎹 ピアノの れんしゅう曲") {
         Text(
             "「がっき」→「🎓 れんしゅう」で、次に押す けん が光り、押すまで待ってくれます。入っている曲：" +
@@ -598,7 +601,7 @@ fun SongSection(config: AppConfig) {
             }
         }
         Spacer(Modifier.height(8.dp))
-        Text("曲を足す（ドレミで書く）", fontWeight = FontWeight.Bold)
+        Text("曲を足す（ドレミで書く か、🎹 ひいて きろく）", fontWeight = FontWeight.Bold)
         OutlinedTextField(title, { title = it }, singleLine = true, label = { Text("曲の名前") }, modifier = Modifier.fillMaxWidth())
         OutlinedTextField(notes, { notes = it }, label = { Text("例：ドドソソララソー ファファミミレレドー") }, modifier = Modifier.fillMaxWidth().padding(top = 6.dp))
         val parsed = com.theta.kidshome.media.Songs.parse(notes)
@@ -606,14 +609,73 @@ fun SongSection(config: AppConfig) {
             "ド レ ミ ファ ソ ラ シ。うしろに ＋ で1つ上の高さ（＋＋で2つ上）、♯ で半音上、ー で のばす。いま ${parsed.size} おと。",
             fontSize = 12.sp, color = Color.Gray,
         )
-        Button(
-            enabled = title.isNotBlank() && parsed.isNotEmpty(),
-            onClick = {
-                Store.update { it.copy(songs = it.songs + com.theta.kidshome.media.Song(title.trim(), notes.trim())) }
-                title = ""; notes = ""
-            },
-            modifier = Modifier.padding(top = 6.dp),
-        ) { Text("足す") }
+        FlowRow8 {
+            OutlinedButton(onClick = { recording = true }) { Text("🎹 けんばん で ひいて きろく") }
+            Button(
+                enabled = title.isNotBlank() && parsed.isNotEmpty(),
+                onClick = {
+                    Store.update { it.copy(songs = it.songs + com.theta.kidshome.media.Song(title.trim(), notes.trim())) }
+                    title = ""; notes = ""
+                },
+            ) { Text("足す") }
+        }
+    }
+    if (recording) SongRecorder(onDismiss = { recording = false }) { text -> notes = text; recording = false }
+}
+
+/**
+ * おうちのひと が けんばん を ひいて 曲 を きろく：押した けん と 間（ま）から ドレミ書き に する。
+ * 長さ は よく ある 間 を 1 はく に して 2〜4 はく に まるめる（あとで 文字 で なおせる）
+ */
+@Composable
+private fun SongRecorder(onDismiss: () -> Unit, onDone: (String) -> Unit) {
+    val context = LocalContext.current
+    val theme = themeById(Store.config.currentProfile.themeId)
+    val synth = remember { com.theta.kidshome.media.Synth(context) }
+    val scope = rememberCoroutineScope()
+    LaunchedEffect(Unit) { synth.prepare(com.theta.kidshome.media.Voice.PIANO, com.theta.kidshome.media.Kit.DRUMS) }
+    androidx.compose.runtime.DisposableEffect(Unit) { onDispose { synth.release() } }
+    val keys = remember { androidx.compose.runtime.mutableStateListOf<Int>() }
+    val times = remember { androidx.compose.runtime.mutableStateListOf<Long>() }
+    var octave by remember { mutableIntStateOf(0) }
+    val notes = com.theta.kidshome.media.Songs.fromTaps(keys, times)
+    val text = com.theta.kidshome.media.Songs.format(notes)
+    var playing by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss, properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
+        Surface(shape = RoundedCornerShape(24.dp), color = Color.White, modifier = Modifier.fillMaxWidth(0.95f).fillMaxHeight(0.9f)) {
+            Column(Modifier.padding(20.dp)) {
+                Text("🎹 ひいて きろく", fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    "いつもの はやさ で ひいてください。のばす 音 は 次 の 音 まで 長めに 間 を あけます。" +
+                        "さいご の 音 は 1 はく に なります（あとで 文字 で なおせます）。黒い けん は ♯。",
+                    fontSize = 13.sp, color = Color.Gray,
+                )
+                Surface(shape = RoundedCornerShape(12.dp), color = Color(0xFFF6F1F3), modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp).heightIn(min = 56.dp)) {
+                    Text(text.ifEmpty { "（まだ ありません）" }, fontSize = 20.sp, modifier = Modifier.padding(12.dp))
+                }
+                FlowRow8 {
+                    OutlinedButton(enabled = keys.isNotEmpty(), onClick = { keys.removeAt(keys.lastIndex); times.removeAt(times.lastIndex) }) { Text("↩️ 1 つ けす") }
+                    OutlinedButton(enabled = keys.isNotEmpty(), onClick = { keys.clear(); times.clear() }) { Text("🗑️ ぜんぶ けす") }
+                    OutlinedButton(enabled = notes.isNotEmpty(), onClick = {
+                        playing?.cancel()
+                        playing = scope.launch {
+                            for ((k, b) in notes) { synth.playKey(com.theta.kidshome.media.Voice.PIANO, k); kotlinx.coroutines.delay(400L * b) }
+                        }
+                    }) { Text("▶️ きいてみる") }
+                    OutlinedButton(onClick = { octave = (octave - 1).coerceAtLeast(0) }) { Text("⬇️") }
+                    Text(if (octave == 0) "ド〜ド＋＋" else "1つ 上 から", modifier = Modifier.padding(top = 12.dp))
+                    OutlinedButton(onClick = { octave = (octave + 1).coerceAtMost(1) }) { Text("⬆️") }
+                    Button(enabled = notes.isNotEmpty(), onClick = { onDone(text) }) { Text("これで 入れる") }
+                    TextButton(onClick = onDismiss) { Text("やめる") }
+                }
+                com.theta.kidshome.media.Keyboard(theme, Modifier.weight(1f).fillMaxWidth().padding(top = 10.dp)) { key ->
+                    // ⬆️ の ときは 1 オクターブ 上 として きろく（れんしゅう の けんばん は 2 オクターブ まで）
+                    val k = (key + octave * 12).coerceAtMost(24)
+                    synth.playKey(com.theta.kidshome.media.Voice.PIANO, key, octave)
+                    keys += k; times += System.currentTimeMillis()
+                }
+            }
+        }
     }
 }
 

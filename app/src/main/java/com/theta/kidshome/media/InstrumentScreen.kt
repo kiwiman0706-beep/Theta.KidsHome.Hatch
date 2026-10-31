@@ -277,7 +277,7 @@ private fun Pad(
 
 /** 2 オクターブのけんばん。いくつ同時に押しても、指をすべらせても鳴る */
 @Composable
-private fun Keyboard(theme: KidTheme, modifier: Modifier, glow: Int? = null, onKey: (Int) -> Unit) {
+internal fun Keyboard(theme: KidTheme, modifier: Modifier, glow: Int? = null, onKey: (Int) -> Unit) {
     val pressed = remember { mutableStateMapOf<PointerId, Int>() }
     val measurer = rememberTextMeasurer()
     val whiteCount = 15
