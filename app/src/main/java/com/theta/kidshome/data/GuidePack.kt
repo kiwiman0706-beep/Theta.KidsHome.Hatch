@@ -99,7 +99,9 @@ object GuidePack {
     fun installedTag(c: Context): String = prefs(c).getString("tag", "").orEmpty()
 
     fun init(c: Context) {
-        enabled = prefs(c).getBoolean("enabled", true)
+        // 3D（WebView）は 端末 に よって 画面 を こわす ので、いったん はじめ は オフ（0.27.1）
+        if (!prefs(c).getBoolean("off:0271", false)) prefs(c).edit().putBoolean("enabled", false).putBoolean("off:0271", true).apply()
+        enabled = prefs(c).getBoolean("enabled", false)
         transparent = prefs(c).getBoolean("transparent", false)
         simple = prefs(c).getBoolean("simple", false)
         load(c)

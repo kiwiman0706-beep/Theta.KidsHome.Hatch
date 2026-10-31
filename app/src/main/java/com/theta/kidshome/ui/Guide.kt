@@ -214,7 +214,7 @@ fun GuideSection() {
         )
         val m = GuidePack.manifest
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 6.dp)) {
-            Text("へや に ガイド役 を だす（オフ なら えもじ の マスコット）", modifier = Modifier.weight(1f))
+            Text("へや に 3D の ガイド役 を だす（ためし中。画面 が おかしく なったら オフ に）", modifier = Modifier.weight(1f))
             androidx.compose.material3.Switch(GuidePack.enabled, { GuidePack.setEnabled(context, it) })
         }
         Text(
