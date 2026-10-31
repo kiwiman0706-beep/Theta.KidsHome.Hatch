@@ -86,6 +86,7 @@ private val NOTE_COLORS = listOf(
 private val PAD_COLORS = listOf(
     Color(0xFFFF8FAB), Color(0xFFFFB86B), Color(0xFFFFE066), Color(0xFF8FE3A0),
     Color(0xFF7FC8FF), Color(0xFFA99BFF), Color(0xFFFFA8E2), Color(0xFF9EE6E0),
+    Color(0xFFFFC2C2), Color(0xFFD7F28B), Color(0xFFB8E2FF), Color(0xFFFFD1A8),
 )
 
 /**
@@ -118,10 +119,20 @@ fun InstrumentScreen(onBack: () -> Unit, loopPreview: ((Looper) -> Unit)? = null
     var loopOpen by remember { mutableStateOf(loopPreview != null) }
     remember { loopPreview?.invoke(looper) }
     val micPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
+    var sampleMsg by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(sampleMsg) { if (sampleMsg != null) { delay(3500); sampleMsg = null } }
     fun startSample(pad: Int) {
-        if (!Sampler.hasPermission(context)) { micPermission.launch(android.Manifest.permission.RECORD_AUDIO); return }
+        if (!Sampler.hasPermission(context)) {
+            sampleMsg = "🎤 マイク を つかって いいか きかれたら「ゆるす」→ もういちど ながおし"
+            micPermission.launch(android.Manifest.permission.RECORD_AUDIO); return
+        }
         recordingPad = pad
-        Sampler.start(context, pad, synth) { if (recordingPad == pad) recordingPad = null }
+        Sampler.start(context, pad, synth) { ok ->
+            if (recordingPad == pad) recordingPad = null
+            sampleMsg = if (ok) "✅ パッド ${pad + 1} に いれたよ！ おしてみてね" else "🙉 おと が ちいさくて とれなかったよ。マイク に ちかづいて もういちど"
+            // 入れた おと を すぐ きかせる（よみこみ を すこし まって）
+            if (ok) scope.launch { delay(350); synth.playPad(Kit.MINE, pad) }
+        }
     }
 
     LaunchedEffect(voice, kit) { synth.prepare(voice, kit) }
@@ -147,38 +158,39 @@ fun InstrumentScreen(onBack: () -> Unit, loopPreview: ((Looper) -> Unit)? = null
             }
             Spacer(Modifier.height(10.dp))
             if (loopOpen) {
-                LoopPanel(theme, looper, kit, Modifier.weight(1.4f).fillMaxWidth().padding(end = 6.dp, bottom = 6.dp)) { k, p -> synth.playPad(k, p) }
-                Spacer(Modifier.height(10.dp))
+                LoopPanel(theme, looper, kit, Modifier.weight(1.1f).fillMaxWidth().padding(end = 6.dp, bottom = 6.dp)) { k, p -> synth.playPad(k, p) }
+                Spacer(Modifier.height(6.dp))
             }
 
             // ---- ドラムパッド（れんしゅう中は けんばん を大きく）
             if (!practice) {
-            RetroWindow(theme, Modifier.weight(1f).fillMaxWidth().padding(end = 6.dp, bottom = 6.dp), title = "ドラム　${kit.emoji} ${kit.label}", titleColor = theme.titleBars[2]) {
-                Row(Modifier.padding(horizontal = 6.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Kit.entries.forEach { k -> RetroIconButton(k.emoji, theme, kit == k, 46.dp) { kit = k } }
-                    if (kit == Kit.MINE) DotText("　パッドを ながおし で ろくおん", theme, 14)
-                }
-                Column(Modifier.weight(1f).fillMaxWidth().padding(8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    kit.pads.chunked(4).forEachIndexed { row, pads ->
-                        Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            pads.forEachIndexed { col, (emoji, label) ->
-                                val i = row * 4 + col
-                                Pad(
-                                    theme, emoji, if (kit == Kit.MINE && recordingPad == i) "ろくおん中" else label,
-                                    if (kit == Kit.MINE && recordingPad == i) Color(0xFFFF4D6D) else PAD_COLORS[i],
-                                    Modifier.weight(1f).fillMaxHeight(),
-                                    onHoldStart = if (kit == Kit.MINE) ({ startSample(i) }) else null,
-                                    onHoldEnd = { if (recordingPad == i) { Sampler.stop(); recordingPad = null } },
-                                ) {
-                                    synth.playPad(kit, i)
-                                    looper.record(Looper.Hit(0f, pad = i, kit = kit))
-                                }
+            // パッド は 1 れつ（12 こ）。高さ を おさえて けんばん を 大きく
+            RetroWindow(theme, Modifier.height(if (loopOpen) 120.dp else 150.dp).fillMaxWidth().padding(end = 6.dp, bottom = 6.dp)) {
+                Row(Modifier.fillMaxSize().padding(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    // セット：2 だん
+                    Column(Modifier.padding(end = 6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Kit.entries.chunked(3).forEach { row ->
+                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) { row.forEach { k -> RetroIconButton(k.emoji, theme, kit == k, if (loopOpen) 44.dp else 50.dp) { kit = k } } }
+                        }
+                    }
+                    Row(Modifier.weight(1f).fillMaxHeight(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        kit.pads.forEachIndexed { i, (emoji, label) ->
+                            Pad(
+                                theme, emoji, if (kit == Kit.MINE && recordingPad == i) "🔴" else label,
+                                if (kit == Kit.MINE && recordingPad == i) Color(0xFFFF4D6D) else PAD_COLORS[i % PAD_COLORS.size],
+                                Modifier.weight(1f).fillMaxHeight(),
+                                onHoldStart = if (kit == Kit.MINE) ({ startSample(i) }) else null,
+                                onHoldEnd = { if (recordingPad == i) Sampler.stop() },
+                            ) {
+                                synth.playPad(kit, i)
+                                looper.record(Looper.Hit(0f, pad = i, kit = kit))
                             }
                         }
                     }
                 }
             }
-            Spacer(Modifier.height(12.dp))
+            if (kit == Kit.MINE && recordingPad == null && sampleMsg == null) DotText("🎤 じぶん の おと：パッド を ながおし → 赤く なったら こえ を だす → はなすと おわり（${Sampler.MAX_SECONDS} びょう まで）", theme, 14, theme.text)
+            Spacer(Modifier.height(6.dp))
             }
 
             // ---- けんばん
@@ -233,6 +245,23 @@ fun InstrumentScreen(onBack: () -> Unit, loopPreview: ((Looper) -> Unit)? = null
                     looper.record(Looper.Hit(0f, key = key, voice = voice, octave = octave))
                     // 光っている けん を押したら つぎへ（まちがえても まってくれる）
                     if (practice && demo?.isActive != true && notes.getOrNull(pos)?.key == key) pos++
+                }
+            }
+        }
+        // ろくおん中 は 上 に 大きく 出す（音 の 大きさ と のこり びょう）
+        val rp = recordingPad
+        if (rp != null || sampleMsg != null) {
+            Box(Modifier.align(Alignment.TopCenter).padding(top = 12.dp)) {
+                Column(
+                    Modifier.clip(RoundedCornerShape(20.dp)).background(if (rp != null) Color(0xFFFF4D6D) else Color(0xEE333344)).padding(horizontal = 24.dp, vertical = 10.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    if (rp != null) {
+                        Text("🔴 ろくおん中… パッド ${rp + 1}　はなすと おわり（あと ${"%.1f".format((Sampler.MAX_SECONDS - Sampler.elapsed).coerceAtLeast(0f))} びょう）", color = Color.White, fontSize = 20.sp)
+                        Box(Modifier.padding(top = 6.dp).width(320.dp).height(14.dp).clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.35f))) {
+                            Box(Modifier.fillMaxWidth(Sampler.level.coerceIn(0.02f, 1f)).fillMaxHeight().background(Color.White))
+                        }
+                    } else Text(sampleMsg.orEmpty(), color = Color.White, fontSize = 18.sp)
                 }
             }
         }

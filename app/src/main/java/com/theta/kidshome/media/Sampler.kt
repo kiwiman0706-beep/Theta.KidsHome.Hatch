@@ -7,6 +7,9 @@ import android.content.pm.PackageManager
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.setValue
 import java.io.File
 import kotlin.math.abs
 
@@ -15,7 +18,14 @@ import kotlin.math.abs
  * パッドを押している間だけ録音（いちばん長くて 4 びょう）。最初の無音は切って、音の大きさをそろえる。
  */
 object Sampler {
-    private const val MAX_SECONDS = 4
+    const val MAX_SECONDS = 4
+    private val main by lazy { android.os.Handler(android.os.Looper.getMainLooper()) }
+
+    /** いま の 音 の 大きさ（0〜1）と、録った びょう（画面 に 出す） */
+    var level by mutableFloatStateOf(0f)
+        private set
+    var elapsed by mutableFloatStateOf(0f)
+        private set
 
     fun file(context: Context, pad: Int) = File(File(context.filesDir, "samples").apply { mkdirs() }, "pad_$pad.wav")
 
@@ -28,7 +38,7 @@ object Sampler {
     val isRecording get() = recording
 
     @SuppressLint("MissingPermission")
-    fun start(context: Context, pad: Int, synth: Synth, onDone: () -> Unit) {
+    fun start(context: Context, pad: Int, synth: Synth, onDone: (Boolean) -> Unit) {
         if (recording || !hasPermission(context)) return
         val rate = Synth.RATE
         val min = AudioRecord.getMinBufferSize(rate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
@@ -48,6 +58,10 @@ object Sampler {
                 if (got <= 0) break
                 System.arraycopy(buf, 0, samples, n, got)
                 n += got
+                var peak = 0
+                for (j in 0 until got) peak = maxOf(peak, abs(buf[j].toInt()))
+                val lv = (peak / 20000f).coerceAtMost(1f); val el = n.toFloat() / rate
+                main.post { level = lv; elapsed = el }
             }
             runCatching { rec.stop() }
             rec.release()
@@ -55,11 +69,12 @@ object Sampler {
             val data = shape(samples, n)
             if (data.isNotEmpty()) {
                 synth.wav(target, data)
-                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                main.post {
+                    level = 0f
                     synth.reloadSample(pad)
-                    onDone()
+                    onDone(true)
                 }
-            }
+            } else main.post { level = 0f; onDone(false) }
         }, "kidshome-sampler").apply { start() }
     }
 
@@ -71,10 +86,10 @@ object Sampler {
     fun shape(samples: ShortArray, n: Int): FloatArray {
         if (n <= 0) return FloatArray(0)
         var start = 0
-        while (start < n && abs(samples[start].toInt()) < 900) start++
+        while (start < n && abs(samples[start].toInt()) < 500) start++
         start = (start - Synth.RATE / 100).coerceAtLeast(0)
         val len = n - start
-        if (len < Synth.RATE / 20) return FloatArray(0)
+        if (len < Synth.RATE / 40) return FloatArray(0)
         val out = FloatArray(len) { samples[start + it] / 32768f }
         val peak = out.maxOf { abs(it) }.coerceAtLeast(0.01f)
         val fade = (Synth.RATE / 50).coerceAtMost(len)

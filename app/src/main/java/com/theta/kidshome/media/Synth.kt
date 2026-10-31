@@ -33,20 +33,29 @@ enum class Voice(val emoji: String, val label: String) {
 enum class Kit(val emoji: String, val label: String, val pads: List<Pair<String, String>>) {
     DRUMS(
         "🥁", "ドラム",
-        listOf("🦶" to "ドン", "🥁" to "タン", "🎩" to "チッ", "👏" to "パン", "🔵" to "トン", "🟣" to "ボン", "💥" to "シャーン", "🐮" to "カン"),
+        listOf("🦶" to "ドン", "🥁" to "タン", "🎩" to "チッ", "👏" to "パン", "🔵" to "トン", "🟣" to "ボン", "💥" to "シャーン", "🐮" to "カン",
+            "🔔" to "シャン", "🧂" to "シャカ", "🎯" to "チーン", "🫙" to "トトン"),
     ),
     ELECTRO(
         "🎛", "でんし",
-        listOf("💣" to "ズン", "⚡" to "パシ", "✨" to "ツッ", "🙌" to "パチ", "🌀" to "ピュン", "🔔" to "ポーン", "🌊" to "ザー", "🎯" to "ピッ"),
+        listOf("💣" to "ズン", "⚡" to "パシ", "✨" to "ツッ", "🙌" to "パチ", "🌀" to "ピュン", "🔔" to "ポーン", "🌊" to "ザー", "🎯" to "ピッ",
+            "🔊" to "ブーン", "🌬" to "ツー", "🚨" to "ウィン", "🧊" to "コッ"),
     ),
     /** マイクで録音した音（パッドを ながおし で録音） */
     MINE(
         "🎤", "じぶんの おと",
-        (1..8).map { "🎤" to "$it" },
+        (1..12).map { "🎤" to "$it" },
     ),
     FUN(
         "🎉", "たのしい",
-        listOf("🫧" to "ぷよん", "👾" to "ピコ", "🚀" to "ビーム", "🎈" to "ポン", "🐸" to "ケロ", "🐤" to "ピヨ", "🌈" to "キラ", "😴" to "ブー"),
+        listOf("🫧" to "ぷよん", "👾" to "ピコ", "🚀" to "ビーム", "🎈" to "ポン", "🐸" to "ケロ", "🐤" to "ピヨ", "🌈" to "キラ", "😴" to "ブー",
+            "🪵" to "ポコ", "🎐" to "シャララ", "📯" to "パフ", "💧" to "ポチャ"),
+    ),
+    /** せかい の うちがっき */
+    WORLD(
+        "🌏", "せかい",
+        listOf("🪘" to "コンガ", "🪘" to "コンガ2", "🥁" to "ボンゴ", "📦" to "カホン", "🔔" to "カウベル", "🥢" to "クラベス",
+            "🎋" to "ギロ", "🪇" to "マラカス", "🏮" to "わだいこ", "🪵" to "ひょうしぎ", "🎐" to "すず", "🛎" to "トライアングル"),
     ),
 }
 
@@ -95,8 +104,8 @@ class Synth(private val context: Context) {
         val files = withContext(Dispatchers.Default) {
             val v = if (needVoice) (0 until KEYS).map { k -> wav(File(dir, "${voice.name}_$k.wav"), Tones.note(voice, BASE_MIDI + k)) } else emptyList()
             val d = if (!needKit) emptyList() else if (kit == Kit.MINE) {
-                (0 until 8).map { p -> Sampler.file(context, p).takeIf { it.exists() } ?: wav(File(dir, "silent.wav"), FloatArray(RATE / 20)) }
-            } else (0 until 8).map { p -> wav(File(dir, "${kit.name}_$p.wav"), Tones.drum(kit, p)) }
+                kit.pads.indices.map { p -> Sampler.file(context, p).takeIf { it.exists() } ?: wav(File(dir, "silent.wav"), FloatArray(RATE / 20)) }
+            } else kit.pads.indices.map { p -> wav(File(dir, "${kit.name}_$p.wav"), Tones.drum(kit, p)) }
             v to d
         }
         pending += files.first.size + files.second.size
@@ -237,7 +246,11 @@ object Tones {
                 4 -> render(0.4) { t, _ -> 0.8 * sweep(260.0, 180.0, 12.0, t) * exp(-8.0 * t) }
                 5 -> render(0.5) { t, _ -> 0.85 * sweep(160.0, 95.0, 10.0, t) * exp(-6.0 * t) }
                 6 -> render(1.6) { t, _ -> 0.45 * hiNoise() * exp(-2.4 * t) + 0.1 * noise() * exp(-6.0 * t) }
-                else -> render(0.35) { t, _ -> 0.35 * (sq(540.0, t) + sq(800.0, t)) * exp(-11.0 * t) }
+                7 -> render(0.35) { t, _ -> 0.35 * (sq(540.0, t) + sq(800.0, t)) * exp(-11.0 * t) }
+                8 -> render(0.5) { t, _ -> 0.5 * hiNoise() * (exp(-14.0 * t) + 0.6 * exp(-14.0 * maxOf(0.0, t - 0.05)) * (if (t > 0.05) 1.0 else 0.0)) + 0.15 * (s(5200.0, t) + s(7100.0, t)) * exp(-9.0 * t) }
+                9 -> render(0.18) { t, _ -> 0.6 * hiNoise() * (if (t < 0.03) t / 0.03 else exp(-(t - 0.03) * 30.0)) }
+                10 -> render(2.0) { t, _ -> 0.25 * (s(3150.0, t) + 0.7 * s(4230.0, t) + 0.5 * s(5470.0, t)) * exp(-2.0 * t) + 0.15 * hiNoise() * exp(-20.0 * t) }
+                else -> render(0.5) { t, _ -> 0.8 * (sweep(220.0, 160.0, 14.0, t) * exp(-9.0 * t) + sweep(220.0, 160.0, 14.0, maxOf(0.0, t - 0.12)) * exp(-9.0 * maxOf(0.0, t - 0.12)) * (if (t > 0.12) 1.0 else 0.0)) }
             }
             Kit.ELECTRO -> when (pad) {
                 0 -> render(0.8) { t, _ -> 0.95 * sweep(120.0, 42.0, 9.0, t) * exp(-3.5 * t) }
@@ -247,7 +260,11 @@ object Tones {
                 4 -> render(0.35) { t, _ -> 0.6 * sweep(1600.0, 200.0, 14.0, t) * exp(-6.0 * t) }
                 5 -> render(1.0) { t, _ -> 0.5 * (s(880.0, t) + 0.5 * s(1320.0, t)) * exp(-4.0 * t) }
                 6 -> render(1.0) { t, _ -> 0.4 * noise() * (if (t < 0.5) t * 2 else exp(-(t - 0.5) * 8)) }
-                else -> render(0.1) { t, _ -> 0.5 * sq(1760.0, t) * exp(-30.0 * t) }
+                7 -> render(0.1) { t, _ -> 0.5 * sq(1760.0, t) * exp(-30.0 * t) }
+                8 -> render(1.4) { t, _ -> 0.95 * sweep(70.0, 48.0, 4.0, t) * exp(-1.8 * t) }
+                9 -> render(0.5) { t, _ -> 0.45 * hiNoise() * exp(-6.0 * t) }
+                10 -> render(0.8) { t, _ -> 0.4 * sq(600.0 + 400.0 * sin(2 * PI * 4 * t), t) * exp(-2.5 * t) }
+                else -> render(0.12) { t, _ -> 0.7 * s(1200.0, t) * exp(-45.0 * t) + 0.3 * s(2400.0, t) * exp(-60.0 * t) }
             }
             Kit.MINE -> FloatArray(Synth.RATE / 20)
             Kit.FUN -> when (pad) {
@@ -258,7 +275,25 @@ object Tones {
                 4 -> render(0.35) { t, _ -> 0.5 * sq(140.0 + 60 * abs(sin(2 * PI * 18 * t)), t) * exp(-6.0 * t) }
                 5 -> render(0.3) { t, _ -> 0.6 * sweep(2600.0, 3600.0, 30.0, t % 0.15) * exp(-8.0 * (t % 0.15)) }
                 6 -> render(1.2) { t, _ -> 0.3 * (s(1568.0, t) * exp(-3.0 * t) + s(2093.0, t) * exp(-3.0 * maxOf(0.0, t - 0.1)) * (if (t > 0.1) 1.0 else 0.0) + s(2637.0, t) * exp(-3.0 * maxOf(0.0, t - 0.2)) * (if (t > 0.2) 1.0 else 0.0)) }
-                else -> render(0.7) { t, _ -> 0.45 * sq(90.0 + 20 * sin(2 * PI * 7 * t), t) * exp(-3.0 * t) }
+                7 -> render(0.7) { t, _ -> 0.45 * sq(90.0 + 20 * sin(2 * PI * 7 * t), t) * exp(-3.0 * t) }
+                8 -> render(0.2) { t, _ -> 0.8 * (s(780.0, t) + 0.4 * s(1950.0, t)) * exp(-28.0 * t) }
+                9 -> render(1.2) { t, _ -> val f = 1200.0 + 1800.0 * (t / 1.2); 0.3 * s(f + 300 * sin(2 * PI * 9 * t), t) * exp(-2.0 * t) }
+                10 -> render(0.5) { t, _ -> 0.45 * sq(220.0, t) * (if (t < 0.05) t / 0.05 else exp(-(t - 0.05) * 5.0)) }
+                else -> render(0.4) { t, _ -> 0.7 * sweep(400.0, 1400.0, 12.0, t) * exp(-9.0 * t) }
+            }
+            Kit.WORLD -> when (pad) {
+                0 -> render(0.5) { t, _ -> 0.85 * (sweep(330.0, 300.0, 10.0, t) * exp(-8.0 * t) + 0.3 * noise() * exp(-60.0 * t)) }
+                1 -> render(0.6) { t, _ -> 0.85 * (sweep(240.0, 215.0, 10.0, t) * exp(-7.0 * t) + 0.3 * noise() * exp(-60.0 * t)) }
+                2 -> render(0.35) { t, _ -> 0.8 * (sweep(480.0, 430.0, 12.0, t) * exp(-12.0 * t) + 0.25 * noise() * exp(-70.0 * t)) }
+                3 -> render(0.4) { t, _ -> 0.8 * sweep(110.0, 70.0, 20.0, t) * exp(-10.0 * t) + 0.35 * noise() * exp(-35.0 * t) }
+                4 -> render(0.4) { t, _ -> 0.4 * (sq(560.0, t) + 0.6 * sq(845.0, t)) * exp(-9.0 * t) }
+                5 -> render(0.15) { t, _ -> 0.8 * s(2500.0, t) * exp(-40.0 * t) }
+                6 -> render(0.4) { t, _ -> 0.5 * hiNoise() * (0.5 + 0.5 * sin(2 * PI * 45 * t)) * (if (t < 0.3) 1.0 else exp(-(t - 0.3) * 30.0)) }
+                7 -> render(0.2) { t, _ -> 0.55 * hiNoise() * (if (t < 0.02) t / 0.02 else exp(-(t - 0.02) * 22.0)) }
+                8 -> render(1.2) { t, _ -> 0.95 * sweep(95.0, 70.0, 6.0, t) * exp(-3.0 * t) + 0.2 * noise() * exp(-40.0 * t) }
+                9 -> render(0.25) { t, _ -> 0.75 * (s(1650.0, t) + 0.5 * s(3900.0, t)) * exp(-30.0 * t) }
+                10 -> render(1.0) { t, _ -> 0.3 * (s(4100.0, t) + s(5300.0, t) + s(6700.0, t)) * exp(-4.0 * t) * (0.6 + 0.4 * sin(2 * PI * 18 * t)) }
+                else -> render(1.8) { t, _ -> 0.35 * (s(1900.0, t) + 0.6 * s(5200.0, t) + 0.4 * s(8300.0, t)) * exp(-2.0 * t) }
             }
         }
     }
