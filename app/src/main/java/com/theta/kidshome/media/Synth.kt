@@ -136,9 +136,13 @@ class Synth(private val context: Context) {
         pool.play(id, 0.6f, 0.6f, 2, 0, 1f)
     }
 
+    private val padStreams = HashMap<Int, Int>()
+
+    /** おなじ パッド を つづけて たたいたら、まえ の 音 は とめる（つぎつぎ かさならない） */
     fun playPad(kit: Kit, pad: Int) {
         val id = kitIds[kit]?.getOrNull(pad) ?: return
-        pool.play(id, 1f, 1f, 1, 0, 1f)
+        padStreams[id]?.let { pool.stop(it) }
+        padStreams[id] = pool.play(id, 1f, 1f, 1, 0, 1f)
     }
 
     fun release() = pool.release()
@@ -225,7 +229,19 @@ object Tones {
         return x
     }
 
-    fun drum(kit: Kit, pad: Int): FloatArray = loud(drumRaw(kit, pad))
+    fun drum(kit: Kit, pad: Int): FloatArray = tight(loud(drumRaw(kit, pad)))
+
+    /** えんそう で つかいやすい ように、よいん を みじかく（さいだい 0.4 びょう）する */
+    private fun tight(x: FloatArray): FloatArray {
+        val n = minOf(x.size, (Synth.RATE * 0.4).toInt())
+        val end = n.toDouble() / Synth.RATE
+        return FloatArray(n) { i ->
+            val t = i.toDouble() / Synth.RATE
+            val tail = if (t < 0.05) 1.0 else exp(-(t - 0.05) * 7.0)
+            val fade = ((end - t) / 0.04).coerceIn(0.0, 1.0)
+            (x[i] * tail * fade).toFloat()
+        }
+    }
 
     private fun drumRaw(kit: Kit, pad: Int): FloatArray {
         val rnd = Random(kit.ordinal * 31 + pad)

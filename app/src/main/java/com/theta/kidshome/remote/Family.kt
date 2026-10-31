@@ -191,6 +191,9 @@ object Family {
         return d
     }
 
+    fun rename(c: Context, d: Device, name: String) =
+        saveDevices(c, devices.map { if (it.topic == d.topic) it.copy(name = name.trim().ifBlank { it.name }) else it })
+
     fun forget(c: Context, d: Device) = saveDevices(c, devices.filter { it.topic != d.topic })
 
     suspend fun send(d: Device, o: JSONObject) = publish(d.topic, seal(d.key, o))

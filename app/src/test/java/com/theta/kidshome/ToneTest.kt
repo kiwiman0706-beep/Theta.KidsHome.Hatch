@@ -24,6 +24,8 @@ class ToneTest {
 
     @Test
     fun padsAreAudibleAndDoNotClip() {
-        Kit.entries.filter { it != Kit.MINE }.forEach { kit -> for (p in kit.pads.indices) check("$kit/$p", Tones.drum(kit, p)) }
+        Kit.entries.filter { it != Kit.MINE }.forEach { kit ->
+            for (p in kit.pads.indices) Tones.drum(kit, p).let { check("$kit/$p", it); assertTrue("$kit/$p too long", it.size <= 22050 * 0.4) }
+        }
     }
 }

@@ -66,10 +66,55 @@ fun FamilyScreen(onExit: () -> Unit) {
             "まだ つながって いません。タブレット の おやメニュー →「📣 おうちのひと から の 呼びかけ」→「📱 おや の スマホ と つなぐ」で 出る QR を 読んでください。",
             fontSize = 15.sp,
         )
+        if (Family.devices.size >= 2) AllCard(Family.devices)
         Family.devices.forEach { d -> DeviceCard(d) }
         Spacer(Modifier.height(8.dp))
         Button(onClick = scan, modifier = Modifier.fillMaxWidth()) { Text("📷 タブレット の QR を 読んで つなぐ") }
     }
+}
+
+/** つないだ タブレット みんな に まとめて おくる */
+@Composable
+private fun AllCard(list: List<Family.Device>) {
+    val scope = rememberCoroutineScope()
+    var busy by remember { mutableStateOf<String?>(null) }
+    var text by remember { mutableStateOf("") }
+    var recording by remember { mutableStateOf(false) }
+    var songNotes by remember { mutableStateOf("") }
+    var songTitle by remember { mutableStateOf("") }
+
+    fun send(o: JSONObject, done: String) {
+        busy = "おくっています…"
+        scope.launch {
+            val failed = list.filter { d -> runCatching { Family.send(d, JSONObject(o.toString())) }.isFailure }
+            busy = if (failed.isEmpty()) "✅ みんな に $done" else "✅ $done（${failed.joinToString("・") { it.name }} には おくれませんでした）"
+        }
+    }
+
+    Card(colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF0C8)), modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("👨‍👩‍👧‍👧 みんな に（${list.size} だい）", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            busy?.let { Text(it, fontSize = 13.sp) }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                OutlinedTextField(text, { text = it }, singleLine = true, label = { Text("メッセージ") }, modifier = Modifier.weight(1f))
+                Button(enabled = text.isNotBlank(), onClick = { send(JSONObject().put("c", "msg").put("text", text.trim()), "メッセージ を おくりました"); text = "" }, modifier = Modifier.padding(start = 6.dp)) { Text("💬") }
+            }
+            FlowRow8 {
+                listOf(15, 30, 60, 120).forEach { m -> OutlinedButton(onClick = { send(JSONObject().put("c", "lock").put("min", m).put("text", text.trim()), "$m ふん おやすみ に しました") }) { Text("🔒 $m ふん") } }
+                OutlinedButton(onClick = { send(JSONObject().put("c", "unlock"), "おやすみ を といた") }) { Text("🔓 といて いいよ") }
+            }
+            OutlinedTextField(songTitle, { songTitle = it }, singleLine = true, label = { Text("曲 の 名前") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(songNotes, { songNotes = it }, label = { Text("ドレミ（ド_レ_ミー ん ソ・ …）") }, modifier = Modifier.fillMaxWidth())
+            FlowRow8 {
+                OutlinedButton(onClick = { recording = true }) { Text("🎹 ひいて きろく") }
+                Button(
+                    enabled = songTitle.isNotBlank() && com.theta.kidshome.media.Songs.parse(songNotes).isNotEmpty(),
+                    onClick = { send(JSONObject().put("c", "song").put("title", songTitle.trim()).put("notes", songNotes.trim()), "「${songTitle.trim()}」を おくりました"); songTitle = ""; songNotes = "" },
+                ) { Text("🎵 みんな に おくる") }
+            }
+        }
+    }
+    if (recording) SongRecorder(onDismiss = { recording = false }) { t -> songNotes = t; recording = false }
 }
 
 @Composable
@@ -82,6 +127,7 @@ private fun DeviceCard(d: Family.Device) {
     var recording by remember { mutableStateOf(false) }
     var songNotes by remember { mutableStateOf("") }
     var songTitle by remember { mutableStateOf("") }
+    var naming by remember { mutableStateOf<String?>(null) }
 
     fun send(o: JSONObject, done: String) {
         busy = "おくっています…"
@@ -97,7 +143,14 @@ private fun DeviceCard(d: Family.Device) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("🧸 ${d.name}", fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                TextButton(onClick = { naming = d.name }) { Text("✏️") }
                 TextButton(onClick = { send(JSONObject().put("c", "status"), "ようす を ききました") }) { Text("🔄 ようす") }
+            }
+            naming?.let { n ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedTextField(n, { naming = it }, singleLine = true, label = { Text("よびな（〇〇 の タブレット）") }, modifier = Modifier.weight(1f))
+                    Button(onClick = { Family.rename(context, d, n); naming = null }, modifier = Modifier.padding(start = 6.dp)) { Text("OK") }
+                }
             }
             val s = status
             Text(
