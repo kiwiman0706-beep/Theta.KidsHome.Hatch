@@ -134,31 +134,8 @@ fun MojiScreen(onBack: () -> Unit) {
             // かく ところ
             Column(Modifier.weight(1f).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally) {
                 Row(Modifier.weight(1f), verticalAlignment = Alignment.Top) {
-                // おてほん（よこに 小さく）
-                Column(Modifier.padding(end = 14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    DotText("おてほん", theme, 16, theme.text)
-                    Box(
-                        Modifier.padding(top = 4.dp).width(150.dp).aspectRatio(1f).clip(RoundedCornerShape(12.dp)).background(Color.White)
-                            .border(3.dp, theme.outline, RoundedCornerShape(12.dp))
-                    ) {
-                        Canvas(Modifier.fillMaxSize()) {
-                            val dash = PathEffect.dashPathEffect(floatArrayOf(8f, 7f))
-                            val lc = theme.outline.copy(alpha = 0.25f)
-                            drawLine(lc, Offset(size.width / 2, 0f), Offset(size.width / 2, size.height), 2f, pathEffect = dash)
-                            drawLine(lc, Offset(0f, size.height / 2), Offset(size.width, size.height / 2), 2f, pathEffect = dash)
-                            drawIntoCanvas { cv ->
-                                val p = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
-                                    color = android.graphics.Color.rgb(40, 40, 50)
-                                    textSize = size.width * 0.78f
-                                    textAlign = android.graphics.Paint.Align.CENTER
-                                    typeface = android.graphics.Typeface.SERIF
-                                }
-                                val fm = p.fontMetrics
-                                cv.nativeCanvas.drawText(ch, size.width / 2, size.height / 2 - (fm.ascent + fm.descent) / 2, p)
-                            }
-                        }
-                    }
-                }
+                // おてほん（書き順）・よみ・ことば・いみ（なぞらず よこ に）
+                KanjiSide(theme, ch)
                 Box(
                     Modifier.fillMaxHeight().aspectRatio(1f).clip(RoundedCornerShape(16.dp)).background(Color.White)
                         .border(4.dp, theme.outline, RoundedCornerShape(16.dp))

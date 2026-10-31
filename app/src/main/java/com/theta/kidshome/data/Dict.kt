@@ -203,6 +203,20 @@ object Dict {
         )
     }
 
+    /** 漢字 1 字 の いみ（学年 つき の こくご 辞書 が あれば。もじ れんしゅう の よこ に 出す） */
+    fun kanjiMeaning(ch: String, max: Int = 160): String? {
+        val k = books.firstOrNull { it.code == "kokugo" } ?: return null
+        val id = runCatching {
+            k.source.db.rawQuery(
+                "SELECT id FROM entry WHERE dict_id=? AND (heading=? OR kanji=?) ORDER BY grade IS NULL, length(body) DESC LIMIT 1",
+                arrayOf(k.id.toString(), ch, ch),
+            ).use { if (it.moveToFirst()) it.getLong(0) else null }
+        }.getOrNull() ?: return null
+        val e = entry(Ref(k.key, id)) ?: return null
+        val t = DictText.plain(e.body, e.word).lines().map { it.trim() }.filter { it.isNotEmpty() }.joinToString("\n")
+        return t.takeIf { it.isNotBlank() }?.let { if (it.length > max) it.take(max) + "…" else it }
+    }
+
     /** ファイル を えらんで コピー（SD カード が あれば SD に。おなじ 名前 は いれかえ） */
     fun import(c: Context, uri: Uri) {
         val app = c.applicationContext

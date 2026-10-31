@@ -196,6 +196,8 @@ object SheetSync {
                         "ちず" -> Tile(id = id, type = TileType.MAP, label = label.ifEmpty { "ちず" }, emoji = emoji ?: "🗺️")
                         "じしょ" -> Tile(id = id, type = TileType.DICT, label = label.ifEmpty { "じしょ" }, emoji = emoji ?: "📖")
                         "たしざん" -> Tile(id = id, type = TileType.TASU, label = label.ifEmpty { "たしざん の ひょう" }, emoji = emoji ?: "➕")
+                        "そろばん" -> Tile(id = id, type = TileType.SOROBAN, label = label.ifEmpty { "そろばん" }, emoji = emoji ?: "🧮")
+                        "ひっさん" -> Tile(id = id, type = TileType.HISSAN, label = label.ifEmpty { "ひっさん でんたく" }, emoji = emoji ?: "🔢")
                         "くく" -> Tile(id = id, type = TileType.KUKU, label = label.ifEmpty { "くくの ひょう" }, emoji = emoji ?: "✖️")
                         "もじ" -> Tile(id = id, type = TileType.MOJI, label = label.ifEmpty { "もじ れんしゅう" }, emoji = emoji ?: "✍️")
                         "タイピング" -> Tile(id = id, type = TileType.TYPING, label = label.ifEmpty { "タイピング" }, emoji = emoji ?: "⌨️")
@@ -284,7 +286,7 @@ object SheetSync {
                     listOf(
                         who(p),
                         when (t.type) {
-                            TileType.VIDEO -> "どうが"; TileType.APP -> "アプリ"; TileType.DRAWING -> "おえかき"; TileType.CALL -> "でんわ"; TileType.INSTRUMENT -> "がっき"; TileType.EDUPAD -> "くるくる"; TileType.WORDPRO -> "わーぷろ"; TileType.PUZZLE -> "パズル"; TileType.TYPING -> "タイピング"; TileType.MOJI -> "もじ"; TileType.KUKU -> "くく"; TileType.MAP -> "ちず"; TileType.TASU -> "たしざん"; TileType.DICT -> "じしょ"
+                            TileType.VIDEO -> "どうが"; TileType.APP -> "アプリ"; TileType.DRAWING -> "おえかき"; TileType.CALL -> "でんわ"; TileType.INSTRUMENT -> "がっき"; TileType.EDUPAD -> "くるくる"; TileType.WORDPRO -> "わーぷろ"; TileType.PUZZLE -> "パズル"; TileType.TYPING -> "タイピング"; TileType.MOJI -> "もじ"; TileType.KUKU -> "くく"; TileType.MAP -> "ちず"; TileType.TASU -> "たしざん"; TileType.DICT -> "じしょ"; TileType.SOROBAN -> "そろばん"; TileType.HISSAN -> "ひっさん"
                         },
                         t.label,
                         when (t.type) { TileType.APP -> t.packageName.orEmpty(); else -> t.url.orEmpty() },

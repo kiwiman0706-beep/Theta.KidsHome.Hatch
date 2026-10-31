@@ -97,6 +97,17 @@ object Store {
             }
             prefs.edit().putBoolean("added:tasu", true).apply()
         }
+        if (!prefs.getBoolean("added:soroban", false)) {
+            update { c ->
+                c.copy(profiles = c.profiles.map { p ->
+                    p.copy(tiles = p.tiles + listOfNotNull(
+                        AppConfig.sorobanTile().takeIf { p.tiles.none { it.type == TileType.SOROBAN } },
+                        AppConfig.hissanTile().takeIf { p.tiles.none { it.type == TileType.HISSAN } },
+                    ))
+                })
+            }
+            prefs.edit().putBoolean("added:soroban", true).apply()
+        }
     }
 
     /** いまの子のホームに ふせん をはる（少しずらして、少しかたむける） */

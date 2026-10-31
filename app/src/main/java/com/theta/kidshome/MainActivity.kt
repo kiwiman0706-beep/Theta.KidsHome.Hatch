@@ -30,7 +30,7 @@ import com.theta.kidshome.ui.HomeScreen
 import com.theta.kidshome.ui.ParentScreen
 import com.theta.kidshome.update.SelfUpdate
 
-private enum class Screen { HOME, DRAWING, PARENT, PLAYER, INSTRUMENT, EDUPAD, WORDPRO, PUZZLE, TYPING, MOJI, KUKU, MAP, TASU, DICT }
+private enum class Screen { HOME, DRAWING, PARENT, PLAYER, INSTRUMENT, EDUPAD, WORDPRO, PUZZLE, TYPING, MOJI, KUKU, MAP, TASU, DICT, SOROBAN, HISSAN }
 
 class MainActivity : ComponentActivity() {
     private var screen by mutableStateOf(Screen.HOME)
@@ -85,6 +85,8 @@ class MainActivity : ComponentActivity() {
                             onOpenKuku = { screen = Screen.KUKU },
                             onOpenMap = { screen = Screen.MAP },
                             onOpenTasu = { screen = Screen.TASU },
+                            onOpenSoroban = { screen = Screen.SOROBAN },
+                            onOpenHissan = { screen = Screen.HISSAN },
                             onOpenDict = { screen = Screen.DICT },
                             onPlayVideo = { list, i -> playList = list; playIndex = i; screen = Screen.PLAYER },
                         )
@@ -101,6 +103,8 @@ class MainActivity : ComponentActivity() {
                     Screen.MAP -> com.theta.kidshome.ui.MapScreen(onBack = { screen = Screen.HOME })
                     Screen.TASU -> com.theta.kidshome.ui.TasuScreen(onBack = { screen = Screen.HOME })
                     Screen.DICT -> com.theta.kidshome.ui.DictScreen(onBack = { screen = Screen.HOME })
+                    Screen.SOROBAN -> com.theta.kidshome.ui.SorobanScreen(onBack = { screen = Screen.HOME })
+                    Screen.HISSAN -> com.theta.kidshome.ui.HissanScreen(onBack = { screen = Screen.HOME })
                     Screen.PLAYER -> VideoPlayerScreen(playList, playIndex, onBack = { screen = Screen.HOME }, onLocked = { screen = Screen.HOME })
                 }
             }

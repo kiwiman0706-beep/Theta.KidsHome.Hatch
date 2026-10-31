@@ -121,6 +121,8 @@ fun HomeScreen(
     onOpenKuku: () -> Unit = {},
     onOpenMap: () -> Unit = {},
     onOpenTasu: () -> Unit = {},
+    onOpenSoroban: () -> Unit = {},
+    onOpenHissan: () -> Unit = {},
     onOpenDict: () -> Unit = {},
     onPlayVideo: (List<com.theta.kidshome.data.MediaEntry>, Int) -> Unit = { _, _ -> },
 ) {
@@ -198,7 +200,7 @@ fun HomeScreen(
     // ほんだな：1 だん ＝ 1 つの なかま（なかみ が ないものは おかない）
     val shelves = listOfNotNull(
         Shelf("book", "🎧", "おはなし", emptyList()) { open(listOf("local:book")) }.takeIf { tabs.any { it.key == "local:book" } },
-        Shelf("math", "🔢", "さんすう", builtins(TileType.KUKU, TileType.TASU, TileType.EDUPAD)),
+        Shelf("math", "🔢", "さんすう", builtins(TileType.KUKU, TileType.TASU, TileType.SOROBAN, TileType.HISSAN, TileType.EDUPAD)),
         Shelf("lang", "✏️", "こくご", builtins(TileType.MOJI, TileType.TYPING, TileType.WORDPRO)),
         Shelf("look", "🔍", "しらべる", builtins(TileType.DICT, TileType.MAP)),
     ).filter { it.open != null || it.tiles.isNotEmpty() }
@@ -224,6 +226,8 @@ fun HomeScreen(
             tile.type == TileType.KUKU -> onOpenKuku()
             tile.type == TileType.MAP -> onOpenMap()
             tile.type == TileType.TASU -> onOpenTasu()
+            tile.type == TileType.SOROBAN -> onOpenSoroban()
+            tile.type == TileType.HISSAN -> onOpenHissan()
             tile.type == TileType.DICT -> onOpenDict()
             else -> Launcher.launch(context, tile)
         }
@@ -757,6 +761,8 @@ private fun TileWindow(tile: Tile, theme: KidTheme, index: Int, locked: Boolean,
         tile.type == TileType.KUKU -> "くく"
         tile.type == TileType.MAP -> "ちず"
         tile.type == TileType.TASU -> "たしざん"
+        tile.type == TileType.SOROBAN -> "そろばん"
+        tile.type == TileType.HISSAN -> "ひっさん"
         tile.type == TileType.DICT -> "じしょ"
         tile.isVideo -> "どうが"
         else -> "アプリ"

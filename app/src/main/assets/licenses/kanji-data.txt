@@ -1,0 +1,10 @@
+もじ れんしゅう の 読み・ことば・書き順 データ（assets/moji/kanji_info.json）
+
+- 読み・画数：KANJIDIC2、ことば：JMdict
+  Electronic Dictionary Research and Development Group (EDRDG)
+  https://www.edrdg.org/  Creative Commons Attribution-ShareAlike 4.0
+- 書き順：KanjiVG  Copyright (C) 2009-2024 Ulrich Apel
+  https://kanjivg.tagaini.net/  Creative Commons Attribution-ShareAlike 3.0
+
+kanji_info.json は 上記 を 教育漢字・かな に しぼって 組み合わせた もの で、同じ CC BY-SA ライセンス で 提供します。
+作りかた：tools/build_kanji_info.py
