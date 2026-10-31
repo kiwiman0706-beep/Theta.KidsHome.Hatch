@@ -491,6 +491,9 @@ private fun ProfileEditor(profile: Profile, canDelete: Boolean, onDelete: () -> 
         if (profile.tiles.none { it.type == TileType.DICT }) {
             OutlinedButton(onClick = { Store.addTiles(profile.id, listOf(AppConfig.dictTile())) }) { Text("📖 じしょ を追加") }
         }
+        if (profile.tiles.none { it.type == TileType.JAPAN }) {
+            OutlinedButton(onClick = { Store.addTiles(profile.id, listOf(AppConfig.japanTile())) }) { Text("🗾 にっぽん パズル を追加") }
+        }
         if (profile.tiles.none { it.type == TileType.SOROBAN }) {
             OutlinedButton(onClick = { Store.addTiles(profile.id, listOf(AppConfig.sorobanTile())) }) { Text("🧮 そろばん を追加") }
         }
@@ -608,6 +611,7 @@ private fun TileRow(tile: Tile, onUp: (() -> Unit)?, onDown: (() -> Unit)?, onEd
                     TileType.DICT -> add("じしょ・ひゃっかじてん（内蔵）")
                     TileType.SOROBAN -> add("そろばん（内蔵）")
                     TileType.HISSAN -> add("ひっさん でんたく（内蔵）")
+                    TileType.JAPAN -> add("にっぽん パズル（内蔵）")
                 }
                 if (tile.isVideo) add("🔒ロック対象")
                 if (missing) add("⚠️ アプリが見つかりません")
