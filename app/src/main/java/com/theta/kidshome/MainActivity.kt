@@ -9,6 +9,10 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.Crossfade
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -57,17 +61,22 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         hideSystemBars()
         // おやモード（おや の スマホ）：たて むき でも よい、子ども の ホーム は 出さない
-        if (com.theta.kidshome.remote.Family.isParent(this)) {
+        com.theta.kidshome.data.Beta.load(this)
+        if (com.theta.kidshome.remote.Family.isParent(this) && !com.theta.kidshome.data.Beta.on) {
             requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             setContent {
-                com.theta.kidshome.ui.FamilyScreen(onExit = {
-                    com.theta.kidshome.remote.Family.setParent(this, false)
-                    recreate()
-                })
+                com.theta.kidshome.ui.FamilyScreen(
+                    onExit = {
+                        com.theta.kidshome.remote.Family.setParent(this, false)
+                        recreate()
+                    },
+                    onBeta = { com.theta.kidshome.data.Beta.set(this, true); recreate() },
+                )
             }
             return
         }
         setContent {
+          androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.fillMaxSize()) {
             Crossfade(screen, label = "screen") { s ->
                 when (s) {
                     Screen.HOME -> {
@@ -112,6 +121,15 @@ class MainActivity : ComponentActivity() {
             }
             // おうちのひとからの呼びかけは、どの画面の上にも出す
             RemoteDialog(themeById(Store.config.currentProfile.themeId))
+            // ベータ（おや の スマホ で ためし中）：いつでも おやモード に もどれる
+            if (com.theta.kidshome.data.Beta.on) {
+                androidx.compose.material3.Button(
+                    onClick = { com.theta.kidshome.data.Beta.set(this@MainActivity, false); recreate() },
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = androidx.compose.ui.graphics.Color(0xCC6A3FB5)),
+                    modifier = androidx.compose.ui.Modifier.align(androidx.compose.ui.Alignment.BottomCenter).padding(bottom = 6.dp),
+                ) { androidx.compose.material3.Text("🧪 ベータ（せいげん なし）・おやモード に もどる", fontSize = 12.sp) }
+            }
+          }
         }
     }
 

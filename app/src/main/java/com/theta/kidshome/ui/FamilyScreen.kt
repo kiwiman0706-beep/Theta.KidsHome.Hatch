@@ -48,7 +48,7 @@ import org.json.JSONObject
  * タブレット の おやメニュー「📣 呼びかけ」→「📱 おや の スマホ と つなぐ」の QR を 読んで つなぐ。
  */
 @Composable
-fun FamilyScreen(onExit: () -> Unit) {
+fun FamilyScreen(onExit: () -> Unit, onBeta: () -> Unit = {}) {
     val context = LocalContext.current
     LaunchedEffect(Unit) { Family.loadDevices(context) }
     val scan = rememberQrScanner("タブレット の「おや の スマホ と つなぐ」QR を うつしてください") { v ->
@@ -70,6 +70,14 @@ fun FamilyScreen(onExit: () -> Unit) {
         Family.devices.forEach { d -> DeviceCard(d) }
         Spacer(Modifier.height(8.dp))
         Button(onClick = scan, modifier = Modifier.fillMaxWidth()) { Text("📷 タブレット の QR を 読んで つなぐ") }
+        Spacer(Modifier.height(16.dp))
+        Text("🧪 ベータ テスト", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+        Text(
+            "この スマホ で キッズホーム の アプリ を そのまま ためせます。どうがロック・夜 の くらさ・おうちのひと かくにん・" +
+                "辞書 の レベル・カテゴリー の 見せる 子 は ぜんぶ はずして うごきます。下 の むらさき の ボタン で ここ に もどれます。",
+            fontSize = 13.sp, color = Color.Gray,
+        )
+        OutlinedButton(onClick = onBeta, modifier = Modifier.fillMaxWidth().padding(top = 6.dp)) { Text("🧪 アプリ を せいげん なし で ひらく") }
     }
 }
 

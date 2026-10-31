@@ -58,6 +58,8 @@ data class GateQuestion(val a: Int, val b: Int) {
  */
 @Composable
 fun ParentGate(onSuccess: () -> Unit, onDismiss: () -> Unit) {
+    // ベータ（おや の スマホ）では きかない
+    if (com.theta.kidshome.data.Beta.on) { LaunchedEffect(Unit) { onSuccess() }; return }
     val config = Store.config
     val theme = themeById(config.currentProfile.themeId)
     var question by remember { mutableStateOf(GateQuestion.next(config.hardGate)) }

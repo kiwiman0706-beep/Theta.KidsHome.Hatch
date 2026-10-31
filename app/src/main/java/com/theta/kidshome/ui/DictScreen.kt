@@ -93,7 +93,7 @@ fun DictScreen(onBack: () -> Unit) {
     val theme = themeById(profile.themeId)
     val grade = remember(profile) { Moji.gradeOf(profile) }
     LaunchedEffect(Unit) { Dict.open(context) }
-    val maxLevel = Store.config.dictLevel
+    val maxLevel = if (com.theta.kidshome.data.Beta.on) 3 else Store.config.dictLevel
     var more by remember { mutableStateOf(false) }
     var shelf by remember { mutableStateOf(DictShelf.KOKUGO) }
     var query by remember { mutableStateOf("") }

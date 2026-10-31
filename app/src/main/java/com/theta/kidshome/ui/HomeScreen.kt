@@ -425,7 +425,7 @@ private data class KidTab(
 /** ホーム・とけい・動画サービスごと（ピン留めした作品があるものだけ）・ウィジェット */
 /** 仕分けたカテゴリーのうち、この子に見せるもの（アプリが入っているものだけ） */
 private fun categoryTabs(config: AppConfig, profileId: String, installed: List<com.theta.kidshome.data.InstalledApp>): List<KidTab> =
-    config.categories.filter { profileId in it.visibleTo }.mapNotNull { cat ->
+    config.categories.filter { com.theta.kidshome.data.Beta.on || profileId in it.visibleTo }.mapNotNull { cat ->
         val tiles = installed.filter { config.appCategory[it.packageName] == cat.id }.map { app ->
             Tile(
                 id = "cat:${app.packageName}", type = TileType.APP, label = app.label, packageName = app.packageName,

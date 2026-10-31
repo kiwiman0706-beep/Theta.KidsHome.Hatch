@@ -147,7 +147,7 @@ fun RoomView(
 ) {
     val cal = Calendar.getInstance().apply { timeInMillis = now }
     val hour = cal.get(Calendar.HOUR_OF_DAY)
-    val night = Store.config.nightDim && (hour >= 19 || hour < 6)
+    val night = Store.config.nightDim && !com.theta.kidshome.data.Beta.on && (hour >= 19 || hour < 6)
     var popup by remember { mutableStateOf(initialPopup) } // "shelf" / "toys"
     var popupKey by remember { mutableStateOf(shelves.firstOrNull { it.tiles.isNotEmpty() }?.key) }
     BoxWithConstraints(modifier, contentAlignment = Alignment.Center) {

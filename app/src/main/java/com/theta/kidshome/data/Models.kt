@@ -95,7 +95,7 @@ data class AppConfig(
     val currentProfile: Profile
         get() = profiles.firstOrNull { it.id == currentProfileId } ?: profiles.first()
 
-    fun isVideoLocked(now: Long = System.currentTimeMillis()) = videoLockUntil > now
+    fun isVideoLocked(now: Long = System.currentTimeMillis()) = videoLockUntil > now && !Beta.on
 
     companion object {
         fun drawingTile() = Tile(type = TileType.DRAWING, label = "おえかき", emoji = "🎨")
