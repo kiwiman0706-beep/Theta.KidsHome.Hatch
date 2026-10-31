@@ -56,6 +56,17 @@ class MainActivity : ComponentActivity() {
         if (safe) Store.safeMode = true
         enableEdgeToEdge()
         hideSystemBars()
+        // おやモード（おや の スマホ）：たて むき でも よい、子ども の ホーム は 出さない
+        if (com.theta.kidshome.remote.Family.isParent(this)) {
+            requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            setContent {
+                com.theta.kidshome.ui.FamilyScreen(onExit = {
+                    com.theta.kidshome.remote.Family.setParent(this, false)
+                    recreate()
+                })
+            }
+            return
+        }
         setContent {
             Crossfade(screen, label = "screen") { s ->
                 when (s) {

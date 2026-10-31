@@ -62,6 +62,8 @@ object Remote {
     /** 届いた呼びかけを反映する（主スレッドで呼ぶ） */
     fun apply(context: Context, raw: String) {
         Store.init(context)
+        // おや の スマホ（おやモード）から の しるし つき めいれい
+        if (Family.isSealed(raw)) { Family.receive(context, raw); return }
         val cmd = parse(raw)
         val now = System.currentTimeMillis()
         when {

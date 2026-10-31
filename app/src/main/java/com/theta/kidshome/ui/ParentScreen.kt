@@ -227,6 +227,18 @@ private fun SettingsTab(modifier: Modifier) {
             Text("お子さんが九九を覚えたら「むずかしい」に。", fontSize = 13.sp, color = Color.Gray, modifier = Modifier.padding(top = 8.dp))
         }
 
+        Section("📱 おやモード（おや の スマホ 用）") {
+            Text(
+                "この アプリ を おや の スマホ に 入れた とき は、おやモード に すると、つないだ 子ども の タブレット に " +
+                    "メッセージ・どうが の おやすみ・曲・せってい を おくれます（子ども の タブレット では つかいません）。",
+                fontSize = 14.sp,
+            )
+            OutlinedButton(onClick = {
+                com.theta.kidshome.remote.Family.setParent(context, true)
+                (context as? android.app.Activity)?.recreate()
+            }) { Text("📱 この スマホ を おやモード に") }
+        }
+
         Section("🛟 もしものとき（レスキュー）") {
             Text(
                 "キッズホームが続けて落ちる・固まると、自動でレスキュー画面になります（別のホームを選ぶ／セーフモード／最新版を入れる）。" +

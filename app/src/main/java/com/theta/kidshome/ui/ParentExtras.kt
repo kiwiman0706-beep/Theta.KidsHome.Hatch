@@ -73,6 +73,7 @@ fun RemoteSection(config: AppConfig) {
     val context = LocalContext.current
     val notifPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
     var remoteQr by remember { mutableStateOf(false) }
+    var pairQr by remember { mutableStateOf(false) }
     Section("📣 おうちのひとからの呼びかけ") {
         Text(
             "スマホのブラウザで下のページを開いて文字を送ると、動画を見ていてもキッズホームが前に出て、マスコットと一緒に表示されます。",
@@ -103,6 +104,7 @@ fun RemoteSection(config: AppConfig) {
                     context.startActivity(Intent.createChooser(send, "送るページを自分のスマホへ").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                 }) { Text("このリンクを自分のスマホへ送る") }
                 OutlinedButton(onClick = { remoteQr = true }) { Text("📱 QR で見せる") }
+                Button(onClick = { pairQr = true }) { Text("📱 おや の スマホ と つなぐ") }
                 if (!Settings.canDrawOverlays(context)) {
                     Button(onClick = {
                         context.startActivity(
@@ -128,6 +130,12 @@ fun RemoteSection(config: AppConfig) {
                 fontSize = 13.sp, color = Color.Gray, modifier = Modifier.padding(top = 8.dp),
             )
             if (remoteQr) QrDialog("📱 呼びかけのページ", url, note = "スマホのカメラで読んで、ホーム画面に追加しておくと便利です。") { remoteQr = false }
+            if (pairQr) QrDialog(
+                "📱 おや の スマホ と つなぐ", com.theta.kidshome.remote.Family.pairText(context, topic),
+                note = "おや の スマホ に キッズホーム を 入れて、⚙️ →「📱 この スマホ を おやモード に」→「📷 タブレット の QR を 読んで つなぐ」で この QR を 読みます。" +
+                    "合いことば が 入っている ので、ほか の 人 には 見せないで ください。",
+                showText = false,
+            ) { pairQr = false }
         }
     }
 }
@@ -628,7 +636,7 @@ fun SongSection(config: AppConfig) {
  * 長さ は よく ある 間 を 1 はく に して 2〜4 はく に まるめる（あとで 文字 で なおせる）
  */
 @Composable
-private fun SongRecorder(onDismiss: () -> Unit, onDone: (String) -> Unit) {
+internal fun SongRecorder(onDismiss: () -> Unit, onDone: (String) -> Unit) {
     val context = LocalContext.current
     val theme = themeById(Store.config.currentProfile.themeId)
     val synth = remember { com.theta.kidshome.media.Synth(context) }
