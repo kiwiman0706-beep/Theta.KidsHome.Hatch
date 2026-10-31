@@ -168,6 +168,8 @@ private fun SettingsTab(modifier: Modifier) {
     Column(modifier.verticalScroll(rememberScrollState()).widthIn(max = 900.dp)) {
         DefaultHomeSection()
 
+        ThisTabletSection(config)
+
         UpdateSection(config)
 
         QrSection(config)

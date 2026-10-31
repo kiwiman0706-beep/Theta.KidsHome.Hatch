@@ -171,6 +171,14 @@ private fun ColumnScope.AssignApps(redoAll: Boolean, onDismiss: () -> Unit) {
         OutlinedButton(onClick = { assign(Categories.HIDDEN) }, modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
             Text("🙈 かくす（どの子にも出さない）", fontSize = 18.sp, modifier = Modifier.weight(1f))
         }
+        OutlinedButton(
+            onClick = { Launcher.uninstall(context, app.packageName); index++ },
+            border = BorderStroke(1.dp, Color(0xFFD03B5C)),
+            modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+        ) {
+            val sys = remember(app.packageName) { Launcher.isSystem(context, app.packageName) }
+            Text(if (sys) "🗑 いらない（もとから の アプリ：アプリ情報 で 無効にする）" else "🗑 アンインストール", fontSize = 18.sp, color = Color(0xFFD03B5C), modifier = Modifier.weight(1f))
+        }
         if (adding) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(newName, { newName = it }, singleLine = true, label = { Text("新しいカテゴリー") }, modifier = Modifier.weight(1f))
@@ -211,6 +219,9 @@ fun AppCategoryDialog(app: InstalledApp, onDismiss: () -> Unit) {
     }
     DialogFrame(title = app.label, onDismiss = onDismiss, actions = { TextButton(onClick = onDismiss) { Text("とじる") } }) {
         Button(onClick = { Launcher.launchPackage(context, app.packageName); onDismiss() }, modifier = Modifier.fillMaxWidth()) { Text("ひらく") }
+        OutlinedButton(onClick = { Launcher.uninstall(context, app.packageName); onDismiss() }, modifier = Modifier.fillMaxWidth()) {
+            Text(if (Launcher.isSystem(context, app.packageName)) "🗑 無効にする（アプリ情報）" else "🗑 アンインストール", color = Color(0xFFD03B5C))
+        }
         Spacer(Modifier.height(12.dp))
         Text("カテゴリー", fontSize = 13.sp, color = Color.Gray)
         config.categories.forEach { cat ->

@@ -34,7 +34,7 @@ enum class Kit(val emoji: String, val label: String, val pads: List<Pair<String,
     DRUMS(
         "🥁", "ドラム",
         listOf("🦶" to "ドン", "🥁" to "タン", "🎩" to "チッ", "👏" to "パン", "🔵" to "トン", "🟣" to "ボン", "💥" to "シャーン", "🐮" to "カン",
-            "🔔" to "シャン", "🧂" to "シャカ", "🎯" to "チーン", "🫙" to "トトン"),
+            "🌪" to "シャー", "🥢" to "コッ", "🎯" to "チーン", "🟠" to "タム"),
     ),
     ELECTRO(
         "🎛", "でんし",
@@ -55,7 +55,7 @@ enum class Kit(val emoji: String, val label: String, val pads: List<Pair<String,
     WORLD(
         "🌏", "せかい",
         listOf("🪘" to "コンガ", "🪘" to "コンガ2", "🥁" to "ボンゴ", "📦" to "カホン", "🔔" to "カウベル", "🥢" to "クラベス",
-            "🎋" to "ギロ", "🪇" to "マラカス", "🏮" to "わだいこ", "🪵" to "ひょうしぎ", "🎐" to "すず", "🛎" to "トライアングル"),
+            "🎋" to "ギロ", "🪇" to "マラカス", "🏮" to "わだいこ", "🪵" to "ウッドブロック", "🎐" to "すず", "🛎" to "トライアングル"),
     ),
 }
 
@@ -105,13 +105,20 @@ class Synth(private val context: Context) {
             val v = if (needVoice) (0 until KEYS).map { k -> wav(File(dir, "${voice.name}_$k.wav"), Tones.note(voice, BASE_MIDI + k)) } else emptyList()
             val d = if (!needKit) emptyList() else if (kit == Kit.MINE) {
                 kit.pads.indices.map { p -> Sampler.file(context, p).takeIf { it.exists() } ?: wav(File(dir, "silent.wav"), FloatArray(RATE / 20)) }
-            } else kit.pads.indices.map { p -> wav(File(dir, "${kit.name}_$p.wav"), Tones.drum(kit, p)) }
+            } else kit.pads.indices.map { p -> sampled(dir, kit, p) ?: wav(File(dir, "${kit.name}_$p.wav"), Tones.drum(kit, p)) }
             v to d
         }
         pending += files.first.size + files.second.size
         if (needVoice) voiceIds[voice] = files.first.map { pool.load(it.path, 1) }.toIntArray()
         if (needKit) kitIds[kit] = files.second.map { pool.load(it.path, 1) }.toIntArray()
     }
+
+    /** GM の うちがっき の 音（assets/drums、tools/render_gm_drums.py で 作る）。なければ null で 計算 した 音 */
+    private fun sampled(dir: File, kit: Kit, pad: Int): File? = runCatching {
+        val f = File(dir, "gm_${kit.name}_$pad.ogg")
+        context.assets.open("drums/${kit.name}_$pad.ogg").use { i -> f.outputStream().use { i.copyTo(it) } }
+        f
+    }.getOrNull()
 
     /** octave：-1・0・+1（再生の速さで 1 オクターブずらす） */
     fun playKey(voice: Voice, key: Int, octave: Int = 0) {

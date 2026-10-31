@@ -78,6 +78,19 @@ object Launcher {
         if (!ok) Toast.makeText(context, "ひらけなかったよ…\nおうちのひとに きいてね", Toast.LENGTH_LONG).show()
     }
 
+    /** もとから 入っている アプリ（けせない。とめる だけ） */
+    fun isSystem(context: Context, packageName: String): Boolean = runCatching {
+        context.packageManager.getApplicationInfo(packageName, 0).flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM != 0
+    }.getOrDefault(false)
+
+    /** アンインストール の かくにん を 出す。もとから の アプリ は「アプリ情報」（無効にする）を ひらく */
+    fun uninstall(context: Context, packageName: String) {
+        val uri = Uri.parse("package:$packageName")
+        val i = if (isSystem(context, packageName)) Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, uri) else Intent(Intent.ACTION_DELETE, uri)
+        runCatching { context.startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+            .onFailure { Toast.makeText(context, "ひらけませんでした", Toast.LENGTH_SHORT).show() }
+    }
+
     fun launchPackage(context: Context, packageName: String) {
         if (!launchApp(context, packageName)) Toast.makeText(context, "ひらけなかったよ…", Toast.LENGTH_SHORT).show()
     }

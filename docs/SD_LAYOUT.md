@@ -106,3 +106,11 @@ ffmpeg -i "01 さんぽ.m4a" -i cover.jpg -map 0:a -map 1 -c copy -disposition:v
 - [ ] 使えない 文字 が ない か
 - [ ] 辞書 `.sqlite` は `Android/data/com.theta.kidshome/files/dict/` へ（元 は パソコン に 残す）
 - [ ] 最後 に 一覧（フォルダ・ファイル数・合計サイズ）を 出して 確認
+
+## 6. 今後 の 予定（おぼえがき）
+
+- **NAS と 同期**：Wi-Fi に つながって いる とき、Tailscale 経由 で 家 の NAS（Synology）と SD の `KidsHome/` を 同期 する。
+  - 最終的 に は NAS 側 が 正（NAS に 入れれば タブレット に 入る）。
+  - この 文書 の フォルダ構成 を そのまま NAS の 共有フォルダ にも 使う 前提（NAS 側 も `KidsHome/どうが・おんがく・おはなし`）。
+  - 辞書（`Android/data/com.theta.kidshome/files/dict/`）も 同期 対象 に する か は 実装時 に 決める。
+  - モバイル回線・車 の 中 では 同期 しない（Wi-Fi のみ・充電中 のみ など）。

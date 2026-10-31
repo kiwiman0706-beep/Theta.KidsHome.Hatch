@@ -515,17 +515,7 @@ private fun Header(config: AppConfig, theme: KidTheme, now: Long, updateBadge: B
         Chip(theme, "%d:%02d".format(cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE)))
         if (battery >= 0) Chip(theme, "${if (charging) "⚡" else "🔋"}$battery%")
         HSpace(8)
-        if (config.profiles.size > 1) {
-            config.profiles.forEach { p ->
-                ProfileAvatar(
-                    name = p.name,
-                    theme = themeById(p.themeId),
-                    selected = p.id == config.currentProfileId,
-                    frame = theme,
-                ) { Store.update { it.copy(currentProfileId = p.id) } }
-            }
-        }
-        HSpace(8)
+        // 1 人 1 台 なので 子ども の きりかえ は 出さない（おやメニュー「📱 この タブレット」で きめる）
         HoldButton(theme, updateBadge, onGate)
     }
 }
