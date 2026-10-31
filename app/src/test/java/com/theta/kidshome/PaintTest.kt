@@ -18,5 +18,8 @@ class PaintTest {
         assertEquals(42, back.seed)
         val st = Stamp(10f, 20f, "⭐", 64f)
         assertEquals(st, Paintings.fromJson(Paintings.toJson(st)))
+        // かたむけた スタンプ（ふるい 絵 は r が ない → 0）
+        val rot = Stamp(10f, 20f, "", 64f, "abc", 45f)
+        assertEquals(rot, Paintings.fromJson(Paintings.toJson(rot)))
     }
 }

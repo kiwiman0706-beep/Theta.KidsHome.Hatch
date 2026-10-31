@@ -37,7 +37,8 @@ data class Stroke(
     val pressures: FloatArray? = null,
 ) : Mark
 /** えもじ か、スタンプライブラリの画像（image に id） */
-data class Stamp(val x: Float, val y: Float, val emoji: String, val size: Float, val image: String? = null) : Mark
+/** rot は かたむき（ど）。ふるい 絵 には ない（0） */
+data class Stamp(val x: Float, val y: Float, val emoji: String, val size: Float, val image: String? = null, val rot: Float = 0f) : Mark
 
 /**
  * 画材ごとの描き方。同じ seed なら毎回おなじ「かすれ」になる（開き直しても同じ絵）。
@@ -58,6 +59,8 @@ object Painter {
     fun draw(c: Canvas, m: Mark) {
         when (m) {
             is Stamp -> {
+                c.save()
+                if (m.rot != 0f) c.rotate(m.rot, m.x, m.y)
                 val img = m.image?.let { StampLibrary.bitmap(it) }
                 if (img != null) {
                     val s = m.size * 1.6f / maxOf(img.width, img.height)
@@ -67,6 +70,7 @@ object Painter {
                     val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = m.size; textAlign = Paint.Align.CENTER }
                     c.drawText(m.emoji, m.x, m.y + m.size / 3, p)
                 }
+                c.restore()
             }
             is Stroke -> stroke(c, m)
         }
@@ -282,7 +286,7 @@ object Paintings {
         is Stroke -> JSONObject().put("t", "s").put("c", m.color).put("w", m.width.toDouble()).put("b", m.brush.name).put("seed", m.seed)
             .put("p", JSONArray().apply { m.points.forEach { put(Math.round(it * 10) / 10.0) } })
             .apply { m.pressures?.let { pr -> put("pr", JSONArray().apply { pr.forEach { put(Math.round(it * 100) / 100.0) } }) } }
-        is Stamp -> JSONObject().put("t", "e").put("x", m.x.toDouble()).put("y", m.y.toDouble()).put("e", m.emoji).put("size", m.size.toDouble()).putOpt("img", m.image)
+        is Stamp -> JSONObject().put("t", "e").put("x", m.x.toDouble()).put("y", m.y.toDouble()).put("e", m.emoji).put("size", m.size.toDouble()).putOpt("img", m.image).apply { if (m.rot != 0f) put("r", m.rot.toDouble()) }
     }
 
     fun fromJson(o: JSONObject): Mark? = when (o.optString("t")) {
@@ -294,7 +298,7 @@ object Paintings {
                 o.optJSONArray("pr")?.let { pr -> FloatArray(pr.length()) { pr.getDouble(it).toFloat() } },
             )
         }
-        "e" -> Stamp(o.getDouble("x").toFloat(), o.getDouble("y").toFloat(), o.getString("e"), o.getDouble("size").toFloat(), if (o.has("img")) o.getString("img") else null)
+        "e" -> Stamp(o.getDouble("x").toFloat(), o.getDouble("y").toFloat(), o.getString("e"), o.getDouble("size").toFloat(), if (o.has("img")) o.getString("img") else null, o.optDouble("r", 0.0).toFloat())
         else -> null
     }
 }

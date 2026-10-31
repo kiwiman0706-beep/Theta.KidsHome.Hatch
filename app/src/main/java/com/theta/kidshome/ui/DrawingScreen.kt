@@ -1,5 +1,11 @@
 package com.theta.kidshome.ui
 
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.unit.sp
+import androidx.compose.material3.Text
+import androidx.compose.ui.draw.rotate
 import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
@@ -125,9 +131,14 @@ fun DrawingScreen(onBack: () -> Unit) {
     // えもじ か "img:<ライブラリの id>"
     var stamp by remember { mutableStateOf(stamps.first()) }
     var showMaker by remember { mutableStateOf(false) }
-    fun stampMark(x: Float, y: Float): Stamp {
-        val scale = listOf(0.7f, 1.2f, 2.0f)[widthIndex]
-        return if (stamp.startsWith("img:")) Stamp(x, y, "", stampSize * scale, stamp.removePrefix("img:")) else Stamp(x, y, stamp, stampSize * scale)
+    // スタンプ の かたむき（ど）。🎲 なら おす たび に ばらばら
+    var stampRot by remember { mutableStateOf(0f) }
+    var stampRandom by remember { mutableStateOf(false) }
+    /** pressure：ペン の ときは つよく おすほど 大きく（ゆび は null） */
+    fun stampMark(x: Float, y: Float, pressure: Float? = null): Stamp {
+        val scale = listOf(0.7f, 1.2f, 2.0f)[widthIndex] * (pressure?.let { 0.45f + it.coerceIn(0f, 1f) * 1.3f } ?: 1f)
+        val rot = if (stampRandom) (-40..40).random().toFloat() else stampRot
+        return if (stamp.startsWith("img:")) Stamp(x, y, "", stampSize * scale, stamp.removePrefix("img:"), rot) else Stamp(x, y, stamp, stampSize * scale, null, rot)
     }
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
     var askClear by remember { mutableStateOf(false) }
@@ -193,25 +204,26 @@ fun DrawingScreen(onBack: () -> Unit) {
                 DotText("おえかき", theme, 28, theme.text, modifier = Modifier.padding(start = 12.dp))
                 busy?.let { DotText("　$it", theme, 16, theme.text) }
                 Spacer(Modifier.weight(1f))
-                RetroIconButton("↩️", theme) { if (Drawing.marks.isNotEmpty()) { Drawing.marks.removeAt(Drawing.marks.lastIndex); rebuild() } }
-                RetroIconButton("🗑️", theme) { if (Drawing.marks.isNotEmpty()) askClear = true }
-                RetroIconButton("📄", theme) { newDrawing() }
-                RetroIconButton("📂", theme) { saveNow(); showOpen = true }
-                RetroIconButton("🖼️", theme) { pickPhoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
+                // こども に わかる ように えもじ ＋ ことば の ボタン
+                ToolButton(theme, "↩️", "もどす") { if (Drawing.marks.isNotEmpty()) { Drawing.marks.removeAt(Drawing.marks.lastIndex); rebuild() } }
+                ToolButton(theme, "🧽", "ぜんぶ けす") { if (Drawing.marks.isNotEmpty()) askClear = true }
+                ToolButton(theme, "📃", "あたらしい かみ") { newDrawing() }
+                ToolButton(theme, "🖼️", "さくひん") { saveNow(); showOpen = true }
+                ToolButton(theme, "📷", "しゃしん に かく") { pickPhoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
                 if (Drawing.background != null && Gemini.apiKey(context).isNotBlank()) {
-                    RetroIconButton("✨", theme) { showMagic = true }
+                    ToolButton(theme, "🪄", "まほう") { showMagic = true }
                 }
-                RetroIconButton("🖊️", theme, penMode) {
+                ToolButton(theme, "✏️", "ペン だけ", penMode) {
                     penMode = !penMode
                     PenPrefs.set(context, penMode)
                     Toast.makeText(context, if (penMode) "ペンモード：ペンだけで かけるよ（て は さわっても だいじょうぶ）" else "ゆびでも かけるよ", Toast.LENGTH_LONG).show()
                 }
-                RetroIconButton("🖨️", theme) { committed?.let { printBitmap(context, it) } }
-                RetroIconButton("💾", theme) {
+                ToolButton(theme, "🖨️", "いんさつ") { committed?.let { printBitmap(context, it) } }
+                ToolButton(theme, "📥", "しゃしん に いれる") {
                     val ok = committed?.let { savePhoto(context, it) } == true
-                    Toast.makeText(context, if (ok) "「しゃしん」に ほぞん したよ！" else "ほぞん できなかったよ", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, if (ok) "「しゃしん」に いれたよ！" else "いれられなかったよ", Toast.LENGTH_SHORT).show()
                 }
-                RetroIconButton("📌", theme) {
+                ToolButton(theme, "📌", "ホーム に はる") {
                     val ok = Drawing.marks.isNotEmpty() && committed?.let { pin(context, it) } == true
                     Toast.makeText(context, if (ok) "ホームに はったよ！" else "なにか かいてから はってね", Toast.LENGTH_SHORT).show()
                 }
@@ -258,7 +270,7 @@ fun DrawingScreen(onBack: () -> Unit) {
                                     if (penMode && !stylus) return@awaitEachGesture
                                     down.consume()
                                     if (stampMode) {
-                                        commit(stampMark(down.position.x, down.position.y))
+                                        commit(stampMark(down.position.x, down.position.y, if (stylus) down.pressure else null))
                                         return@awaitEachGesture
                                     }
                                     // ペンのおしり（けしごむ側）なら けしごむ
@@ -299,6 +311,15 @@ fun DrawingScreen(onBack: () -> Unit) {
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     if (stampMode) {
+                        // かたむき：↺ ↻ で 30 ど ずつ、🎲 で おす たび ばらばら
+                        RetroIconButton("↺", theme, size = 50.dp) { stampRandom = false; stampRot = (stampRot - 30f + 360f) % 360f }
+                        Box(Modifier.size(56.dp), contentAlignment = Alignment.Center) {
+                            if (stamp.startsWith("img:")) Box(Modifier.rotate(if (stampRandom) 0f else stampRot)) { StampThumb(theme, stamp.removePrefix("img:"), false) {} }
+                            else Text(stamp, fontSize = 34.sp, modifier = Modifier.rotate(if (stampRandom) 0f else stampRot))
+                        }
+                        RetroIconButton("↻", theme, size = 50.dp) { stampRandom = false; stampRot = (stampRot + 30f) % 360f }
+                        RetroIconButton("🎲", theme, stampRandom, 50.dp) { stampRandom = !stampRandom }
+                        Spacer(Modifier.width(10.dp))
                         RetroIconButton("➕", theme, size = 50.dp) { showMaker = true }
                         val lib = remember(com.theta.kidshome.data.StampLibrary.version) { com.theta.kidshome.data.StampLibrary.list() }
                         lib.forEach { item -> StampThumb(theme, item.id, stamp == "img:${item.id}") { stamp = "img:${item.id}" } }
@@ -394,23 +415,72 @@ fun DrawingScreen(onBack: () -> Unit) {
     }
 }
 
+/** えもじ と ことば の ボタン（上 の ならび） */
+@Composable
+private fun ToolButton(theme: KidTheme, emoji: String, label: String, selected: Boolean = false, onClick: () -> Unit) {
+    Column(Modifier.padding(horizontal = 3.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        RetroIconButton(emoji, theme, selected, 50.dp, onClick)
+        Text(label, fontFamily = DotFont, fontSize = 12.sp, color = theme.text, maxLines = 1, softWrap = false)
+    }
+}
+
+/**
+ * さくひん：いままで かいた 絵 を 大きな カード で ならべる（ギャラリー）。
+ * おすと ひらいて つづき が かける。ながおし で けす・ホーム に はる。
+ */
 @Composable
 private fun OpenDialog(theme: KidTheme, onDismiss: () -> Unit, onOpen: (String) -> Unit) {
     val context = LocalContext.current
     var list by remember { mutableStateOf(Paintings.list(context)) }
-    Dialog(onDismissRequest = onDismiss) {
-        RetroWindow(theme, Modifier.width(620.dp).heightIn(max = 640.dp), title = "かいた え", titleColor = theme.titleBars[1]) {
-            if (list.isEmpty()) DotText("まだ ないよ", theme, 18, modifier = Modifier.padding(20.dp))
-            LazyVerticalGrid(GridCells.Adaptive(170.dp), Modifier.padding(10.dp)) {
-                items(list, key = { it.id }) { info ->
+    var menu by remember { mutableStateOf<Paintings.Info?>(null) }
+    androidx.activity.compose.BackHandler(onBack = onDismiss)
+    Box(Modifier.fillMaxSize().background(theme.bgBottom).windowInsetsPadding(WindowInsets.safeDrawing).padding(16.dp)) {
+        Column(Modifier.fillMaxSize()) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                RetroIconButton("⬅️", theme, onClick = onDismiss)
+                DotText("🖼️ ${Store.config.currentProfile.name} の さくひん（${list.size}）", theme, 26, theme.text, modifier = Modifier.padding(start = 12.dp))
+            }
+            Spacer(Modifier.height(12.dp))
+            if (list.isEmpty()) DotText("まだ ないよ。かいてみよう！", theme, 22, theme.text, modifier = Modifier.padding(20.dp))
+            androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid(
+                androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells.Adaptive(230.dp),
+                Modifier.fillMaxSize(),
+                verticalItemSpacing = 16.dp,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                items(list.size, key = { list[it].id }) { i ->
+                    val info = list[i]
                     val thumb = remember(info.id) { Paintings.thumb(context, info.id)?.asImageBitmap() }
-                    Box(Modifier.padding(6.dp)) {
-                        Box(
-                            Modifier.fillMaxWidth().height(120.dp).clip(RoundedCornerShape(10.dp)).background(Color.White)
-                                .border(3.dp, theme.outline, RoundedCornerShape(10.dp)).clickable { onOpen(info.id) }
-                        ) { if (thumb != null) Image(thumb, null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit) }
-                        Box(Modifier.align(Alignment.TopEnd)) {
-                            RetroIconButton("🗑️", theme, size = 34.dp) { Paintings.delete(context, info.id); list = Paintings.list(context) }
+                    val date = remember(info.updated) { java.text.SimpleDateFormat("M/d", java.util.Locale.JAPAN).format(java.util.Date(info.updated)) }
+                    Column(
+                        Modifier.stickerShadow(theme.outline.copy(alpha = 0.8f), 4.dp).clip(RoundedCornerShape(18.dp)).background(Color.White)
+                            .border(3.dp, theme.outline, RoundedCornerShape(18.dp))
+                            .pointerInput(info.id) { detectTapGestures(onTap = { onOpen(info.id) }, onLongPress = { menu = info }) },
+                    ) {
+                        if (thumb != null) Image(
+                            thumb, null,
+                            Modifier.fillMaxWidth().aspectRatio(thumb.width.toFloat() / thumb.height.coerceAtLeast(1)),
+                            contentScale = ContentScale.Fit,
+                        ) else Box(Modifier.fillMaxWidth().height(160.dp), contentAlignment = Alignment.Center) { Text("🎨", fontSize = 48.sp) }
+                        Row(Modifier.fillMaxWidth().background(theme.titleBars[i % theme.titleBars.size]).padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                            DotText("📅 $date", theme, 16, modifier = Modifier.weight(1f))
+                            DotText("ひらく ▶", theme, 14)
+                        }
+                    }
+                }
+            }
+        }
+        menu?.let { info ->
+            Dialog(onDismissRequest = { menu = null }) {
+                RetroWindow(theme, Modifier.width(360.dp), title = "この え", titleColor = theme.titleBars[1]) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        RetroButton("▶ ひらく", theme, theme.titleBars[0], modifier = Modifier.fillMaxWidth()) { menu = null; onOpen(info.id) }
+                        RetroButton("📌 ホーム に はる", theme, Color.White, modifier = Modifier.fillMaxWidth()) {
+                            Paintings.thumb(context, info.id)?.let { pin(context, it) }
+                            Toast.makeText(context, "ホームに はったよ！", Toast.LENGTH_SHORT).show(); menu = null
+                        }
+                        RetroButton("🗑️ けす", theme, Color(0xFFFFD6DE), modifier = Modifier.fillMaxWidth()) {
+                            Paintings.delete(context, info.id); list = Paintings.list(context); menu = null
                         }
                     }
                 }
