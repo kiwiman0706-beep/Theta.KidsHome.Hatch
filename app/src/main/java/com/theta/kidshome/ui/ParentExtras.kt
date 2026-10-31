@@ -462,7 +462,9 @@ fun MediaSection(config: AppConfig) {
                     Switch(checked = on, onCheckedChange = set)
                 }
             }
-            val folders = (MediaLibrary.videos + MediaLibrary.music + MediaLibrary.books).groupBy { it.folder }
+            // シリーズ（KidsHome/どうが/<ここ>）と ふつう の フォルダ、どちら でも かくせる
+            val all = MediaLibrary.videos + MediaLibrary.music + MediaLibrary.books
+            val folders = all.groupBy { it.shelf } + all.filter { it.folder != it.shelf }.groupBy { it.folder }
             if (folders.isNotEmpty()) {
                 Text("フォルダごとに 見せる・かくす（カメラで撮った動画などはかくす）", fontSize = 13.sp, color = Color.Gray, modifier = Modifier.padding(top = 8.dp))
                 FlowRow8 {

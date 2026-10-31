@@ -32,6 +32,10 @@ data class MediaEntry(
     val artist: String,
     val durationMs: Long,
     val track: Int = 0,
+    /** ひだり の 一覧 の まとまり（KidsHome/どうが/<ここ>/…。そう で なければ folder） */
+    val shelf: String = folder,
+    /** SD・本体 の なか の 場所（Movies/…/、とちゅう の フォルダ で ならべる） */
+    val path: String = "",
 )
 
 /**
@@ -82,7 +86,7 @@ object MediaLibrary {
         val base = MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
         val cols = arrayOf(
             MediaStore.Video.Media._ID, MediaStore.Video.Media.TITLE, MediaStore.Video.Media.DISPLAY_NAME,
-            MediaStore.Video.Media.BUCKET_DISPLAY_NAME, MediaStore.Video.Media.DURATION,
+            MediaStore.Video.Media.BUCKET_DISPLAY_NAME, MediaStore.Video.Media.DURATION, MediaStore.Video.Media.RELATIVE_PATH,
         )
         val out = mutableListOf<MediaEntry>()
         context.contentResolver.query(base, cols, null, null, "${MediaStore.Video.Media.DISPLAY_NAME} ASC")?.use { c ->
@@ -91,12 +95,14 @@ object MediaLibrary {
                 val name = c.getString(2).orEmpty()
                 out += MediaEntry(
                     id = id, uri = ContentUris.withAppendedId(base, id), kind = MediaKind.VIDEO,
-                    title = c.getString(1)?.takeIf { it.isNotBlank() } ?: name.substringBeforeLast('.'),
+                    title = clean(c.getString(1)?.takeIf { it.isNotBlank() } ?: name.substringBeforeLast('.')),
                     folder = c.getString(3) ?: "どうが", album = "", artist = "", durationMs = c.getLong(4),
+                    shelf = shelfOf(c.getString(5).orEmpty()) ?: c.getString(3) ?: "どうが", path = c.getString(5).orEmpty(),
                 )
             }
         }
-        return out
+        // ならび は ファイル名 の じゅん（DISPLAY_NAME で もらった じゅん を くずさない）
+        return out.sortedWith(compareBy({ it.shelf }, { it.path }))
     }
 
     private fun queryAudio(context: Context): List<MediaEntry> {
@@ -105,33 +111,50 @@ object MediaLibrary {
             MediaStore.Audio.Media._ID, MediaStore.Audio.Media.TITLE, MediaStore.Audio.Media.DISPLAY_NAME,
             MediaStore.Audio.Media.BUCKET_DISPLAY_NAME, MediaStore.Audio.Media.DURATION, MediaStore.Audio.Media.ALBUM,
             MediaStore.Audio.Media.ARTIST, MediaStore.Audio.Media.TRACK, MediaStore.Audio.Media.IS_MUSIC,
-            MediaStore.Audio.Media.IS_AUDIOBOOK,
+            MediaStore.Audio.Media.IS_AUDIOBOOK, MediaStore.Audio.Media.RELATIVE_PATH,
         )
         val out = mutableListOf<MediaEntry>()
-        context.contentResolver.query(base, cols, null, null, null)?.use { c ->
+        context.contentResolver.query(base, cols, null, null, "${MediaStore.Audio.Media.DISPLAY_NAME} ASC")?.use { c ->
             while (c.moveToNext()) {
                 val id = c.getLong(0)
                 val name = c.getString(2).orEmpty()
                 val folder = c.getString(3).orEmpty()
                 val duration = c.getLong(4)
-                val isBook = c.getInt(9) == 1 || name.lowercase().endsWith(".m4b") || isBookFolder(folder)
+                val path = c.getString(10).orEmpty()
+                val isBook = c.getInt(9) == 1 || name.lowercase().endsWith(".m4b") || isBookFolder(folder) || isBookPath(path)
                 val isMusic = c.getInt(8) == 1
                 // 着信音・通知音・短い効果音は出さない
                 if (!isBook && (!isMusic || duration in 1 until 30_000)) continue
                 out += MediaEntry(
                     id = id, uri = ContentUris.withAppendedId(base, id),
                     kind = if (isBook) MediaKind.BOOK else MediaKind.MUSIC,
-                    title = c.getString(1)?.takeIf { it.isNotBlank() } ?: name.substringBeforeLast('.'),
+                    title = clean(c.getString(1)?.takeIf { it.isNotBlank() } ?: name.substringBeforeLast('.')),
                     folder = folder.ifEmpty { "おんがく" },
                     album = c.getString(5)?.takeIf { it.isNotBlank() && it != "<unknown>" } ?: folder.ifEmpty { "おんがく" },
                     artist = c.getString(6)?.takeIf { it != "<unknown>" }.orEmpty(),
                     durationMs = duration,
                     track = c.getInt(7) % 1000,
+                    shelf = shelfOf(path) ?: c.getString(6)?.takeIf { it.isNotBlank() && it != "<unknown>" } ?: folder.ifEmpty { "おんがく" },
+                    path = path,
                 )
             }
         }
-        return out.sortedWith(compareBy({ it.album }, { it.track }, { it.title }))
+        return out.sortedWith(compareBy({ it.shelf }, { it.album }, { it.track }))
     }
+
+    /** SD の きまり：KidsHome/どうが・おんがく・おはなし の すぐ 下 の フォルダ が ひだり の 一覧 */
+    private val ROOTS = setOf("どうが", "おんがく", "おはなし", "videos", "music", "audiobooks", "books")
+
+    /** 「01 アンパンマン」「03_かえるのうた」の 先頭 の ばんごう は ならび用 なので 見せない */
+    fun clean(title: String): String = title.replace(Regex("^\\d{1,3}[ 　._\\-]+"), "").ifBlank { title }
+
+    fun shelfOf(path: String): String? {
+        val seg = path.split('/').filter { it.isNotBlank() }
+        val i = seg.indexOfFirst { it.lowercase() in ROOTS }
+        return seg.getOrNull(i + 1)?.takeIf { i >= 0 }
+    }
+
+    private fun isBookPath(path: String) = path.split('/').any { it == "おはなし" || it.equals("audiobooks", true) }
 
     fun isBookFolder(folder: String): Boolean {
         val f = folder.lowercase()

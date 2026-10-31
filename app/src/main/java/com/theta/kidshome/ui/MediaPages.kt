@@ -22,6 +22,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -60,9 +63,60 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 /** 子どもに見せる動画（かくしたフォルダを除く） */
-fun visibleVideos(): List<MediaEntry> = MediaLibrary.videos.filter { it.folder !in Store.config.hiddenFolders }
-fun visibleMusic(): List<MediaEntry> = MediaLibrary.music.filter { it.folder !in Store.config.hiddenFolders }
-fun visibleBooks(): List<MediaEntry> = MediaLibrary.books.filter { it.folder !in Store.config.hiddenFolders }
+private fun MediaEntry.shown() = folder !in Store.config.hiddenFolders && shelf !in Store.config.hiddenFolders
+fun visibleVideos(): List<MediaEntry> = MediaLibrary.videos.filter { it.shown() }
+fun visibleMusic(): List<MediaEntry> = MediaLibrary.music.filter { it.shown() }
+fun visibleBooks(): List<MediaEntry> = MediaLibrary.books.filter { it.shown() }
+
+/**
+ * ひだり に フォルダ（シリーズ）の 一覧、みぎ に なかみ。フォルダ が 1 つ なら みぎ だけ。
+ * えらんだ フォルダ は おぼえておく（つぎ に ひらいた とき も おなじ ところ）。
+ */
+@Composable
+private fun ShelfPanes(
+    theme: KidTheme,
+    key: String,
+    shelves: Map<String, List<MediaEntry>>,
+    fallback: String,
+    square: Boolean,
+    count: (List<MediaEntry>) -> String,
+    content: @Composable (name: String, list: List<MediaEntry>) -> Unit,
+) {
+    var picked by androidx.compose.runtime.saveable.rememberSaveable(key) { mutableStateOf<String?>(null) }
+    val cur = picked?.takeIf { it in shelves } ?: shelves.keys.firstOrNull() ?: return
+    if (shelves.size <= 1) { content(cur, shelves.getValue(cur)); return }
+    Row(Modifier.fillMaxSize()) {
+        LazyColumn(
+            Modifier.width(250.dp).fillMaxHeight(),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(bottom = 20.dp),
+        ) {
+            items(shelves.keys.toList(), key = { it }) { name ->
+                val list = shelves.getValue(name)
+                val on = name == cur
+                Row(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
+                        .background(if (on) theme.titleBars[0] else Color.White)
+                        .border(if (on) 3.dp else 2.dp, theme.outline.copy(alpha = if (on) 1f else 0.25f), RoundedCornerShape(14.dp))
+                        .clickable { picked = name }
+                        .padding(6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    MediaThumb(
+                        list.first().uri, fallback,
+                        Modifier.width(if (square) 56.dp else 80.dp).height(56.dp).clip(RoundedCornerShape(10.dp)), square = square,
+                    )
+                    Column(Modifier.padding(start = 8.dp).weight(1f)) {
+                        Text(name, fontFamily = DotFont, fontSize = 16.sp, color = theme.outline, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        Text(count(list), fontSize = 12.sp, color = theme.outline.copy(alpha = 0.6f))
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.width(16.dp))
+        Box(Modifier.weight(1f).fillMaxHeight()) { content(cur, shelves.getValue(cur)) }
+    }
+}
 
 /** サムネイル（動画のコマ・ジャケット）。読めるまでは えもじ */
 @Composable
@@ -90,54 +144,48 @@ private fun minutes(ms: Long): String {
 @Composable
 fun VideoLibraryPage(theme: KidTheme, locked: Boolean, onPlay: (List<MediaEntry>, Int) -> Unit, onLocked: () -> Unit) {
     val context = LocalContext.current
-    val all = visibleVideos().groupBy { it.folder }
-    // フォルダ を えらんで その中 だけ 出す（ぜんぶ ならべると スクロール が たいへん）
-    var folder by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
-    val cur = folder?.takeIf { it in all } ?: all.keys.firstOrNull()
-    val shelves = all.filterKeys { it == cur }
-    Column(Modifier.fillMaxSize()) {
-    if (all.size > 1) {
-        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(end = 8.dp, bottom = 12.dp)) {
-            all.forEach { (f, list) ->
-                RetroButton("📁 $f（${list.size}）", theme, if (f == cur) theme.titleBars[0] else Color.White, fontSize = 18, modifier = Modifier.padding(end = 8.dp)) { folder = f }
+    ShelfPanes(theme, "video", visibleVideos().groupBy { it.shelf }, "🎬", square = false, count = { "${it.size} こ" }) { shelf, list ->
+        // おなじ シリーズ の なか で フォルダ が わかれて いたら（シーズン1・2 など）見出し を 出す
+        val parts = list.groupBy { it.folder }
+        LazyVerticalGrid(
+            columns = GridCells.Adaptive(230.dp),
+            horizontalArrangement = Arrangement.spacedBy(18.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp),
+            contentPadding = PaddingValues(end = 8.dp, bottom = 28.dp),
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            item(span = { GridItemSpan(maxLineSpan) }, key = "title:$shelf") {
+                DotText("📼 $shelf", theme, 22, theme.text, modifier = Modifier.padding(top = 6.dp))
             }
-        }
-    }
-    LazyVerticalGrid(
-        columns = GridCells.Adaptive(230.dp),
-        horizontalArrangement = Arrangement.spacedBy(18.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp),
-        contentPadding = PaddingValues(end = 8.dp, bottom = 28.dp),
-        modifier = Modifier.weight(1f).fillMaxWidth(),
-    ) {
-        shelves.forEach { (folder, list) ->
-            if (all.size <= 1) item(span = { GridItemSpan(maxLineSpan) }, key = "shelf:$folder") {
-                DotText("📼 $folder", theme, 22, theme.text, modifier = Modifier.padding(top = 6.dp))
-            }
-            itemsIndexed(list, key = { _, e -> e.id }) { i, e ->
-                val progress = remember(e.id) { Positions.progress(context, e) }
-                RetroWindow(
-                    theme, title = minutes(e.durationMs), titleColor = if (locked) Color(0xFFDDDDDD) else theme.titleBars[i % theme.titleBars.size],
-                    onClick = { if (locked) onLocked() else onPlay(list, i) },
-                ) {
-                    Box {
-                        MediaThumb(e.uri, "🎬", Modifier.fillMaxWidth().aspectRatio(16f / 9f).alpha(if (locked) 0.35f else 1f))
-                        if (locked) Text("🔒", fontSize = 44.sp, modifier = Modifier.align(Alignment.Center))
-                        else Text("▶️", fontSize = 36.sp, modifier = Modifier.align(Alignment.Center).alpha(0.85f))
-                    }
-                    if (progress > 0f) {
-                        Box(Modifier.fillMaxWidth().height(5.dp).background(Color(0xFFEEEEEE))) {
-                            Box(Modifier.fillMaxWidth(progress).fillMaxHeight().background(Color(0xFFFF4D6D)))
+            parts.forEach { (folder, sub) ->
+                if (parts.size > 1) item(span = { GridItemSpan(maxLineSpan) }, key = "sub:$folder") {
+                    DotText("📁 $folder", theme, 17, theme.outline, modifier = Modifier.padding(top = 4.dp))
+                }
+                itemsIndexed(sub, key = { _, e -> e.id }) { j, e ->
+                    val i = list.indexOf(e)
+                    val progress = remember(e.id) { Positions.progress(context, e) }
+                    RetroWindow(
+                        theme, title = minutes(e.durationMs), titleColor = if (locked) Color(0xFFDDDDDD) else theme.titleBars[j % theme.titleBars.size],
+                        onClick = { if (locked) onLocked() else onPlay(list, i) },
+                    ) {
+                        Box {
+                            MediaThumb(e.uri, "🎬", Modifier.fillMaxWidth().aspectRatio(16f / 9f).alpha(if (locked) 0.35f else 1f))
+                            if (locked) Text("🔒", fontSize = 44.sp, modifier = Modifier.align(Alignment.Center))
+                            else Text("▶️", fontSize = 36.sp, modifier = Modifier.align(Alignment.Center).alpha(0.85f))
                         }
+                        if (progress > 0f) {
+                            Box(Modifier.fillMaxWidth().height(5.dp).background(Color(0xFFEEEEEE))) {
+                                Box(Modifier.fillMaxWidth(progress).fillMaxHeight().background(Color(0xFFFF4D6D)))
+                            }
+                        }
+                        Text(
+                            e.title, fontFamily = DotFont, fontSize = 16.sp, color = theme.outline, maxLines = 2,
+                            overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(10.dp),
+                        )
                     }
-                    Text(
-                        e.title, fontFamily = DotFont, fontSize = 16.sp, color = theme.outline, maxLines = 2,
-                        overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(10.dp),
-                    )
                 }
             }
         }
-    }
     }
 }
 
@@ -148,12 +196,16 @@ fun VideoLibraryPage(theme: KidTheme, locked: Boolean, onPlay: (List<MediaEntry>
 fun AudioLibraryPage(theme: KidTheme, kind: MediaKind) {
     val context = LocalContext.current
     val all = if (kind == MediaKind.BOOK) visibleBooks() else visibleMusic()
-    val albums = all.groupBy { it.album }
     var open by remember(kind) { mutableStateOf<String?>(null) }
     val fallback = if (kind == MediaKind.BOOK) "📖" else "💿"
 
     Column(Modifier.fillMaxSize()) {
         Box(Modifier.weight(1f)) {
+          ShelfPanes(
+              theme, "audio:$kind", all.groupBy { it.shelf }, fallback, square = true,
+              count = { l -> l.map { it.album }.distinct().size.let { n -> if (n > 1) "$n まい" else "${l.size} きょく" } },
+          ) { shelf, inShelf ->
+            val albums = inShelf.groupBy { it.album }
             val album = open?.let { albums[it] }
             if (album == null) {
                 LazyVerticalGrid(
@@ -190,6 +242,7 @@ fun AudioLibraryPage(theme: KidTheme, kind: MediaKind) {
             } else {
                 AlbumTracks(theme, open!!, album, fallback) { open = null }
             }
+          }
         }
         if (AudioPlayer.current != null) {
             Spacer(Modifier.height(14.dp))
