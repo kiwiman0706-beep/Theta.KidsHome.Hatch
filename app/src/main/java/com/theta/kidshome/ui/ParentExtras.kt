@@ -606,7 +606,7 @@ fun SongSection(config: AppConfig) {
         OutlinedTextField(notes, { notes = it }, label = { Text("例：ドドソソララソー ファファミミレレドー") }, modifier = Modifier.fillMaxWidth().padding(top = 6.dp))
         val parsed = com.theta.kidshome.media.Songs.parse(notes)
         Text(
-            "ド レ ミ ファ ソ ラ シ。うしろに ＋ で1つ上の高さ（＋＋で2つ上）、♯ で半音上、ー で のばす。いま ${parsed.size} おと。",
+            "ド レ ミ ファ ソ ラ シ、ん は やすみ。うしろに ＋ で1つ上の高さ（＋＋で2つ上）、♯ で半音上、＿ で半分（8分音符）、・ で1.5ばい、ー で のばす。いま ${parsed.size} おと。",
             fontSize = 12.sp, color = Color.Gray,
         )
         FlowRow8 {
@@ -637,8 +637,17 @@ private fun SongRecorder(onDismiss: () -> Unit, onDone: (String) -> Unit) {
     androidx.compose.runtime.DisposableEffect(Unit) { onDispose { synth.release() } }
     val keys = remember { androidx.compose.runtime.mutableStateListOf<Int>() }
     val times = remember { androidx.compose.runtime.mutableStateListOf<Long>() }
+    val ups = remember { androidx.compose.runtime.mutableStateListOf<Long?>() }
     var octave by remember { mutableIntStateOf(0) }
-    val notes = com.theta.kidshome.media.Songs.fromTaps(keys, times)
+    // はやさ（♩=）と メトロノーム：これに あわせて ひくと 8分音符・やすみ も きれいに とれる
+    var bpm by remember { mutableIntStateOf(90) }
+    var metro by remember { mutableStateOf(true) }
+    LaunchedEffect(metro, bpm) {
+        if (!metro) return@LaunchedEffect
+        var n = 0
+        while (true) { synth.click(n % 4 == 0); n++; kotlinx.coroutines.delay(60_000L / bpm) }
+    }
+    val notes = com.theta.kidshome.media.Songs.fromTaps(keys, times, ups, if (metro) bpm else null)
     val text = com.theta.kidshome.media.Songs.format(notes)
     var playing by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss, properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
@@ -646,20 +655,27 @@ private fun SongRecorder(onDismiss: () -> Unit, onDone: (String) -> Unit) {
             Column(Modifier.padding(20.dp)) {
                 Text("🎹 ひいて きろく", fontSize = 22.sp, fontWeight = FontWeight.Bold)
                 Text(
-                    "いつもの はやさ で ひいてください。のばす 音 は 次 の 音 まで 長めに 間 を あけます。" +
-                        "さいご の 音 は 1 はく に なります（あとで 文字 で なおせます）。黒い けん は ♯。",
+                    "メトロノーム に あわせて ひくと、0.5 はく（8分音符）きざみ で 長さ が きまります。" +
+                        "けん を はなして 間 を あけると やすみ（ん）に。あとで 文字 で なおせます（＿ は 半分、・ は 1.5 ばい、ー で のばす）。黒い けん は ♯。",
                     fontSize = 13.sp, color = Color.Gray,
                 )
                 Surface(shape = RoundedCornerShape(12.dp), color = Color(0xFFF6F1F3), modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp).heightIn(min = 56.dp)) {
                     Text(text.ifEmpty { "（まだ ありません）" }, fontSize = 20.sp, modifier = Modifier.padding(12.dp))
                 }
                 FlowRow8 {
-                    OutlinedButton(enabled = keys.isNotEmpty(), onClick = { keys.removeAt(keys.lastIndex); times.removeAt(times.lastIndex) }) { Text("↩️ 1 つ けす") }
-                    OutlinedButton(enabled = keys.isNotEmpty(), onClick = { keys.clear(); times.clear() }) { Text("🗑️ ぜんぶ けす") }
+                    OutlinedButton(enabled = keys.isNotEmpty(), onClick = { keys.removeAt(keys.lastIndex); times.removeAt(times.lastIndex); ups.removeAt(ups.lastIndex) }) { Text("↩️ 1 つ けす") }
+                    OutlinedButton(enabled = keys.isNotEmpty(), onClick = { keys.clear(); times.clear(); ups.clear() }) { Text("🗑️ ぜんぶ けす") }
+                    OutlinedButton(onClick = { metro = !metro }) { Text(if (metro) "🔔 メトロノーム オン" else "🔕 オフ（はやさ は じどう）") }
+                    if (metro) {
+                        OutlinedButton(onClick = { bpm = (bpm - 5).coerceAtLeast(40) }) { Text("－") }
+                        Text("♩=$bpm", fontSize = 18.sp, modifier = Modifier.padding(top = 10.dp))
+                        OutlinedButton(onClick = { bpm = (bpm + 5).coerceAtMost(200) }) { Text("＋") }
+                    }
                     OutlinedButton(enabled = notes.isNotEmpty(), onClick = {
                         playing?.cancel()
                         playing = scope.launch {
-                            for ((k, b) in notes) { synth.playKey(com.theta.kidshome.media.Voice.PIANO, k); kotlinx.coroutines.delay(400L * b) }
+                            val beatMs = 60_000.0 / (if (metro) bpm else 100)
+                            for ((k, b) in notes) { if (k >= 0) synth.playKey(com.theta.kidshome.media.Voice.PIANO, k); kotlinx.coroutines.delay((beatMs * b).toLong()) }
                         }
                     }) { Text("▶️ きいてみる") }
                     OutlinedButton(onClick = { octave = (octave - 1).coerceAtLeast(0) }) { Text("⬇️") }
@@ -668,11 +684,18 @@ private fun SongRecorder(onDismiss: () -> Unit, onDone: (String) -> Unit) {
                     Button(enabled = notes.isNotEmpty(), onClick = { onDone(text) }) { Text("これで 入れる") }
                     TextButton(onClick = onDismiss) { Text("やめる") }
                 }
-                com.theta.kidshome.media.Keyboard(theme, Modifier.weight(1f).fillMaxWidth().padding(top = 10.dp)) { key ->
+                com.theta.kidshome.media.Keyboard(
+                    theme, Modifier.weight(1f).fillMaxWidth().padding(top = 10.dp),
+                    onRelease = { key ->
+                        // さいご に 押した その けん を はなした とき
+                        val k = (key + octave * 12).coerceAtMost(24)
+                        if (keys.isNotEmpty() && keys.last() == k && ups.last() == null) ups[ups.lastIndex] = System.currentTimeMillis()
+                    },
+                ) { key ->
                     // ⬆️ の ときは 1 オクターブ 上 として きろく（れんしゅう の けんばん は 2 オクターブ まで）
                     val k = (key + octave * 12).coerceAtMost(24)
                     synth.playKey(com.theta.kidshome.media.Voice.PIANO, key, octave)
-                    keys += k; times += System.currentTimeMillis()
+                    keys += k; times += System.currentTimeMillis(); ups += null
                 }
             }
         }

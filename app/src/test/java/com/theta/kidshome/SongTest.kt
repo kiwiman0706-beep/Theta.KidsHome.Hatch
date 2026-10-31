@@ -10,13 +10,16 @@ class SongTest {
     fun parsesDoReMi() {
         val n = Songs.parse("ドドソソララソー")
         assertEquals(listOf(0, 0, 7, 7, 9, 9, 7), n.map { it.key })
-        assertEquals(2, n.last().beats)
+        assertEquals(2f, n.last().beats)
     }
 
     @Test
     fun octaveSharpAndHiragana() {
         assertEquals(listOf(12, 24, 6, 5, 0), Songs.parse("ド+ ド++ ファ# ふぁ ど").map { it.key })
         assertEquals("ファ♯", Songs.parse("ファ＃").single().name)
+        // はちぶ・ふてん・やすみ
+        assertEquals(listOf(0.5f, 1.5f, 1f, 0.75f), Songs.parse("ド_ ミ・ ん ソ_・").map { it.beats })
+        assertEquals(-1, Songs.parse("ん").single().key)
     }
 
     @Test

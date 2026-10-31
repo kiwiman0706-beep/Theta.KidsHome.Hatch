@@ -105,7 +105,9 @@ fun InstrumentScreen(onBack: () -> Unit, loopPreview: ((Looper) -> Unit)? = null
     var practice by remember { mutableStateOf(false) }
     val songs = Songs.builtIn + Store.config.songs
     var song by remember { mutableStateOf(songs.first()) }
-    val notes = remember(song) { Songs.parse(song.notes) }
+    // れんしゅう は やすみ を とばす。おてほん（▶️）は やすみ も ふくめて 長さ どおり に
+    val allNotes = remember(song) { Songs.parse(song.notes) }
+    val notes = remember(allNotes) { allNotes.filter { !it.isRest } }
     var pos by remember { mutableIntStateOf(0) }
     var demo by remember { mutableStateOf<Job?>(null) }
     val scope = rememberCoroutineScope()
@@ -234,10 +236,10 @@ fun InstrumentScreen(onBack: () -> Unit, loopPreview: ((Looper) -> Unit)? = null
                             demo?.cancel()
                             demo = scope.launch {
                                 pos = 0
-                                for ((i, n) in notes.withIndex()) {
-                                    pos = i
-                                    synth.playKey(voice, n.key)
-                                    delay(380L * n.beats)
+                                var i = 0
+                                for (n in allNotes) {
+                                    if (!n.isRest) { pos = i; synth.playKey(voice, n.key); i++ }
+                                    delay((420 * n.beats).toLong())
                                 }
                                 pos = 0
                             }
@@ -313,7 +315,7 @@ private fun Pad(
 
 /** 2 オクターブのけんばん。いくつ同時に押しても、指をすべらせても鳴る */
 @Composable
-internal fun Keyboard(theme: KidTheme, modifier: Modifier, glow: Int? = null, onKey: (Int) -> Unit) {
+internal fun Keyboard(theme: KidTheme, modifier: Modifier, glow: Int? = null, onRelease: (Int) -> Unit = {}, onKey: (Int) -> Unit) {
     val pressed = remember { mutableStateMapOf<PointerId, Int>() }
     val measurer = rememberTextMeasurer()
     val whiteCount = 15
@@ -343,12 +345,13 @@ internal fun Keyboard(theme: KidTheme, modifier: Modifier, glow: Int? = null, on
                         if (c.pressed) {
                             val k = keyAt(c.position, sz)
                             if (k != null && pressed[c.id] != k) {
+                                pressed[c.id]?.let(onRelease)
                                 onKey(k)
                                 pressed[c.id] = k
-                            } else if (k == null) pressed.remove(c.id)
+                            } else if (k == null) pressed.remove(c.id)?.let(onRelease)
                             c.consume()
                         } else {
-                            pressed.remove(c.id)
+                            pressed.remove(c.id)?.let(onRelease)
                         }
                     }
                 }
@@ -417,7 +420,7 @@ private fun PracticeBar(
                                 .background(if (i == pos) c else if (i < pos) Color(0xFFEDEDED) else Color.White)
                                 .border(if (i == pos) 3.dp else 1.5.dp, theme.outline, RoundedCornerShape(10.dp))
                                 .padding(horizontal = if (i == pos) 12.dp else 7.dp, vertical = 4.dp)
-                        ) { DotText(n.name + "ー".repeat(n.beats - 1), theme, if (i == pos) 24 else 16, if (i < pos) Color.Gray else theme.outline) }
+                        ) { DotText(n.label, theme, if (i == pos) 24 else 16, if (i < pos) Color.Gray else theme.outline) }
                     }
                 }
             }
