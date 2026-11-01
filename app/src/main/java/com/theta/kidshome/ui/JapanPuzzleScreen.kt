@@ -43,6 +43,10 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.calculateCentroid
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
@@ -185,11 +189,14 @@ private fun Board(
     }
     fun off(code: Int) = if (code == 47) shift else Offset.Zero
     var drag by remember { mutableStateOf<Pair<Int, Offset>?>(null) }
+    // ゆび 2 本 で 大きく・小さく、1 本 で うごかす（地図 の ところ だけ）
+    var zoom by remember(mode) { mutableStateOf(1f) }
+    var pan by remember(mode) { mutableStateOf(Offset.Zero) }
     val density = LocalDensity.current
     val lift = with(density) { 36.dp.toPx() }
     val snap = with(density) { 40.dp.toPx() }
     val minLabel = with(density) { 11.dp.toPx() }
-    val maxLabel = with(density) { 20.dp.toPx() }
+    val maxLabel = with(density) { 26.dp.toPx() }
 
     BoxWithConstraints(modifier) {
         val w = constraints.maxWidth.toFloat(); val h = constraints.maxHeight.toFloat()
@@ -206,8 +213,19 @@ private fun Board(
             val m = maxOf(r.width, r.height) * 0.08f
             Rect(r.left - m, r.top - m, r.right + m, r.bottom + m)
         }
-        val s = minOf(mapW / box.width, h / box.height)
-        val view = View(s, (mapW - box.width * s) / 2 - box.left * s, (h - box.height * s) / 2 - box.top * s)
+        val s0 = minOf(mapW / box.width, h / box.height)
+        val ox0 = (mapW - box.width * s0) / 2 - box.left * s0
+        val oy0 = (h - box.height * s0) / 2 - box.top * s0
+        val s = s0 * zoom
+        val view = View(s, ox0 * zoom + pan.x, oy0 * zoom + pan.y)
+        val viewNow = rememberUpdatedState(view)
+        /** c を 中心 に f ばい（はみだし すぎない よう に） */
+        fun zoomBy(f: Float, c: Offset, move: Offset = Offset.Zero) {
+            val nz = (zoom * f).coerceIn(1f, 8f)
+            var np = c + move - (c - pan) * (nz / zoom)
+            np = Offset(np.x.coerceIn(mapW * (1 - nz) - mapW * 0.3f, mapW * 0.3f), np.y.coerceIn(h * (1 - nz) - h * 0.3f, h * 0.3f))
+            zoom = nz; pan = if (nz == 1f) Offset.Zero else np
+        }
         // トレー の ます（2 れつ × 3 だん）
         val slots = (0 until 6).map { i ->
             val cw = trayW / 2; val ch = h / 3
@@ -215,19 +233,42 @@ private fun Board(
         }
         fun slotScale(code: Int, slot: Rect): Float {
             val sh = shapes.getValue(code)
-            return minOf(s * 2.5f, slot.width * 0.8f / (sh.maxX - sh.minX), slot.height * 0.7f / (sh.maxY - sh.minY))
+            return minOf(s0 * 2.5f, slot.width * 0.8f / (sh.maxX - sh.minX), slot.height * 0.7f / (sh.maxY - sh.minY))
         }
 
         Canvas(
-            Modifier.fillMaxSize().pointerInput(mode, tray, placed, tappable, s) {
+            Modifier.fillMaxSize().pointerInput(mode, tray, placed, tappable, s0, mapW) {
                 awaitEachGesture {
                     val down = awaitFirstDown()
                     val i = slots.indexOfFirst { it.contains(down.position) }
                     val code = tray.getOrNull(i)
                     if (code == null) {
-                        // 地図 を タップ：はめた 県 の カード
-                        val m = view.toMap(down.position)
-                        tappable.firstOrNull { c -> shapes.getValue(c).polys.any { inside(it, m.x - off(c).x, m.y - off(c).y) } }?.let(onTap)
+                        if (down.position.x > mapW) return@awaitEachGesture
+                        // 地図：2 本 で ピンチ、1 本 で うごかす、うごかさ ず に はなせば タップ
+                        var moved = false
+                        var total = Offset.Zero
+                        while (true) {
+                            val ev = awaitPointerEvent()
+                            val pressed = ev.changes.filter { it.pressed }
+                            if (pressed.isEmpty()) break
+                            if (pressed.size >= 2) {
+                                moved = true
+                                zoomBy(ev.calculateZoom(), ev.calculateCentroid(useCurrent = true), ev.calculatePan())
+                            } else {
+                                val d = ev.calculatePan()
+                                total += d
+                                if (moved || total.getDistance() > viewConfiguration.touchSlop) {
+                                    moved = true
+                                    if (zoom > 1f) zoomBy(1f, Offset.Zero, d)
+                                }
+                            }
+                            ev.changes.forEach { it.consume() }
+                        }
+                        if (!moved) {
+                            // タップ：はめた 県 の カード
+                            val m = viewNow.value.toMap(down.position)
+                            tappable.firstOrNull { c -> shapes.getValue(c).polys.any { inside(it, m.x - off(c).x, m.y - off(c).y) } }?.let(onTap)
+                        }
                         return@awaitEachGesture
                     }
                     down.consume()
@@ -243,9 +284,10 @@ private fun Board(
                     drag = null
                     if (at != null) {
                         val sh = shapes.getValue(code)
-                        val goal = view.toScreen(sh.cx + off(code).x, sh.cy + off(code).y)
+                        val v = viewNow.value
+                        val goal = v.toScreen(sh.cx + off(code).x, sh.cy + off(code).y)
                         val piece = Offset(at.x, at.y - lift)
-                        if (hypot(piece.x - goal.x, piece.y - goal.y) < maxOf(snap, (sh.maxX - sh.minX) * s * 0.25f)) onPlace(code)
+                        if (hypot(piece.x - goal.x, piece.y - goal.y) < maxOf(snap, (sh.maxX - sh.minX) * v.s * 0.25f)) onPlace(code)
                     }
                 }
             }
@@ -294,6 +336,16 @@ private fun Board(
             drag?.let { (code, at) ->
                 val sh = shapes.getValue(code)
                 piece(paths.getValue(code), at.x - sh.cx * s, at.y - lift - sh.cy * s, s, RegionColors[Japan.pref(code).region].copy(alpha = 0.92f), outline, false)
+            }
+        }
+        // 大きく・小さく・もどす
+        Column(Modifier.align(Alignment.TopStart).padding(start = with(density) { (mapW - 8f).toDp() } - 64.dp, top = 8.dp)) {
+            RetroIconButton("➕", theme, size = 52.dp) { zoomBy(1.6f, Offset(mapW / 2, h / 2)) }
+            Spacer(Modifier.height(6.dp))
+            RetroIconButton("➖", theme, size = 52.dp) { zoomBy(1 / 1.6f, Offset(mapW / 2, h / 2)) }
+            if (zoom > 1f) {
+                Spacer(Modifier.height(6.dp))
+                RetroIconButton("🔄", theme, size = 52.dp) { zoom = 1f; pan = Offset.Zero }
             }
         }
     }
