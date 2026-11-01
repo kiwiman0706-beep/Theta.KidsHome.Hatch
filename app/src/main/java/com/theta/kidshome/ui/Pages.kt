@@ -121,50 +121,12 @@ fun AnalogClockWindow(theme: KidTheme, now: Long, modifier: Modifier = Modifier)
     RetroWindow(theme, modifier, title = "とけい", titleColor = theme.titleBars[1]) {
         Column(Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             DotText("$ampm ${if (hour12 == 0) 12 else hour12}じ ${m}ふん", theme, 24)
-            Canvas(Modifier.fillMaxWidth().aspectRatio(1f).padding(8.dp)) {
-                val r = min(size.width, size.height) / 2
-                val c = Offset(size.width / 2, size.height / 2)
-                val line = 5.dp.toPx()
-                drawCircle(theme.bubbles[0], r, c)
-                drawCircle(theme.outline, r - line / 2, c, style = Stroke(line))
-                // めもり
-                for (i in 0 until 60) {
-                    val a = Math.toRadians(i * 6.0 - 90)
-                    val len = if (i % 5 == 0) r * 0.07f else r * 0.03f
-                    val outer = r * 0.93f
-                    drawLine(
-                        theme.outline.copy(alpha = if (i % 5 == 0) 0.9f else 0.35f),
-                        Offset(c.x + cos(a).toFloat() * outer, c.y + sin(a).toFloat() * outer),
-                        Offset(c.x + cos(a).toFloat() * (outer - len), c.y + sin(a).toFloat() * (outer - len)),
-                        strokeWidth = if (i % 5 == 0) 3.dp.toPx() else 1.5.dp.toPx(),
-                        cap = StrokeCap.Round,
-                    )
-                }
-                // 1〜12 の数字（にじいろ）と、外側に小さく「ふん」
-                for (n in 1..12) {
-                    val a = Math.toRadians(n * 30.0 - 90)
-                    val big = measurer.measure(n.toString(), TextStyle(fontFamily = DotFont, fontSize = (r / 7).toSp(), color = Rainbow[n % Rainbow.size]))
-                    val rr = r * 0.72f
-                    drawText(big, topLeft = Offset(c.x + cos(a).toFloat() * rr - big.size.width / 2, c.y + sin(a).toFloat() * rr - big.size.height / 2))
-                    val small = measurer.measure((n * 5).toString(), TextStyle(fontFamily = DotFont, fontSize = (r / 16).toSp(), color = theme.outline.copy(alpha = 0.55f)))
-                    val sr = r * 0.53f
-                    drawText(small, topLeft = Offset(c.x + cos(a).toFloat() * sr - small.size.width / 2, c.y + sin(a).toFloat() * sr - small.size.height / 2))
-                }
-                // はり
-                val hourAngle = (hour12 + m / 60f) * 30f
-                val minAngle = (m + s / 60f) * 6f
-                rotate(hourAngle, c) {
-                    drawLine(theme.outline, c, Offset(c.x, c.y - r * 0.42f), strokeWidth = r * 0.07f, cap = StrokeCap.Round)
-                }
-                rotate(minAngle, c) {
-                    drawLine(theme.accent, c, Offset(c.x, c.y - r * 0.68f), strokeWidth = r * 0.045f, cap = StrokeCap.Round)
-                }
-                rotate(s * 6f, c) {
-                    drawLine(Color(0xFFFF6B8B), Offset(c.x, c.y + r * 0.12f), Offset(c.x, c.y - r * 0.8f), strokeWidth = r * 0.015f, cap = StrokeCap.Round)
-                }
-                drawCircle(theme.outline, r * 0.06f, c)
-                drawCircle(Color(0xFFFFE29A), r * 0.03f, c)
-            }
+            DotText(com.theta.kidshome.data.Almanac.readTime(h, m), theme, 18, theme.outline.copy(alpha = 0.8f))
+            Canvas(Modifier.fillMaxWidth().aspectRatio(1f).padding(8.dp)) { clockFace(theme, measurer, hour12, m, s) }
+            ClockLegend(theme)
+            var quiz by remember { mutableStateOf(false) }
+            RetroButton("🕐 とけい の よみかた れんしゅう", theme, theme.titleBars[2], fontSize = 16, modifier = Modifier.padding(top = 8.dp)) { quiz = true }
+            if (quiz) ClockQuizDialog(theme) { quiz = false }
         }
     }
 }
@@ -200,6 +162,7 @@ fun CalendarWindow(theme: KidTheme, now: Long, modifier: Modifier = Modifier, co
                 }
             }
             if (week) WeekRow(theme, today, compact) else MonthGrid(theme, today, compact)
+            MonthInfo(theme, today, compact)
         }
     }
 }
@@ -220,6 +183,7 @@ private fun MonthGrid(theme: KidTheme, today: Calendar, compact: Boolean) {
             (0 until 7).forEach { i ->
                 val d = week.getOrNull(i) ?: 0
                 val isToday = d == today.get(Calendar.DAY_OF_MONTH)
+                val holiday = d > 0 && com.theta.kidshome.data.Almanac.holiday(today.get(Calendar.YEAR), today.get(Calendar.MONTH) + 1, d) != null
                 val hasEvent = d > 0 && Events.list.isNotEmpty() &&
                     Events.on(dayStart((first.clone() as Calendar).apply { set(Calendar.DAY_OF_MONTH, d) })).isNotEmpty()
                 Box(Modifier.weight(1f).height(cell), contentAlignment = Alignment.Center) {
@@ -231,7 +195,7 @@ private fun MonthGrid(theme: KidTheme, today: Calendar, compact: Boolean) {
                             d.toString(), theme, if (compact) 14 else 18,
                             when {
                                 isToday -> Color.White
-                                i == 0 -> Sunday
+                                i == 0 || holiday -> Sunday
                                 i == 6 -> Saturday
                                 else -> theme.outline
                             },
@@ -255,6 +219,7 @@ private fun WeekRow(theme: KidTheme, today: Calendar, compact: Boolean) {
             val day = (sunday.clone() as Calendar).apply { add(Calendar.DAY_OF_MONTH, i) }
             val isToday = day.get(Calendar.DAY_OF_YEAR) == today.get(Calendar.DAY_OF_YEAR)
             val events = Events.on(dayStart(day))
+            val holiday = com.theta.kidshome.data.Almanac.holiday(day.get(Calendar.YEAR), day.get(Calendar.MONTH) + 1, day.get(Calendar.DAY_OF_MONTH))
             Column(
                 Modifier.weight(1f).padding(1.dp).clip(RoundedCornerShape(8.dp))
                     .background(if (isToday) theme.bubbles[0] else Color.Transparent)
@@ -264,8 +229,9 @@ private fun WeekRow(theme: KidTheme, today: Calendar, compact: Boolean) {
             ) {
                 DotText(
                     day.get(Calendar.DAY_OF_MONTH).toString(), theme, if (compact) 16 else 20,
-                    when { i == 0 -> Sunday; i == 6 -> Saturday; else -> theme.outline },
+                    when { i == 0 || holiday != null -> Sunday; i == 6 -> Saturday; else -> theme.outline },
                 )
+                holiday?.let { Text(it.kana, fontFamily = DotFont, fontSize = if (compact) 9.sp else 11.sp, color = Sunday, maxLines = 2, lineHeight = 12.sp) }
                 events.take(if (compact) 2 else 4).forEach { e ->
                     Box(
                         Modifier.fillMaxWidth().padding(top = 2.dp).clip(RoundedCornerShape(4.dp))
@@ -306,6 +272,8 @@ fun WeatherWindow(theme: KidTheme, modifier: Modifier = Modifier) {
                     DotText(place.name, theme, 11, theme.outline.copy(alpha = 0.6f), modifier = Modifier.padding(top = 4.dp))
                 }
             }
+            // つき の かたち（てんき の ばしょ が なくても）
+            MoonRow(theme, System.currentTimeMillis())
         }
     }
 }
@@ -479,4 +447,52 @@ fun RemoteDialog(theme: KidTheme) {
             }
         }
     }
+}
+
+/** 文字盤 と はり（s = null なら 秒針 なし） */
+internal fun androidx.compose.ui.graphics.drawscope.DrawScope.clockFace(
+    theme: KidTheme, measurer: androidx.compose.ui.text.TextMeasurer, hour12: Int, m: Int, s: Int?,
+) {
+    val r = min(size.width, size.height) / 2
+    val c = Offset(size.width / 2, size.height / 2)
+    val line = 5.dp.toPx()
+    drawCircle(theme.bubbles[0], r, c)
+    drawCircle(theme.outline, r - line / 2, c, style = Stroke(line))
+    // めもり
+    for (i in 0 until 60) {
+        val a = Math.toRadians(i * 6.0 - 90)
+        val len = if (i % 5 == 0) r * 0.07f else r * 0.03f
+        val outer = r * 0.93f
+        drawLine(
+            theme.outline.copy(alpha = if (i % 5 == 0) 0.9f else 0.35f),
+            Offset(c.x + cos(a).toFloat() * outer, c.y + sin(a).toFloat() * outer),
+            Offset(c.x + cos(a).toFloat() * (outer - len), c.y + sin(a).toFloat() * (outer - len)),
+            strokeWidth = if (i % 5 == 0) 3.dp.toPx() else 1.5.dp.toPx(),
+            cap = StrokeCap.Round,
+        )
+    }
+    // 1〜12 の数字（にじいろ）と、外側に小さく「ふん」
+    for (n in 1..12) {
+        val a = Math.toRadians(n * 30.0 - 90)
+        val big = measurer.measure(n.toString(), TextStyle(fontFamily = DotFont, fontSize = (r / 7).toSp(), color = Rainbow[n % Rainbow.size]))
+        val rr = r * 0.72f
+        drawText(big, topLeft = Offset(c.x + cos(a).toFloat() * rr - big.size.width / 2, c.y + sin(a).toFloat() * rr - big.size.height / 2))
+        val small = measurer.measure((n * 5).toString(), TextStyle(fontFamily = DotFont, fontSize = (r / 16).toSp(), color = theme.outline.copy(alpha = 0.55f)))
+        val sr = r * 0.53f
+        drawText(small, topLeft = Offset(c.x + cos(a).toFloat() * sr - small.size.width / 2, c.y + sin(a).toFloat() * sr - small.size.height / 2))
+    }
+    // はり
+    val hourAngle = (hour12 + m / 60f) * 30f
+    val minAngle = (m + (s ?: 0) / 60f) * 6f
+    rotate(hourAngle, c) {
+        drawLine(theme.outline, c, Offset(c.x, c.y - r * 0.42f), strokeWidth = r * 0.07f, cap = StrokeCap.Round)
+    }
+    rotate(minAngle, c) {
+        drawLine(theme.accent, c, Offset(c.x, c.y - r * 0.68f), strokeWidth = r * 0.045f, cap = StrokeCap.Round)
+    }
+    if (s != null) rotate(s * 6f, c) {
+        drawLine(Color(0xFFFF6B8B), Offset(c.x, c.y + r * 0.12f), Offset(c.x, c.y - r * 0.8f), strokeWidth = r * 0.015f, cap = StrokeCap.Round)
+    }
+    drawCircle(theme.outline, r * 0.06f, c)
+    drawCircle(Color(0xFFFFE29A), r * 0.03f, c)
 }

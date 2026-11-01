@@ -372,11 +372,13 @@ private fun ClockSlide(theme: KidTheme, now: Long, u: Dp) {
         }
         Column(Modifier.weight(1f).padding(start = u * 24f), horizontalAlignment = Alignment.CenterHorizontally) {
             Text("%d:%02d".format(cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE)), fontFamily = DotFont, fontSize = (u.value * 64).sp, color = theme.outline)
+            Text(com.theta.kidshome.data.Almanac.readTime(cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE)), fontFamily = DotFont, fontSize = (u.value * 20).sp, color = theme.outline.copy(alpha = 0.75f), maxLines = 1)
             if (f != null) {
                 Text(Weather.emoji(f.code, f.isDay), fontSize = (u.value * 56).sp)
                 Text(Weather.label(f.code), fontFamily = DotFont, fontSize = (u.value * 20).sp, color = theme.outline, textAlign = TextAlign.Center, maxLines = 1, softWrap = false)
                 Text("いま ${f.temp.toInt()}℃", fontFamily = DotFont, fontSize = (u.value * 30).sp, color = theme.outline)
                 f.days.firstOrNull()?.let { d -> Text("${d.max.toInt()}℃ / ${d.min.toInt()}℃  ☂${d.rain}%", fontFamily = DotFont, fontSize = (u.value * 22).sp, color = theme.outline.copy(alpha = 0.7f)) }
+                com.theta.kidshome.data.Almanac.moon(now).let { m -> Text("${m.emoji} ${m.name}", fontFamily = DotFont, fontSize = (u.value * 20).sp, color = theme.outline.copy(alpha = 0.75f)) }
             }
         }
     }
@@ -392,6 +394,15 @@ private fun CalendarSlide(theme: KidTheme, now: Long, u: Dp) {
     val names = listOf("にち", "げつ", "か", "すい", "もく", "きん", "ど")
     Column(Modifier.fillMaxSize().padding(u * 18f), horizontalAlignment = Alignment.CenterHorizontally) {
         Text("${today.get(Calendar.MONTH) + 1}がつ ${today.get(Calendar.DAY_OF_MONTH)}にち ${names[today.get(Calendar.DAY_OF_WEEK) - 1]}ようび", fontFamily = DotFont, fontSize = (u.value * 34).sp, color = theme.outline)
+        run {
+            val y = today.get(Calendar.YEAR); val m = today.get(Calendar.MONTH) + 1; val d = today.get(Calendar.DAY_OF_MONTH)
+            val hol = com.theta.kidshome.data.Almanac.holiday(y, m, d)
+            val mi = com.theta.kidshome.data.Almanac.MONTHS[m - 1]
+            Text(
+                (hol?.let { "🎌 ${it.kana}　" } ?: "") + "${mi.old}（${mi.oldKana}）・${com.theta.kidshome.data.Almanac.sekki(m, d).second}・${com.theta.kidshome.data.Almanac.eto(y).emoji}",
+                fontFamily = DotFont, fontSize = (u.value * 18).sp, color = if (hol != null) Color(0xFFE85D75) else theme.outline.copy(alpha = 0.7f), maxLines = 1,
+            )
+        }
         Row(Modifier.fillMaxWidth().padding(top = u * 10f), horizontalArrangement = Arrangement.SpaceEvenly) {
             for (i in 0 until 7) {
                 val d = (start.clone() as Calendar).apply { add(Calendar.DAY_OF_MONTH, i) }

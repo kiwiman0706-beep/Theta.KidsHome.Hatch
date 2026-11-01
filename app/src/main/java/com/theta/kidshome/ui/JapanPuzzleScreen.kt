@@ -98,6 +98,8 @@ fun JapanPuzzleScreen(onBack: () -> Unit) {
     var placed by remember { mutableStateOf(setOf<Int>()) }
     var info by remember { mutableStateOf<Int?>(null) }
     var names by remember { mutableStateOf(false) }
+    // ひらがな で 出す（まだ 漢字 が よめない とき）
+    var kana by remember { mutableStateOf(false) }
     val memory = mode == -2
     val visited = remember(JapanPhotos.version) { JapanPhotos.visited(context) }
     val targets = remember(mode) { if (mode < 0) (1..47).toList() else Japan.REGIONS[mode].codes.toList() }
@@ -120,12 +122,13 @@ fun JapanPuzzleScreen(onBack: () -> Unit) {
                 }
             }
             DotText(if (memory) "いった ところ ${visited.size}" else "${targets.count { it in placed }} / ${targets.size}", theme, 18, theme.text, modifier = Modifier.padding(horizontal = 8.dp))
+            RetroButton(if (kana) "あ ひらがな" else "漢 かんじ", theme, if (kana) theme.titleBars[2] else Color.White, fontSize = 15, modifier = Modifier.padding(end = 6.dp)) { kana = !kana }
             RetroButton(if (names) "🏷 なまえ" else "🙈 なまえ", theme, if (names) theme.titleBars[1] else Color.White, fontSize = 15) { names = !names }
         }
         Spacer(Modifier.height(8.dp))
         Box(Modifier.weight(1f).fillMaxWidth()) {
             Board(
-                map, mode, targets, if (memory) visited else placed, tray, names, theme, Modifier.fillMaxSize(),
+                map, mode, targets, if (memory) visited else placed, tray, names, kana, theme, Modifier.fillMaxSize(),
                 tappable = if (memory) targets.toSet() else placed, marks = visited,
                 onPlace = { code -> placed = placed + code; info = code },
                 onTap = { code -> info = code },
@@ -133,7 +136,7 @@ fun JapanPuzzleScreen(onBack: () -> Unit) {
             info?.let { code ->
                 val east = mode in 0..3
                 InfoCard(
-                    Japan.pref(code), RegionColors[Japan.pref(code).region], theme,
+                    Japan.pref(code), RegionColors[Japan.pref(code).region], theme, kana,
                     Modifier.align(if (east) Alignment.BottomStart else Alignment.BottomEnd).padding(start = 8.dp, bottom = 8.dp, end = if (east || memory) 8.dp else 308.dp),
                 ) { info = null }
             }
@@ -168,7 +171,7 @@ private fun inside(poly: FloatArray, x: Float, y: Float): Boolean {
 
 @Composable
 private fun Board(
-    map: Japan.Map, mode: Int, targets: List<Int>, placed: Set<Int>, tray: List<Int>, names: Boolean, theme: KidTheme,
+    map: Japan.Map, mode: Int, targets: List<Int>, placed: Set<Int>, tray: List<Int>, names: Boolean, kana: Boolean, theme: KidTheme,
     modifier: Modifier, tappable: Set<Int>, marks: Set<Int>, onPlace: (Int) -> Unit, onTap: (Int) -> Unit,
 ) {
     val shapes = remember(map) { map.shapes.associateBy { it.code } }
@@ -317,7 +320,7 @@ private fun Board(
                 }
                 if (code in placed || (names && target)) {
                     val o = view.toScreen(sh.cx + off(code).x, sh.cy + off(code).y)
-                    label(Japan.pref(code).name.removeSuffix("県").removeSuffix("府").let { if (it == "東京都") "東京" else it }, o, (s * 13f).coerceIn(minLabel, maxLabel), outline.copy(alpha = if (code in placed) 1f else 0.45f))
+                    label(shortName(Japan.pref(code), kana), o, (s * 13f).coerceIn(minLabel, maxLabel), outline.copy(alpha = if (code in placed) 1f else 0.45f))
                 }
             }
             }
@@ -330,7 +333,7 @@ private fun Board(
                 val k = slotScale(code, slot)
                 val c = slot.center
                 piece(paths.getValue(code), c.x - (sh.minX + sh.maxX) / 2 * k, c.y - (sh.minY + sh.maxY) / 2 * k, k, RegionColors[Japan.pref(code).region], outline, false)
-                if (names) label(Japan.pref(code).name, Offset(c.x, slot.bottom - 18f), 30f, outline)
+                if (names) label(if (kana) Japan.pref(code).kana else Japan.pref(code).name, Offset(c.x, slot.bottom - 18f), 30f, outline)
             }
             // もって いる ピース（地図 と おなじ 大きさ、ゆび の すこし 上）
             drag?.let { (code, at) ->
@@ -370,12 +373,12 @@ private fun DrawScope.label(text: String, at: Offset, size: Float, color: Color)
 }
 
 @Composable
-private fun InfoCard(p: Japan.Pref, color: Color, theme: KidTheme, modifier: Modifier, onClose: () -> Unit) {
+private fun InfoCard(p: Japan.Pref, color: Color, theme: KidTheme, kana: Boolean, modifier: Modifier, onClose: () -> Unit) {
     RetroWindow(theme, modifier.width(400.dp), title = Japan.REGIONS[p.region].name + " ちほう", titleColor = color, onClick = onClose) {
         Column(Modifier.padding(14.dp)) {
             Row(verticalAlignment = Alignment.Bottom) {
-                Text(p.name, fontSize = 34.sp, fontWeight = FontWeight.Bold, color = theme.outline)
-                Text("（${p.kana}）", fontSize = 18.sp, color = theme.outline.copy(alpha = 0.75f), modifier = Modifier.padding(start = 4.dp, bottom = 4.dp))
+                Text(if (kana) p.kana else p.name, fontSize = 34.sp, fontWeight = FontWeight.Bold, color = theme.outline)
+                if (!kana) Text("（${p.kana}）", fontSize = 18.sp, color = theme.outline.copy(alpha = 0.75f), modifier = Modifier.padding(start = 4.dp, bottom = 4.dp))
             }
             Text("🏛 けんちょう：${p.capital}", fontSize = 16.sp, color = theme.outline)
             Row(Modifier.padding(vertical = 8.dp)) {
@@ -446,3 +449,8 @@ private fun PhotoViewer(files: List<File>, start: Int, theme: KidTheme, onClose:
         dismissButton = { TextButton(onClick = { ask = false }) { Text("やめる") } },
     )
 }
+
+/** 地図 に 書く みじかい 名前（県・府・都 を とる。北海道 は そのまま） */
+private fun shortName(p: Japan.Pref, kana: Boolean): String =
+    if (kana) p.kana.removeSuffix("けん").removeSuffix("ふ").let { if (it == "とうきょうと") "とうきょう" else it }
+    else p.name.removeSuffix("県").removeSuffix("府").let { if (it == "東京都") "東京" else it }
