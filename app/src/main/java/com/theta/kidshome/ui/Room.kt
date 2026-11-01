@@ -397,6 +397,8 @@ private fun CalendarSlide(theme: KidTheme, now: Long, u: Dp) {
         run {
             val y = today.get(Calendar.YEAR); val m = today.get(Calendar.MONTH) + 1; val d = today.get(Calendar.DAY_OF_MONTH)
             val hol = com.theta.kidshome.data.Almanac.holiday(y, m, d)
+            val bd = com.theta.kidshome.data.KinStore.people.firstOrNull { it.birthMonth == m && it.birthDay == d }
+            if (bd != null) Text("🎂 きょう は ${bd.call} の たんじょうび！", fontFamily = DotFont, fontSize = (u.value * 22).sp, color = Color(0xFFE0457B), maxLines = 1)
             val mi = com.theta.kidshome.data.Almanac.MONTHS[m - 1]
             Text(
                 (hol?.let { "🎌 ${it.kana}　" } ?: "") + "${mi.old}（${mi.oldKana}）・${com.theta.kidshome.data.Almanac.sekki(m, d).second}・${com.theta.kidshome.data.Almanac.eto(y).emoji}",

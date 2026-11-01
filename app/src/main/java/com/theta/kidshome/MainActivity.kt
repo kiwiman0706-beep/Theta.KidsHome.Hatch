@@ -57,6 +57,7 @@ class MainActivity : ComponentActivity() {
             return
         }
         Store.init(this)
+        com.theta.kidshome.data.KinStore.load(this)
         if (safe) Store.safeMode = true
         enableEdgeToEdge()
         hideSystemBars()

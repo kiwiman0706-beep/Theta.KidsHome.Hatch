@@ -200,6 +200,9 @@ private fun MonthGrid(theme: KidTheme, today: Calendar, compact: Boolean) {
                                 else -> theme.outline
                             },
                         )
+                        if (d > 0 && com.theta.kidshome.data.KinStore.people.any { it.birthMonth == today.get(Calendar.MONTH) + 1 && it.birthDay == d }) {
+                            Text("🎂", fontSize = if (compact) 9.sp else 11.sp, modifier = Modifier.align(Alignment.TopEnd))
+                        }
                         if (hasEvent) {
                             Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 1.dp).size(5.dp).clip(CircleShape).background(Color(0xFFFF6B8B)))
                         }
@@ -231,6 +234,9 @@ private fun WeekRow(theme: KidTheme, today: Calendar, compact: Boolean) {
                     day.get(Calendar.DAY_OF_MONTH).toString(), theme, if (compact) 16 else 20,
                     when { i == 0 || holiday != null -> Sunday; i == 6 -> Saturday; else -> theme.outline },
                 )
+                com.theta.kidshome.data.KinStore.people.filter { it.birthMonth == day.get(Calendar.MONTH) + 1 && it.birthDay == day.get(Calendar.DAY_OF_MONTH) }.forEach {
+                    Text("🎂${it.call}", fontFamily = DotFont, fontSize = if (compact) 9.sp else 11.sp, color = Color(0xFFE0457B), maxLines = 1)
+                }
                 holiday?.let { Text(it.kana, fontFamily = DotFont, fontSize = if (compact) 9.sp else 11.sp, color = Sunday, maxLines = 2, lineHeight = 12.sp) }
                 events.take(if (compact) 2 else 4).forEach { e ->
                     Box(

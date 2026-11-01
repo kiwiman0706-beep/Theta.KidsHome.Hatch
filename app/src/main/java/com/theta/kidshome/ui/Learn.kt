@@ -203,6 +203,9 @@ fun MonthInfo(theme: KidTheme, today: Calendar, compact: Boolean = false) {
     val sekki = Almanac.sekki(m, d)
     val eto = Almanac.eto(y)
     var junishi by remember { mutableStateOf(false) }
+    var tree by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    LaunchedEffect(Unit) { com.theta.kidshome.data.KinStore.load(context) }
     val fs = if (compact) 12 else 14
     Column(Modifier.fillMaxWidth().padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -220,9 +223,26 @@ fun MonthInfo(theme: KidTheme, today: Calendar, compact: Boolean = false) {
         }
         val hol = Almanac.holidays(y).filter { it.month == m }
         if (hol.isNotEmpty()) DotText("🎌 " + hol.joinToString("　") { "${it.day}にち ${it.kana}" }, theme, fs, Color(0xFFD03B5C))
+        val births = com.theta.kidshome.data.KinStore.people.filter { it.birthMonth == m && it.hasBirthday }.sortedBy { it.birthDay }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.weight(1f)) {
+                DotText(
+                    if (births.isEmpty()) "🎂 こんげつ の たんじょうび は ないよ"
+                    else "🎂 " + births.joinToString("　") { p ->
+                        val age = com.theta.kidshome.data.Kin.age(p, y, m, p.birthDay)
+                        "${p.birthDay}にち ${p.call}" + (age?.let { "（${it}さい）" } ?: "")
+                    },
+                    theme, fs, Color(0xFFE0457B),
+                )
+            }
+            Box(Modifier.clip(RoundedCornerShape(10.dp)).background(theme.titleBars[1]).clickable { tree = true }.padding(horizontal = 8.dp, vertical = 2.dp)) {
+                DotText("👪 かけいず", theme, fs)
+            }
+        }
         if (!compact) DotText(info.season, theme, fs, theme.outline.copy(alpha = 0.8f))
     }
     if (junishi) JunishiDialog(theme, y) { junishi = false }
+    if (tree) FamilyTreeDialog { tree = false }
 }
 
 @Composable
