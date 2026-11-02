@@ -58,6 +58,7 @@ class MainActivity : ComponentActivity() {
         }
         Store.init(this)
         com.theta.kidshome.data.KinStore.load(this)
+        com.theta.kidshome.data.DollPack.load(this)
         if (safe) Store.safeMode = true
         enableEdgeToEdge()
         hideSystemBars()
@@ -152,6 +153,7 @@ class MainActivity : ComponentActivity() {
         healthy.postDelayed(markHealthy, 8000)
         if (Store.config.autoUpdate) SelfUpdate.check(this)
         com.theta.kidshome.data.GuidePack.update(this)
+        com.theta.kidshome.data.DollPack.update(this)
         Weather.refresh(this)
         Remote.sync(this)
         com.theta.kidshome.data.SheetSync.sync(this)

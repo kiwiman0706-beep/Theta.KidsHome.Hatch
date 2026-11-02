@@ -269,24 +269,11 @@ object GuidePack {
 
     private fun fetch(c: Context): String {
         val repo = repo(c); val token = token(c)
-        val rel = api("https://api.github.com/repos/$repo/releases/latest", token, "application/vnd.github+json")
-        val body = try {
-            when (rel.responseCode) {
-                200 -> rel.inputStream.bufferedReader().readText()
-                401 -> throw IllegalStateException("トークンが ちがうか、きげんぎれ")
-                404 -> throw IllegalStateException("リポジトリ か Release が みつからない（トークンの けんげん も たしかめて）")
-                else -> throw IllegalStateException("HTTP ${rel.responseCode}")
-            }
-        } finally { rel.disconnect() }
-        val o = JSONObject(body)
-        val tag = o.optString("tag_name")
+        // ガイド と ドール は べつ の Release なので「さいしん」では なく ファイル名 で さがす
+        val (tag, assetUrl) = PackRelease.find(repo, token, ASSET)
         if (tag == installedTag(c) && !builtin) return "さいしん です（$tag）"
-        val assets = o.optJSONArray("assets") ?: JSONArray()
-        val asset = (0 until assets.length()).map { assets.getJSONObject(it) }.firstOrNull { it.optString("name") == ASSET }
-            ?: throw IllegalStateException("Release に $ASSET が ありません")
-        if (asset.optLong("size") > MAX_BYTES) throw IllegalStateException("パックが 大きすぎます")
         // GitHub は 保存場所へ とばす（そこへは トークン を つけない）
-        val a = api(asset.getString("url"), token, "application/octet-stream")
+        val a = api(assetUrl, token, "application/octet-stream")
         val stream: InputStream
         val conns = mutableListOf(a)
         if (a.responseCode in 300..399) {

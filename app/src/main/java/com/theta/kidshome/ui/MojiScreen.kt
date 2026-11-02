@@ -79,10 +79,18 @@ fun MojiScreen(onBack: () -> Unit) {
 
     fun save() {
         if (strokes.isEmpty()) return
+        val before = com.theta.kidshome.data.DollPack.earned(context, profile.id)
         Moji.save(context, profile.id, ch, strokes.toList())
         written = written + (ch to strokes.toList())
         val done = chars.count { it in written }
-        cheer = if (done == chars.size) "🏅 ${set.title} ぜんぶ かけた！" else listOf("じょうず！", "すてき！", "いいね！", "かっこいい！").random()
+        val per = com.theta.kidshome.data.DollPack.perTicket(context)
+        val ticket = com.theta.kidshome.data.DollPack.installed && com.theta.kidshome.data.DollPack.earned(context, profile.id) > before
+        cheer = when {
+            ticket -> "🎟 きせかえ チケット を もらった！（へや の 👗 で つかえるよ）"
+            done == chars.size -> "🏅 ${set.title} ぜんぶ かけた！"
+            com.theta.kidshome.data.DollPack.installed -> listOf("じょうず！", "すてき！", "いいね！").random() + "　🎟 まで あと ${per - written.size % per} もじ"
+            else -> listOf("じょうず！", "すてき！", "いいね！", "かっこいい！").random()
+        }
         // つぎの まだ書いていない字へ
         val next = (1..chars.size).map { (index + it) % chars.size }.firstOrNull { chars[it] !in written }
         if (next != null) index = next

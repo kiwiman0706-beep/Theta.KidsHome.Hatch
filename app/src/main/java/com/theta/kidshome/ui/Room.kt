@@ -145,6 +145,7 @@ fun RoomView(
     apps: List<Shelf> = emptyList(),
     initialPopup: String? = null,
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val cal = Calendar.getInstance().apply { timeInMillis = now }
     val hour = cal.get(Calendar.HOUR_OF_DAY)
     val night = Store.config.nightDim && !com.theta.kidshome.data.Beta.on && (hour >= 19 || hour < 6)
@@ -188,11 +189,13 @@ fun RoomView(
                     Text("🧸🪀⚽", fontSize = (u.value * 54).sp, modifier = Modifier.align(Alignment.TopCenter).offset(y = u * 92f))
                 }
             }
-            if (GuidePack.installed && GuidePack.sprites != null) {
+            val dollGuide = remember(com.theta.kidshome.data.DollPack.version, com.theta.kidshome.data.DollPack.pack, profile.id) { com.theta.kidshome.data.DollPack.guideOn(context, profile.id) }
+            if (dollGuide || (GuidePack.installed && GuidePack.sprites != null)) {
                 // ガイド役（パラパラ漫画）
                 var center by remember { mutableStateOf(Offset.Zero) }
                 Box(Modifier.offset(u * GUIDE.x, u * GUIDE.y).size(u * GUIDE.w, u * GUIDE.h).onGloballyPositioned { center = it.boundsInRoot().center }) {
-                    GuideSprite(profile.id, Modifier.fillMaxSize(), onTap = { onMascot(center) })
+                    if (dollGuide) DollGuide(profile.id, Modifier.fillMaxSize(), onTap = { onMascot(center) })
+                    else GuideSprite(profile.id, Modifier.fillMaxSize(), onTap = { onMascot(center) })
                 }
                 Bubble(theme, mascotLine, GUIDE.x + GUIDE.w / 2, GUIDE.y - 10f, u)
                 Box(
@@ -214,7 +217,9 @@ fun RoomView(
                     Showcase(theme, toys, u, tileView)
                 }
                 "apps" -> Popup(theme, "📱 アプリ", u, onClose = { popup = null }) { Showcase(theme, apps, u, tileView) }
-                "wardrobe" -> Popup(theme, "👗 きせかえ", u, onClose = { popup = null }) { Wardrobe(theme, profile.id) }
+                "wardrobe" -> Popup(theme, "👗 きせかえ", u, onClose = { popup = null }) {
+                    if (com.theta.kidshome.data.DollPack.guideOn(context, profile.id)) DollDressUp(theme, profile.id) else Wardrobe(theme, profile.id)
+                }
             }
         }
     }

@@ -188,6 +188,8 @@ private fun SettingsTab(modifier: Modifier) {
 
         GuideSection()
 
+        DollSection()
+
         DictSection(config)
 
         StampLibrarySection(config)
