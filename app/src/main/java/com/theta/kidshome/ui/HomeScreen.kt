@@ -125,6 +125,7 @@ fun HomeScreen(
     onOpenHissan: () -> Unit = {},
     onOpenJapan: () -> Unit = {},
     onOpenRegister: () -> Unit = {},
+    onOpenCoding: () -> Unit = {},
     onOpenDict: () -> Unit = {},
     onPlayVideo: (List<com.theta.kidshome.data.MediaEntry>, Int) -> Unit = { _, _ -> },
 ) {
@@ -207,7 +208,7 @@ fun HomeScreen(
         Shelf("look", "🔍", "しらべる", builtins(TileType.DICT, TileType.MAP, TileType.JAPAN)),
     ).filter { it.open != null || it.tiles.isNotEmpty() }
     // おもちゃばこ：あそぶ もの と、仕分けた アプリ
-    val toys = listOf(Shelf("play", "🧩", "あそぶ", builtins(TileType.PUZZLE, TileType.REGISTER))) +
+    val toys = listOf(Shelf("play", "🧩", "あそぶ", builtins(TileType.PUZZLE, TileType.REGISTER, TileType.CODING))) +
         listOfNotNull(appTiles.takeIf { it.isNotEmpty() }?.let { Shelf("apps", "📱", "アプリ", it) }) +
         tabs.filter { it.kind == TabKind.CATEGORY }.map { Shelf(it.key, it.emoji, it.label, it.tiles) }
     val toyShelves = toys.filter { it.tiles.isNotEmpty() }
@@ -232,6 +233,7 @@ fun HomeScreen(
             tile.type == TileType.HISSAN -> onOpenHissan()
             tile.type == TileType.JAPAN -> onOpenJapan()
             tile.type == TileType.REGISTER -> onOpenRegister()
+            tile.type == TileType.CODING -> onOpenCoding()
             tile.type == TileType.DICT -> onOpenDict()
             else -> Launcher.launch(context, tile)
         }
@@ -769,6 +771,7 @@ private fun TileWindow(tile: Tile, theme: KidTheme, index: Int, locked: Boolean,
         tile.type == TileType.HISSAN -> "ひっさん"
         tile.type == TileType.JAPAN -> "にっぽん"
         tile.type == TileType.REGISTER -> "おみせ"
+        tile.type == TileType.CODING -> "プログラミング"
         tile.type == TileType.DICT -> "じしょ"
         tile.isVideo -> "どうが"
         else -> "アプリ"
