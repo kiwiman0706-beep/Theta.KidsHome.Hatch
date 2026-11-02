@@ -97,6 +97,10 @@ object Store {
             }
             prefs.edit().putBoolean("added:tasu", true).apply()
         }
+        if (!prefs.getBoolean("added:register", false)) {
+            update { c -> c.copy(profiles = c.profiles.map { p -> if (p.tiles.any { it.type == TileType.REGISTER }) p else p.copy(tiles = p.tiles + AppConfig.registerTile()) }) }
+            prefs.edit().putBoolean("added:register", true).apply()
+        }
         if (!prefs.getBoolean("added:japan", false)) {
             update { c -> c.copy(profiles = c.profiles.map { p -> if (p.tiles.any { it.type == TileType.JAPAN }) p else p.copy(tiles = p.tiles + AppConfig.japanTile()) }) }
             prefs.edit().putBoolean("added:japan", true).apply()
