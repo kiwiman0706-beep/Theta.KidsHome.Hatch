@@ -55,8 +55,8 @@ import com.theta.kidshome.data.Money
 import com.theta.kidshome.data.Store
 import kotlin.random.Random
 
-private val Lcd = Color(0xFF203A2A)
-private val LcdText = Color(0xFF9CF5A8)
+internal val Lcd = Color(0xFF203A2A)
+internal val LcdText = Color(0xFF9CF5A8)
 
 /**
  * おみせやさん ごっこ：レジ で ごうけい、お金 を だして はらう／おつり を わたす。
@@ -84,6 +84,7 @@ fun RegisterScreen(onBack: () -> Unit) {
     var message by remember { mutableStateOf<String?>(null) }
     var done by remember { mutableStateOf(false) }
     var stars by remember { mutableIntStateOf(0) }
+    var duo by remember { mutableStateOf(false) }
 
     fun price(i: Money.Item) = Money.price(i.price, level)
     val subtotal = basket.sumOf { price(it) }
@@ -106,6 +107,13 @@ fun RegisterScreen(onBack: () -> Unit) {
 
     fun setMode(c: Boolean) { cashier = c; if (c) nextGuest() else reset() }
 
+    if (duo && shop != null) {
+        Box(Modifier.fillMaxSize().background(theme.bgBottom).windowInsetsPadding(WindowInsets.safeDrawing)) {
+            RegisterDuo(theme, shop, level) { duo = false }
+        }
+        return
+    }
+
     Column(Modifier.fillMaxSize().background(theme.bgBottom).windowInsetsPadding(WindowInsets.safeDrawing).padding(12.dp)) {
         // みだし
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -119,6 +127,7 @@ fun RegisterScreen(onBack: () -> Unit) {
                     }
                 }
             }
+            RetroButton("👭 ふたりで", theme, theme.titleBars[3], fontSize = 15, modifier = Modifier.padding(end = 6.dp)) { duo = true }
             RetroButton("🧒 おきゃくさん", theme, if (!cashier) theme.titleBars[1] else Color.White, fontSize = 15, modifier = Modifier.padding(end = 6.dp)) { setMode(false) }
             RetroButton("🧑‍🍳 おみせのひと", theme, if (cashier) theme.titleBars[1] else Color.White, fontSize = 15) { setMode(true) }
         }
@@ -262,7 +271,7 @@ fun RegisterScreen(onBack: () -> Unit) {
 }
 
 @Composable
-private fun LcdLine(left: String, right: String, big: Boolean = false) {
+internal fun LcdLine(left: String, right: String, big: Boolean = false) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
         Text(left, color = LcdText, fontSize = if (big) 22.sp else 16.sp, fontWeight = if (big) FontWeight.Bold else FontWeight.Normal, modifier = Modifier.weight(1f), maxLines = 1)
         Text("¥$right", color = LcdText, fontSize = if (big) 30.sp else 18.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
@@ -270,7 +279,7 @@ private fun LcdLine(left: String, right: String, big: Boolean = false) {
 }
 
 @Composable
-private fun RegKey(label: String, color: Color, modifier: Modifier, onClick: () -> Unit) {
+internal fun RegKey(label: String, color: Color, modifier: Modifier, onClick: () -> Unit) {
     Box(
         modifier.height(56.dp).clip(RoundedCornerShape(12.dp)).background(color).border(2.dp, Color(0xFF3A3A4A), RoundedCornerShape(12.dp)).clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
@@ -278,14 +287,14 @@ private fun RegKey(label: String, color: Color, modifier: Modifier, onClick: () 
 }
 
 @Composable
-private fun PriceTag(text: String) {
+internal fun PriceTag(text: String) {
     Box(Modifier.padding(top = 2.dp).clip(RoundedCornerShape(6.dp)).background(Color(0xFFFFF0A8)).padding(horizontal = 6.dp, vertical = 1.dp)) {
         Text(text, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFFB0302E))
     }
 }
 
 @Composable
-private fun MoneyRow(m: Map<Int, Int>, size: Dp) {
+internal fun MoneyRow(m: Map<Int, Int>, size: Dp) {
     Row(Modifier.horizontalScroll(rememberScrollState()).padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
         m.forEach { (d, n) ->
             Cash(d, size)
