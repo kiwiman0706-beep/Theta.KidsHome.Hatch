@@ -172,11 +172,19 @@ object DollPack {
 
     private fun opened(c: Context, profile: String): Set<String> = prefs(c).getStringSet("open:$profile", emptySet()).orEmpty()
 
+    /** スロット ごと に はじめ から あける 数（おや が 0／3／5／10 に） */
+    fun freePerSlot(c: Context) = prefs(c).getInt("freePerSlot", 3)
+    fun setFreePerSlot(c: Context, n: Int) { prefs(c).edit().putInt("freePerSlot", n).apply(); version++ }
+
     fun unlocked(c: Context, profile: String, slot: Slot, item: Item): Boolean =
-        allOpen(c) || slot.id in FREE_SLOTS || pack?.defaults?.values?.contains(item.id) == true || item.id in opened(c, profile)
+        allOpen(c) || slot.id in FREE_SLOTS || slot.items.indexOf(item) < freePerSlot(c) ||
+            pack?.defaults?.values?.contains(item.id) == true || item.id in opened(c, profile)
+
+    /** はじめ に もらえる 🎟 */
+    private const val STARTER = 3
 
     /** もらった チケット（もじ れんしゅう で かいた 字 の 数 ÷ perTicket） */
-    fun earned(c: Context, profile: String) = Moji.writtenChars(c, profile).size / perTicket(c) + prefs(c).getInt("bonus:$profile", 0)
+    fun earned(c: Context, profile: String) = STARTER + Moji.writtenChars(c, profile).size / perTicket(c) + prefs(c).getInt("bonus:$profile", 0)
 
     fun tickets(c: Context, profile: String) = (earned(c, profile) - opened(c, profile).size).coerceAtLeast(0)
 

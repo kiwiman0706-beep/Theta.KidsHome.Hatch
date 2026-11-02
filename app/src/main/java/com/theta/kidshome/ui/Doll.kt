@@ -192,7 +192,7 @@ fun DollSection() {
     Section("👗 きせかえ ドール（ごほうび）") {
         Text(
             "購入した ドール素材（非公開リポジトリ の Release「doll-pack.zip」）を、ガイド役 と おなじ トークン で とってきます。" +
-                "からだ と かお は はじめ から、かみがた・ふく・アクセ は 🎟 で あけます（もじ れんしゅう で きまった 数 を かくと 1 まい）。",
+                "からだ と かお、それぞれ の しゅるい の さいしょ の いくつか は はじめ から。のこり は 🎟 で あけます（はじめ に 3 まい、もじ れんしゅう で きまった 数 を かくと 1 まい）。",
             fontSize = 13.sp,
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -206,6 +206,10 @@ fun DollSection() {
         Text("🎟 1 まい に かく 字 の 数", fontSize = 13.sp)
         Row {
             listOf(3, 5, 10).forEach { n -> FilterChip(DollPack.perTicket(context) == n, { DollPack.setPerTicket(context, n) }, label = { Text("$n もじ") }, modifier = Modifier.padding(end = 6.dp)) }
+        }
+        Text("はじめ から あける 数（それぞれ の しゅるい ごと）", fontSize = 13.sp)
+        Row {
+            listOf(0, 3, 5, 10).forEach { n -> FilterChip(DollPack.freePerSlot(context) == n, { DollPack.setFreePerSlot(context, n) }, label = { Text("$n こ") }, modifier = Modifier.padding(end = 6.dp)) }
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("ぜんぶ あける（ごほうび なし）", modifier = Modifier.weight(1f), fontSize = 14.sp)
