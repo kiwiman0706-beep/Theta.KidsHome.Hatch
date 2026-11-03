@@ -39,6 +39,8 @@ data class Stroke(
 /** えもじ か、スタンプライブラリの画像（image に id） */
 /** rot は かたむき（ど）。ふるい 絵 には ない（0） */
 data class Stamp(val x: Float, val y: Float, val emoji: String, val size: Float, val image: String? = null, val rot: Float = 0f) : Mark
+/** 🪣 バケツ：ぬりえ の 線（なければ まわり の 色）で かこまれた ところ を ぬる */
+data class Fill(val x: Float, val y: Float, val color: Int) : Mark
 
 /**
  * 画材ごとの描き方。同じ seed なら毎回おなじ「かすれ」になる（開き直しても同じ絵）。
@@ -58,6 +60,7 @@ object Painter {
 
     fun draw(c: Canvas, m: Mark) {
         when (m) {
+            is Fill -> {} // バケツ は render／fill で（ビットマップ が いる）
             is Stamp -> {
                 c.save()
                 if (m.rot != 0f) c.rotate(m.rot, m.x, m.y)
@@ -229,12 +232,66 @@ object Painter {
         }
     }
 
-    fun render(width: Int, height: Int, bg: Bitmap?, marks: List<Mark>): Bitmap {
+    fun render(width: Int, height: Int, bg: Bitmap?, marks: List<Mark>, lineFit: Bitmap? = null): Bitmap {
         val b = Bitmap.createBitmap(width.coerceAtLeast(1), height.coerceAtLeast(1), Bitmap.Config.ARGB_8888)
         val c = Canvas(b)
         drawBackground(c, bg)
-        marks.forEach { draw(c, it) }
+        marks.forEach { if (it is Fill) fill(b, lineFit, it) else draw(c, it) }
         return b
+    }
+
+    /** ぬりえ の 線 を 紙 の 大きさ に あわせた もの（すけた 画像） */
+    fun fitLine(line: Bitmap?, width: Int, height: Int): Bitmap? {
+        line ?: return null
+        val out = Bitmap.createBitmap(width.coerceAtLeast(1), height.coerceAtLeast(1), Bitmap.Config.ARGB_8888)
+        val s = minOf(width.toFloat() / line.width, height.toFloat() / line.height)
+        val w = line.width * s; val h = line.height * s
+        Canvas(out).drawBitmap(line, null, RectF((width - w) / 2, (height - h) / 2, (width + w) / 2, (height + h) / 2), Paint(Paint.FILTER_BITMAP_FLAG))
+        return out
+    }
+
+    /**
+     * バケツ。ぬりえ の 線 が あれば 線 を かべ に、なければ おした ところ と ちかい 色 の ひろがり を ぬる。
+     * 線 の した に すきま が できない よう に 2 ドット ふくらませる。
+     */
+    fun fill(target: Bitmap, lineFit: Bitmap?, m: Fill) {
+        val w = target.width; val h = target.height
+        val x0 = m.x.toInt(); val y0 = m.y.toInt()
+        if (x0 !in 0 until w || y0 !in 0 until h) return
+        val px = IntArray(w * h); target.getPixels(px, 0, w, 0, 0, w, h)
+        val wall = BooleanArray(w * h)
+        if (lineFit != null && lineFit.width == w && lineFit.height == h) {
+            val lp = IntArray(w * h); lineFit.getPixels(lp, 0, w, 0, 0, w, h)
+            for (i in lp.indices) wall[i] = (lp[i] ushr 24) > 90
+        } else {
+            val seed = px[y0 * w + x0]
+            for (i in px.indices) {
+                val c = px[i]
+                wall[i] = Math.abs(Color.red(c) - Color.red(seed)) + Math.abs(Color.green(c) - Color.green(seed)) + Math.abs(Color.blue(c) - Color.blue(seed)) > 60
+            }
+        }
+        if (wall[y0 * w + x0]) return
+        val inR = BooleanArray(w * h)
+        val stack = IntArray(w * h); var sp = 0
+        stack[sp++] = y0 * w + x0; inR[y0 * w + x0] = true
+        while (sp > 0) {
+            val i = stack[--sp]; val x = i % w
+            if (x > 0 && !inR[i - 1] && !wall[i - 1]) { inR[i - 1] = true; stack[sp++] = i - 1 }
+            if (x < w - 1 && !inR[i + 1] && !wall[i + 1]) { inR[i + 1] = true; stack[sp++] = i + 1 }
+            if (i >= w && !inR[i - w] && !wall[i - w]) { inR[i - w] = true; stack[sp++] = i - w }
+            if (i + w < w * h && !inR[i + w] && !wall[i + w]) { inR[i + w] = true; stack[sp++] = i + w }
+        }
+        // 線 の した へ 2 ドット
+        val grow = inR.copyOf()
+        repeat(2) {
+            val cur = grow.copyOf()
+            for (i in cur.indices) if (!cur[i]) {
+                val x = i % w
+                if ((x > 0 && cur[i - 1]) || (x < w - 1 && cur[i + 1]) || (i >= w && cur[i - w]) || (i + w < w * h && cur[i + w])) grow[i] = true
+            }
+        }
+        for (i in grow.indices) if (grow[i]) px[i] = m.color
+        target.setPixels(px, 0, w, 0, 0, w, h)
     }
 }
 
@@ -251,12 +308,14 @@ object Paintings {
 
     fun newId() = UUID.randomUUID().toString()
 
-    fun save(c: Context, id: String, marks: List<Mark>, bg: Bitmap?, thumb: Bitmap) {
-        if (marks.isEmpty() && bg == null) return
+    fun save(c: Context, id: String, marks: List<Mark>, bg: Bitmap?, thumb: Bitmap, line: Bitmap? = null) {
+        if (marks.isEmpty() && bg == null && line == null) return
         val dir = File(root(c), id).apply { mkdirs() }
         File(dir, "marks.json").writeText(JSONArray(marks.map { toJson(it) }).toString())
         val bgFile = File(dir, "bg.png")
         if (bg != null) { if (!bgFile.exists()) bgFile.outputStream().use { bg.compress(Bitmap.CompressFormat.PNG, 100, it) } } else bgFile.delete()
+        val lineFile = File(dir, "line.png")
+        if (line != null) { if (!lineFile.exists()) lineFile.outputStream().use { line.compress(Bitmap.CompressFormat.PNG, 100, it) } } else lineFile.delete()
         val s = 360f / maxOf(thumb.width, thumb.height)
         File(dir, "thumb.png").outputStream().use {
             Bitmap.createScaledBitmap(thumb, (thumb.width * s).toInt().coerceAtLeast(1), (thumb.height * s).toInt().coerceAtLeast(1), true)
@@ -266,7 +325,10 @@ object Paintings {
     }
 
     /** 背景を変えたときは、古い背景ファイルを消す（次の save で書き直す） */
-    fun dropBackground(c: Context, id: String) = File(File(root(c), id), "bg.png").delete()
+    fun dropBackground(c: Context, id: String) { File(File(root(c), id), "bg.png").delete(); File(File(root(c), id), "line.png").delete() }
+
+    /** ぬりえ の 線（ない とき は null） */
+    fun line(c: Context, id: String): Bitmap? = File(File(root(c), id), "line.png").takeIf { it.exists() }?.let { BitmapFactory.decodeFile(it.path) }
 
     fun load(c: Context, id: String): Pair<List<Mark>, Bitmap?> {
         val dir = File(root(c), id)
@@ -286,6 +348,7 @@ object Paintings {
         is Stroke -> JSONObject().put("t", "s").put("c", m.color).put("w", m.width.toDouble()).put("b", m.brush.name).put("seed", m.seed)
             .put("p", JSONArray().apply { m.points.forEach { put(Math.round(it * 10) / 10.0) } })
             .apply { m.pressures?.let { pr -> put("pr", JSONArray().apply { pr.forEach { put(Math.round(it * 100) / 100.0) } }) } }
+        is Fill -> JSONObject().put("t", "f").put("x", m.x.toDouble()).put("y", m.y.toDouble()).put("c", m.color)
         is Stamp -> JSONObject().put("t", "e").put("x", m.x.toDouble()).put("y", m.y.toDouble()).put("e", m.emoji).put("size", m.size.toDouble()).putOpt("img", m.image).apply { if (m.rot != 0f) put("r", m.rot.toDouble()) }
     }
 
@@ -298,6 +361,7 @@ object Paintings {
                 o.optJSONArray("pr")?.let { pr -> FloatArray(pr.length()) { pr.getDouble(it).toFloat() } },
             )
         }
+        "f" -> Fill(o.getDouble("x").toFloat(), o.getDouble("y").toFloat(), o.getInt("c"))
         "e" -> Stamp(o.getDouble("x").toFloat(), o.getDouble("y").toFloat(), o.getString("e"), o.getDouble("size").toFloat(), if (o.has("img")) o.getString("img") else null, o.optDouble("r", 0.0).toFloat())
         else -> null
     }

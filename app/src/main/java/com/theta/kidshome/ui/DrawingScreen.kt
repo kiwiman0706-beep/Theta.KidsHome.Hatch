@@ -82,6 +82,7 @@ import androidx.compose.ui.window.Dialog
 import com.theta.kidshome.data.Brush
 import com.theta.kidshome.data.Gemini
 import com.theta.kidshome.data.Mark
+import com.theta.kidshome.data.Fill
 import com.theta.kidshome.data.Painter
 import com.theta.kidshome.data.Paintings
 import com.theta.kidshome.data.Stamp
@@ -102,6 +103,8 @@ private object Drawing {
     var id = Paintings.newId()
     val marks = mutableStateListOf<Mark>()
     var background by mutableStateOf<Bitmap?>(null)
+    /** 🖍 ぬりえ の 線（いちばん うえ に かさねる。ぬって も 線 は きえない） */
+    var line by mutableStateOf<Bitmap?>(null)
 }
 
 private val palette = listOf(
@@ -127,6 +130,8 @@ fun DrawingScreen(onBack: () -> Unit) {
 
     var brush by remember { mutableStateOf(Brush.CRAYON) }
     var stampMode by remember { mutableStateOf(false) }
+    var fillMode by remember { mutableStateOf(false) }
+    var showNurie by remember { mutableStateOf(false) }
     var showShop by remember { mutableStateOf(false) }
     var stampPreview by remember { mutableStateOf<Stamp?>(null) }
     var color by remember { mutableStateOf(palette[2]) }
@@ -159,25 +164,39 @@ fun DrawingScreen(onBack: () -> Unit) {
     // 描き終わった分は 1 まいの絵にしておく（毎回 ぜんぶ描き直さない）
     var committed by remember { mutableStateOf<Bitmap?>(null) }
     var version by remember { mutableIntStateOf(0) }
+    val fitCache = remember { arrayOfNulls<Any>(3) } // line, size, fitted
+    fun lineFit(): Bitmap? {
+        val l = Drawing.line ?: return null
+        if (fitCache[0] !== l || fitCache[1] != canvasSize) { fitCache[0] = l; fitCache[1] = canvasSize; fitCache[2] = Painter.fitLine(l, canvasSize.width, canvasSize.height) }
+        return fitCache[2] as Bitmap?
+    }
     fun rebuild() {
         if (canvasSize.width <= 0) return
-        committed = Painter.render(canvasSize.width, canvasSize.height, Drawing.background, Drawing.marks)
+        committed = Painter.render(canvasSize.width, canvasSize.height, Drawing.background, Drawing.marks, lineFit())
         version++
     }
     fun commit(m: Mark) {
         Drawing.marks += m
         val b = committed
-        if (b == null || b.width != canvasSize.width) rebuild() else { Painter.draw(android.graphics.Canvas(b), m); version++ }
+        if (b == null || b.width != canvasSize.width) rebuild()
+        else { if (m is Fill) Painter.fill(b, lineFit(), m) else Painter.draw(android.graphics.Canvas(b), m); version++ }
+    }
+    /** いんさつ・ほぞん 用：ぬった 絵 ＋ ぬりえ の 線 */
+    fun finalBitmap(): Bitmap? {
+        val b = committed ?: return null
+        val l = lineFit() ?: return b
+        return b.copy(Bitmap.Config.ARGB_8888, true).also { android.graphics.Canvas(it).drawBitmap(l, 0f, 0f, null) }
     }
     fun saveNow() {
-        val b = committed ?: return
-        Paintings.save(context, Drawing.id, Drawing.marks.toList(), Drawing.background, b)
+        val b = finalBitmap() ?: return
+        Paintings.save(context, Drawing.id, Drawing.marks.toList(), Drawing.background, b, Drawing.line)
     }
-    fun newDrawing(bg: Bitmap? = null) {
+    fun newDrawing(bg: Bitmap? = null, line: Bitmap? = null) {
         saveNow()
         Drawing.id = Paintings.newId()
         Drawing.marks.clear()
         Drawing.background = bg
+        Drawing.line = line
         rebuild()
     }
 
@@ -212,6 +231,7 @@ fun DrawingScreen(onBack: () -> Unit) {
                 ToolButton(theme, "🧽", "ぜんぶ けす") { if (Drawing.marks.isNotEmpty()) askClear = true }
                 ToolButton(theme, "📃", "あたらしい かみ") { newDrawing() }
                 ToolButton(theme, "🖼️", "さくひん") { saveNow(); showOpen = true }
+                ToolButton(theme, "🖍", "ぬりえ") { showNurie = true }
                 ToolButton(theme, "📷", "しゃしん に かく") { pickPhoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
                 if (Drawing.background != null && Gemini.apiKey(context).isNotBlank()) {
                     ToolButton(theme, "🪄", "まほう") { showMagic = true }
@@ -230,13 +250,13 @@ fun DrawingScreen(onBack: () -> Unit) {
                         )
                     })
                 }
-                ToolButton(theme, "🖨️", "いんさつ") { committed?.let { printBitmap(context, it) } }
+                ToolButton(theme, "🖨️", "いんさつ") { finalBitmap()?.let { printBitmap(context, it) } }
                 ToolButton(theme, "📥", "しゃしん に いれる") {
-                    val ok = committed?.let { savePhoto(context, it) } == true
+                    val ok = finalBitmap()?.let { savePhoto(context, it) } == true
                     Toast.makeText(context, if (ok) "「しゃしん」に いれたよ！" else "いれられなかったよ", Toast.LENGTH_SHORT).show()
                 }
                 ToolButton(theme, "🌟", "スタンプ に する") {
-                    val ok = Drawing.marks.isNotEmpty() && committed?.let { full ->
+                    val ok = Drawing.marks.isNotEmpty() && finalBitmap()?.let { full ->
                         runCatching {
                             val cut = com.theta.kidshome.data.StampLibrary.removeBackground(full)
                             com.theta.kidshome.data.StampLibrary.add(com.theta.kidshome.data.StampLibrary.finish(cut, true), "${Store.config.currentProfile.name} の え")
@@ -245,7 +265,7 @@ fun DrawingScreen(onBack: () -> Unit) {
                     Toast.makeText(context, if (ok) "スタンプ に なったよ！ チャット や スタンプ で つかえるよ" else "なにか かいてから してね", Toast.LENGTH_SHORT).show()
                 }
                 ToolButton(theme, "📌", "ホーム に はる") {
-                    val ok = Drawing.marks.isNotEmpty() && committed?.let { pin(context, it) } == true
+                    val ok = Drawing.marks.isNotEmpty() && finalBitmap()?.let { pin(context, it) } == true
                     Toast.makeText(context, if (ok) "ホームに はったよ！" else "なにか かいてから はってね", Toast.LENGTH_SHORT).show()
                 }
             }
@@ -261,8 +281,9 @@ fun DrawingScreen(onBack: () -> Unit) {
                         Modifier.fillMaxHeight().background(theme.bubbles[0]).verticalScroll(rememberScrollState()).padding(6.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        Brush.entries.forEach { b -> RetroIconButton(b.emoji, theme, !stampMode && brush == b, 50.dp) { brush = b; stampMode = false } }
-                        RetroIconButton("🌟", theme, stampMode, 50.dp) { stampMode = true }
+                        Brush.entries.forEach { b -> RetroIconButton(b.emoji, theme, !stampMode && !fillMode && brush == b, 50.dp) { brush = b; stampMode = false; fillMode = false } }
+                        RetroIconButton("🪣", theme, fillMode, 50.dp) { fillMode = true; stampMode = false }
+                        RetroIconButton("🌟", theme, stampMode, 50.dp) { stampMode = true; fillMode = false }
                         Spacer(Modifier.height(8.dp))
                         widths.forEachIndexed { i, w ->
                             val selected = widthIndex == i
@@ -290,6 +311,10 @@ fun DrawingScreen(onBack: () -> Unit) {
                                     // ペンモード：手のひら・指は描かない
                                     if (penMode && !stylus) return@awaitEachGesture
                                     down.consume()
+                                    if (fillMode) {
+                                        commit(Fill(down.position.x, down.position.y, color.toArgb()))
+                                        return@awaitEachGesture
+                                    }
                                     if (stampMode && penMode) {
                                         commit(stampMark(down.position.x, down.position.y, if (stylus) down.pressure else null))
                                         return@awaitEachGesture
@@ -340,6 +365,7 @@ fun DrawingScreen(onBack: () -> Unit) {
                                 committed?.let { c.nativeCanvas.drawBitmap(it, 0f, 0f, null) }
                                 if (current.isNotEmpty()) Painter.draw(c.nativeCanvas, line(current.toList()).copy(seed = 1))
                                 stampPreview?.let { Painter.draw(c.nativeCanvas, it) }
+                                lineFit()?.let { c.nativeCanvas.drawBitmap(it, 0f, 0f, null) }
                             }
                         }
                     }
@@ -424,6 +450,7 @@ fun DrawingScreen(onBack: () -> Unit) {
             Drawing.id = id
             Drawing.marks.clear(); Drawing.marks.addAll(marks)
             Drawing.background = bg
+            Drawing.line = Paintings.line(context, id)
             rebuild()
         }
     }
@@ -433,10 +460,14 @@ fun DrawingScreen(onBack: () -> Unit) {
         Drawing.id = id
         Drawing.marks.clear(); Drawing.marks.addAll(marks)
         Drawing.background = bg
+        Drawing.line = Paintings.line(context, id)
         rebuild()
         showOpen = false
     }
 
+    if (showNurie) NurieDialog(theme, onDismiss = { showNurie = false }) { line ->
+        newDrawing(null, line); fillMode = true; stampMode = false; showNurie = false
+    }
     if (showMaker) StampMakerDialog(theme, onDismiss = { showMaker = false }) { stamp = "img:${it.id}" }
     if (showShop) PointsDialog(theme) { showShop = false }
 
