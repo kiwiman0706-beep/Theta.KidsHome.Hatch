@@ -29,10 +29,11 @@ object SheetSync {
     val CATEGORIES = listOf("なまえ", "えもじ", "みせる", "どうが")
     val APPS = listOf("アプリ名", "パッケージ", "カテゴリー")
     val SETTINGS = listOf("こうもく", "あたい")
+    val SONGS = listOf("なまえ", "ドレミ")
     val TIMETABLE = listOf("こども", "ようび", "1", "2", "3", "4", "5", "6", "もちもの")
     val sheets = linkedMapOf(
         "こども" to CHILDREN, "ボタン" to BUTTONS, "カテゴリー" to CATEGORIES, "アプリ" to APPS, "せってい" to SETTINGS,
-        "じかんわり" to TIMETABLE,
+        "じかんわり" to TIMETABLE, "きょく" to SONGS,
     )
     private val everyone = setOf("ぜんいん", "みんな", "全員", "")
     private val yes = setOf("○", "◯", "はい", "yes", "true", "1", "o", "✓", "✔")
@@ -218,6 +219,12 @@ object SheetSync {
             })
         }
 
+        // 🎹 ピアノ の 曲（シート が ある とき は シート の とおり に）
+        data["きょく"]?.let { rows ->
+            val songs = rows.mapNotNull { r -> r.at(0).takeIf { it.isNotEmpty() && r.at(1).isNotEmpty() }?.let { com.theta.kidshome.media.Song(it, r.at(1)) } }
+            c = c.copy(songs = songs.distinctBy { it.title })
+        }
+
         data["じかんわり"]?.let { rows ->
             c = c.copy(profiles = c.profiles.map { p ->
                 val table = MutableList(6) { emptyList<String>() }
@@ -320,6 +327,7 @@ object SheetSync {
                     listOf(p.name, com.theta.kidshome.ui.SchoolDays[d]) + (0 until 6).map { p.timetable[d].getOrNull(it).orEmpty() } + p.belongings[d]
                 }
             },
+            "きょく" to listOf(SONGS) + config.songs.map { listOf(it.title, it.notes) },
             "せってい" to listOf(
                 SETTINGS,
                 listOf("かけ算", if (config.hardGate) "むずかしい" else "ふつう"),

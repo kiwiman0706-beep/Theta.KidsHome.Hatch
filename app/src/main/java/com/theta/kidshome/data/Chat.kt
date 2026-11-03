@@ -92,6 +92,24 @@ object Chat {
 
     fun markRead() { unread = 0; prefs().edit().putInt("unread", 0).apply() }
 
+    private fun upload(secret: String, body: JSONObject): Boolean = runCatching {
+        val enc = encrypt(secret, body.toString().toByteArray())
+        val con = (URL("${server()}/${topic(secret)}").openConnection() as HttpURLConnection).apply {
+            requestMethod = "PUT"; doOutput = true; connectTimeout = 15_000; readTimeout = 30_000
+            setRequestProperty("Filename", "m.bin"); setRequestProperty("Title", "kh"); setRequestProperty("Content-Type", "application/octet-stream")
+        }
+        con.outputStream.use { it.write(enc) }
+        val code = con.responseCode; con.disconnect(); code in 200..299
+    }.getOrDefault(false)
+
+    /** チャット では ない データ（きょく など）。うけとる と handlers[kind] が よばれる */
+    val handlers = HashMap<String, (JSONObject) -> Unit>()
+
+    suspend fun sendData(kind: String, data: JSONObject): Boolean = withContext(Dispatchers.IO) {
+        if (!on()) return@withContext false
+        upload(secret(), JSONObject().put("v", 1).put("dev", device()).put("kind", kind).put("data", data))
+    }
+
     /** スタンプ（ライブラリ の id）か ことば を おくる */
     suspend fun send(text: String, stampId: String?): Boolean = withContext(Dispatchers.IO) {
         val secret = secret(); if (!on()) return@withContext false
@@ -103,15 +121,7 @@ object Chat {
         }
         val body = JSONObject().put("v", 1).put("from", from).put("dev", device()).put("text", text)
             .put("img", png?.let { android.util.Base64.encodeToString(it, android.util.Base64.NO_WRAP) } ?: "")
-        val enc = encrypt(secret, body.toString().toByteArray())
-        val ok = runCatching {
-            val con = (URL("${server()}/${topic(secret)}").openConnection() as HttpURLConnection).apply {
-                requestMethod = "PUT"; doOutput = true; connectTimeout = 15_000; readTimeout = 30_000
-                setRequestProperty("Filename", "m.bin"); setRequestProperty("Title", "kh"); setRequestProperty("Content-Type", "application/octet-stream")
-            }
-            con.outputStream.use { it.write(enc) }
-            val code = con.responseCode; con.disconnect(); code in 200..299
-        }.getOrDefault(false)
+        val ok = upload(secret, body)
         if (ok) {
             val id = UUID.randomUUID().toString()
             val img = png?.let { "$id.png".also { n -> File(dir(), n).writeBytes(it) } }
@@ -139,6 +149,11 @@ object Chat {
                     val bytes = (URL(url).openConnection() as HttpURLConnection).run { connectTimeout = 15_000; readTimeout = 30_000; inputStream.use { it.readBytes() }.also { disconnect() } }
                     val o = JSONObject(String(decrypt(secret, bytes)))
                     if (o.optString("dev") == device()) return@runCatching
+                    o.optString("kind").takeIf { it.isNotBlank() }?.let { k ->
+                        val d = o.optJSONObject("data")
+                        if (d != null) withContext(Dispatchers.Main) { handlers[k]?.invoke(d) }
+                        return@runCatching
+                    }
                     val id = e.getString("id")
                     val img = o.optString("img").takeIf { it.isNotBlank() }?.let { b64 ->
                         "$id.png".also { n -> File(dir(), n).writeBytes(android.util.Base64.decode(b64, android.util.Base64.DEFAULT)) }

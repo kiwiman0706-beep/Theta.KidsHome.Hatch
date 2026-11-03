@@ -615,6 +615,16 @@ fun SongSection(config: AppConfig) {
                 }
             }
         }
+        Text(
+            if (com.theta.kidshome.data.Chat.on()) "🔄 足した 曲 は「💌 かぞく の チャット」の あいことば が おなじ タブレット に じどう で とどきます（スプレッドシート の「きょく」でも）"
+            else "🔄 ほか の タブレット と そろえる に は「🔗 つなぐ・うつす」→「💌 かぞく の チャット」で あいことば を きめる（または スプレッドシート の「きょく」）",
+            fontSize = 12.sp, color = Color.Gray, modifier = Modifier.padding(top = 6.dp),
+        )
+        if (com.theta.kidshome.data.Chat.on()) Row(verticalAlignment = Alignment.CenterVertically) {
+            val scope = androidx.compose.runtime.rememberCoroutineScope()
+            OutlinedButton(onClick = { com.theta.kidshome.data.SongSync.send(0); scope.launch { com.theta.kidshome.data.Chat.poll() } }) { Text("🔄 いま そろえる") }
+            com.theta.kidshome.data.SongSync.status?.let { Text(it, fontSize = 12.sp, modifier = Modifier.padding(start = 8.dp)) }
+        }
         Spacer(Modifier.height(8.dp))
         Text("曲を足す（ドレミで書く か、🎹 ひいて きろく）", fontWeight = FontWeight.Bold)
         OutlinedTextField(title, { title = it }, singleLine = true, label = { Text("曲の名前") }, modifier = Modifier.fillMaxWidth())

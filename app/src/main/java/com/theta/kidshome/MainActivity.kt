@@ -61,6 +61,7 @@ class MainActivity : ComponentActivity() {
         com.theta.kidshome.data.DollPack.load(this)
         com.theta.kidshome.data.Points.init(this)
         com.theta.kidshome.data.Chat.init(this)
+        com.theta.kidshome.data.SongSync.init(this)
         if (safe) Store.safeMode = true
         enableEdgeToEdge()
         hideSystemBars()
@@ -136,6 +137,9 @@ class MainActivity : ComponentActivity() {
             com.theta.kidshome.ui.EarnNav.open = { k -> screen = when (k) { "moji" -> Screen.MOJI; "kuku" -> Screen.KUKU; else -> Screen.TASU } }
             // 💌 かぞく の チャット：30 びょう ごと に とってくる
             com.theta.kidshome.ui.ChatToast()
+            // 🎹 足した 曲 が かわったら ほか の タブレット へ
+            val songs = Store.config.songs
+            androidx.compose.runtime.LaunchedEffect(songs) { com.theta.kidshome.data.SongSync.localChanged(songs) }
             androidx.compose.runtime.LaunchedEffect(Unit) {
                 while (true) { runCatching { com.theta.kidshome.data.Chat.poll() }; kotlinx.coroutines.delay(30_000) }
             }
