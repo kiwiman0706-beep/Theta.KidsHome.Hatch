@@ -175,17 +175,20 @@ private fun Shoot(theme: KidTheme, four: Boolean, setFour: (Boolean) -> Unit, on
     }
     val tone = remember { runCatching { ToneGenerator(AudioManager.STREAM_MUSIC, 80) }.getOrNull() }
 
-    fun start() {
+    /** now：「はい チーズ」と きこえた とき は 1 まい め を すぐ とる */
+    fun start(now: Boolean = false) {
         val cap = capture ?: return
         if (busy) return
         busy = true; got.clear()
         scope.launch {
             val n = if (four) 4 else 1
             repeat(n) { k ->
-                speak(if (k == 0) "いくよ！" else "つぎ！")
-                for (i in 3 downTo 1) { count = i; tone?.startTone(ToneGenerator.TONE_PROP_BEEP, 120); delay(800) }
-                count = 0; speak("はい、チーズ")
-                delay(350)
+                if (now && k == 0) { delay(150) } else {
+                    speak(if (k == 0) "いくよ！" else "つぎ！")
+                    for (i in 3 downTo 1) { count = i; tone?.startTone(ToneGenerator.TONE_PROP_BEEP, 120); delay(800) }
+                    count = 0; speak("はい、チーズ")
+                    delay(350)
+                }
                 val b = runCatching { cap.shot(context) }.getOrNull()
                 flash = true; tone?.startTone(ToneGenerator.TONE_PROP_ACK, 150); delay(180); flash = false
                 if (b != null) got += b
@@ -195,6 +198,9 @@ private fun Shoot(theme: KidTheme, four: Boolean, setFour: (Boolean) -> Unit, on
             if (got.isNotEmpty()) onDone(got.toList())
         }
     }
+
+    // 🎤「はい チーズ」で シャッター（とって いる あいだ は きかない：じぶん の こえ を ひろわない ため）
+    val heard = CheeseListener(enabled = !busy && capture != null) { start(now = true) }
 
     Row(Modifier.fillMaxSize()) {
         Box(Modifier.fillMaxHeight().aspectRatio(3f / 4f).clip(RoundedCornerShape(20.dp)).border(5.dp, Color(0xFFFF4FA3), RoundedCornerShape(20.dp))) {
@@ -213,6 +219,7 @@ private fun Shoot(theme: KidTheme, four: Boolean, setFour: (Boolean) -> Unit, on
                 DotText("📸 プリクラ", theme, 30, theme.text, modifier = Modifier.padding(start = 10.dp))
             }
             DotText("↑ うえ の カメラ を 見て ね", theme, 18, modifier = Modifier.padding(top = 12.dp))
+            DotText(if (heard) "🎤「はい チーズ！」で も とれるよ" else "🎤 こえ で とる に は マイク を ゆるして ね", theme, 16, if (heard) Color(0xFFFF4FA3) else theme.outline, modifier = Modifier.padding(top = 6.dp))
             Row(Modifier.padding(top = 16.dp)) {
                 RetroButton("1 まい", theme, if (!four) theme.titleBars[1] else Color.White, fontSize = 20, modifier = Modifier.padding(end = 8.dp)) { if (!busy) setFour(false) }
                 RetroButton("4 まい", theme, if (four) theme.titleBars[1] else Color.White, fontSize = 20) { if (!busy) setFour(true) }
@@ -226,6 +233,54 @@ private fun Shoot(theme: KidTheme, four: Boolean, setFour: (Boolean) -> Unit, on
             Spacer(Modifier.weight(1f))
         }
     }
+}
+
+/**
+ * 「チーズ」が きこえたら onCheese。きいて いる あいだ は true を かえす。
+ * Android の 音声認識 を くりかえし つかう（とぎれたら また はじめる）。
+ */
+@Composable
+private fun CheeseListener(enabled: Boolean, onCheese: () -> Unit): Boolean {
+    val context = LocalContext.current
+    var mic by remember { mutableStateOf(context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) }
+    val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { mic = it }
+    LaunchedEffect(Unit) { if (!mic) ask.launch(Manifest.permission.RECORD_AUDIO) }
+    val available = remember { android.speech.SpeechRecognizer.isRecognitionAvailable(context) }
+    val cb = androidx.compose.runtime.rememberUpdatedState(onCheese)
+    var listening by remember { mutableStateOf(false) }
+    DisposableEffect(mic, enabled, available) {
+        if (!mic || !enabled || !available) { listening = false; return@DisposableEffect onDispose { } }
+        val sr = android.speech.SpeechRecognizer.createSpeechRecognizer(context)
+        val intent = Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+            .putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL, android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            .putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE, "ja-JP")
+            .putExtra(android.speech.RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+            .putExtra(android.speech.RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
+        var alive = true; var fired = false
+        val handler = android.os.Handler(android.os.Looper.getMainLooper())
+        fun again() { if (alive && !fired) handler.postDelayed({ if (alive) runCatching { sr.startListening(intent) } }, 300) }
+        fun check(b: android.os.Bundle?): Boolean {
+            val words = b?.getStringArrayList(android.speech.SpeechRecognizer.RESULTS_RECOGNITION).orEmpty()
+            if (!fired && words.any { w -> listOf("チーズ", "ちーず", "cheese", "Cheese").any { it in w } }) {
+                fired = true; runCatching { sr.cancel() }; cb.value(); return true
+            }
+            return false
+        }
+        sr.setRecognitionListener(object : android.speech.RecognitionListener {
+            override fun onReadyForSpeech(params: android.os.Bundle?) { listening = true }
+            override fun onBeginningOfSpeech() {}
+            override fun onRmsChanged(rmsdB: Float) {}
+            override fun onBufferReceived(buffer: ByteArray?) {}
+            override fun onEndOfSpeech() {}
+            override fun onError(error: Int) { again() }
+            override fun onResults(results: android.os.Bundle?) { if (!check(results)) again() }
+            override fun onPartialResults(partialResults: android.os.Bundle?) { check(partialResults) }
+            override fun onEvent(eventType: Int, params: android.os.Bundle?) {}
+        })
+        runCatching { sr.startListening(intent) }
+        onDispose { alive = false; listening = false; handler.removeCallbacksAndMessages(null); runCatching { sr.cancel(); sr.destroy() } }
+    }
+    return mic && available
 }
 
 /** 1 まい とる（かがみ の よう に、むき を なおす） */

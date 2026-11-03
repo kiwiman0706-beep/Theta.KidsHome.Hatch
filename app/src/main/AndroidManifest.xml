@@ -50,6 +50,10 @@
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="https" />
         </intent>
+        <!-- 📸 プリクラ：「はい チーズ」で シャッター（音声認識） -->
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
         <!-- 📸 プリクラ を instax mini Link の アプリ へ わたす -->
         <intent>
             <action android:name="android.intent.action.SEND" />
