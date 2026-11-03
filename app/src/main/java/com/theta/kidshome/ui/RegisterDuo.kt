@@ -100,7 +100,13 @@ fun RegisterDuo(theme: KidTheme, shop: Money.Shop, level: Int, onExit: () -> Uni
             Row(Modifier.fillMaxSize()) {
                 Column(Modifier.weight(1.2f).fillMaxHeight()) {
                     DotText("🧒 おきゃくさん ・ ${shop.emoji} ${shop.name}", theme, 18, theme.text)
-                    if (phase == Phase.SHOP) {
+                    if (phase == Phase.SHOP && pip) {
+                        Column(Modifier.weight(1f).padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("🏷", fontSize = 44.sp)
+                            DotText("🏷 バーコード モード", theme, 18, theme.text)
+                            DotText("おもちゃ を えらんで てんいんさん に わたしてね", theme, 16)
+                        }
+                    } else if (phase == Phase.SHOP) {
                         LazyVerticalGrid(GridCells.Adaptive(84.dp), Modifier.weight(1f)) {
                             items(shop.items) { it ->
                                 Column(
@@ -167,7 +173,7 @@ fun RegisterDuo(theme: KidTheme, shop: Money.Shop, level: Int, onExit: () -> Uni
                         DotText("🧑‍🍳 てんいんさん", theme, 18, theme.text, modifier = Modifier.weight(1f))
                         DotText("⭐ $stars", theme, 16)
                         Spacer(Modifier.width(8.dp))
-                        RetroButton(if (pip) "📷 ON" else "📷", theme, if (pip) Color(0xFFFF8FB1) else Color.White, fontSize = 13, modifier = Modifier.padding(end = 6.dp)) { pip = !pip }
+                        RetroButton("🏷 バーコード", theme, if (pip) Color(0xFFFF8FB1) else Color.White, fontSize = 13, modifier = Modifier.padding(end = 6.dp)) { pip = !pip }
                         RetroButton(if (side) "↕" else "↔", theme, Color.White, fontSize = 13, modifier = Modifier.padding(end = 6.dp)) { side = !side }
                         RetroButton("✖", theme, Color.White, fontSize = 13, onClick = onExit)
                     }

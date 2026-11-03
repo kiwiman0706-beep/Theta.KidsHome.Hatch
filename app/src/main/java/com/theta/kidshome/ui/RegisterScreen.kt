@@ -31,6 +31,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -87,12 +88,14 @@ fun RegisterScreen(onBack: () -> Unit) {
     var duo by remember { mutableStateOf(false) }
 
     fun price(i: Money.Item) = if (i.real) i.price else Money.price(i.price, level)
-    var pip by remember { mutableStateOf(false) }
-    /** QR ラベル を ピッ（カメラ でも 外付け リーダー でも） */
+    /** 🏷 バーコード モード：ほんもの の おもちゃ に はった QR を ピッ（いままで の モード は そのまま） */
+    var barcode by remember { mutableStateOf(false) }
+    /** QR ラベル を ピッ（カメラ でも 外付け リーダー でも）。外付け リーダー で 読んだら バーコード モード に する */
     fun scanned(code: String) {
         val it = com.theta.kidshome.data.ShopItems.decode(code)
         if (it == null) { message = "この QR は しょうひん では ないよ"; return }
-        if (cashier || paying) return
+        if (!barcode) { barcode = true; cashier = false; basket = emptyList(); paying = false; tray = emptyMap(); paid = 0; done = false }
+        if (paying) return
         basket = basket + Money.fromLabel(it); message = "ピッ！ ${it.name} ${it.price}えん"
         speak("${it.name}、${it.price}えん")
     }
@@ -131,16 +134,16 @@ fun RegisterScreen(onBack: () -> Unit) {
             DotText("おみせやさん", theme, 26, theme.text, modifier = Modifier.padding(start = 10.dp))
             Spacer(Modifier.width(10.dp))
             Row(Modifier.weight(1f).horizontalScroll(rememberScrollState())) {
-                shops.forEachIndexed { i, s ->
+                if (!barcode) shops.forEachIndexed { i, s ->
                     RetroButton("${s.emoji} ${s.name}", theme, if (i == shopIdx) theme.titleBars[0] else Color.White, fontSize = 15, modifier = Modifier.padding(end = 6.dp)) {
                         shopIdx = i; if (cashier) nextGuest() else reset()
                     }
                 }
             }
-            RetroButton(if (pip) "📷 ピッ ON" else "📷 ピッ", theme, if (pip) Color(0xFFFF8FB1) else Color.White, fontSize = 15, modifier = Modifier.padding(end = 6.dp)) { pip = !pip }
+            RetroButton("🏷 バーコード", theme, if (barcode) Color(0xFFFF8FB1) else Color.White, fontSize = 15, modifier = Modifier.padding(end = 6.dp)) { barcode = !barcode; cashier = false; reset() }
             RetroButton("👭 ふたりで", theme, theme.titleBars[3], fontSize = 15, modifier = Modifier.padding(end = 6.dp)) { duo = true }
-            RetroButton("🧒 おきゃくさん", theme, if (!cashier) theme.titleBars[1] else Color.White, fontSize = 15, modifier = Modifier.padding(end = 6.dp)) { setMode(false) }
-            RetroButton("🧑‍🍳 おみせのひと", theme, if (cashier) theme.titleBars[1] else Color.White, fontSize = 15) { setMode(true) }
+            RetroButton("🧒 おきゃくさん", theme, if (!cashier) theme.titleBars[1] else Color.White, fontSize = 15, modifier = Modifier.padding(end = 6.dp)) { barcode = false; setMode(false) }
+            RetroButton("🧑‍🍳 おみせのひと", theme, if (cashier) theme.titleBars[1] else Color.White, fontSize = 15) { barcode = false; setMode(true) }
         }
         Row(Modifier.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
             listOf("ぴったり", "おつり", "ぜいこみ").forEachIndexed { i, l ->
@@ -153,8 +156,10 @@ fun RegisterScreen(onBack: () -> Unit) {
         }
         Row(Modifier.weight(1f)) {
             // ---------------- しょうひん（おきゃくさん）／おきゃくさん（おみせのひと）
-            RetroWindow(theme, Modifier.weight(1.15f).fillMaxHeight().padding(end = 8.dp, bottom = 6.dp), title = if (cashier) "おきゃくさん" else "${shop?.name ?: ""} の しょうひん", titleColor = theme.titleBars[3]) {
-                if (!cashier) {
+            RetroWindow(theme, Modifier.weight(1.15f).fillMaxHeight().padding(end = 8.dp, bottom = 6.dp), title = if (cashier) "おきゃくさん" else if (barcode) "🏷 バーコード モード" else "${shop?.name ?: ""} の しょうひん", titleColor = theme.titleBars[3]) {
+                if (barcode) {
+                    BarcodeGuide(theme, basket)
+                } else if (!cashier) {
                     LazyVerticalGrid(GridCells.Adaptive(104.dp), Modifier.padding(6.dp)) {
                         items(shop?.items.orEmpty()) { it ->
                             Column(
@@ -192,7 +197,7 @@ fun RegisterScreen(onBack: () -> Unit) {
                         basket.groupBy { it }.forEach { (it, list) ->
                             LcdLine("${it.emoji} ${it.name}" + if (list.size > 1) " ×${list.size}" else "", "${price(it) * list.size}")
                         }
-                        if (basket.isEmpty()) Text(if (cashier) "" else "しょうひん を おしてね", color = LcdText.copy(alpha = 0.6f), fontSize = 16.sp)
+                        if (basket.isEmpty()) Text(if (cashier) "" else if (barcode) "おもちゃ を ピッ してね" else "しょうひん を おしてね", color = LcdText.copy(alpha = 0.6f), fontSize = 16.sp)
                         if (paying || cashier) {
                             Box(Modifier.fillMaxWidth().padding(vertical = 4.dp).height(2.dp).background(LcdText.copy(alpha = 0.5f)))
                             if (level >= 2) { LcdLine("しょうけい", "$subtotal"); LcdLine("しょうひぜい 10%", "${total - subtotal}") }
@@ -279,11 +284,31 @@ fun RegisterScreen(onBack: () -> Unit) {
             }
         }
     }
-    if (pip) {
+    if (barcode) {
         val ctx = LocalContext.current
         val top = remember { cameraOnTop(ctx) }
         Box(Modifier.align(if (top) Alignment.TopCenter else Alignment.BottomCenter)) { PipWindow(top) { scanned(it) } }
     }
+    }
+}
+
+/** バーコード モード の ひだり：つかいかた と ピッ した もの */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun BarcodeGuide(theme: KidTheme, basket: List<Money.Item>) {
+    val ctx = LocalContext.current
+    val top = remember { cameraOnTop(ctx) }
+    LaunchedEffect(Unit) { com.theta.kidshome.data.ShopItems.load(ctx) }
+    Column(Modifier.fillMaxSize().padding(12.dp).verticalScroll(rememberScrollState()), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text("🏷", fontSize = 60.sp)
+        DotText("おもちゃ の QR を", theme, 20)
+        DotText(if (top) "うえ の カメラ に かざして ピッ！" else "した の カメラ に かざして ピッ！", theme, 20, theme.text)
+        Text("ほんもの の ねだん に ちかい よ。いくら かな？", fontSize = 14.sp, color = theme.outline, modifier = Modifier.padding(top = 6.dp))
+        FlowRow(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.Center) {
+            basket.forEach { PriceTag("${it.name} ${it.price}えん"); Spacer(Modifier.width(4.dp)) }
+        }
+        if (com.theta.kidshome.data.ShopItems.items.isEmpty())
+            Text("まだ ラベル が ないよ（おうちのひと が 親モード で つくれる）", fontSize = 13.sp, color = theme.outline, modifier = Modifier.padding(top = 10.dp))
     }
 }
 
