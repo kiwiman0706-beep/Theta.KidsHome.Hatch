@@ -139,10 +139,8 @@ fun ChatDialog(theme: KidTheme, onDismiss: () -> Unit) {
                     }
                 }
                 Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Row(Modifier.weight(1f).horizontalScroll(rememberScrollState())) {
-                        stamps.forEach { s -> StampThumb(theme, s.id, false, 64.dp) { send(s.id) } }
-                        if (stamps.isEmpty()) DotText("スタンプ は 🪙 の「こうかん」で ふやせるよ", theme, 13)
-                    }
+                    if (stamps.isEmpty()) DotText("スタンプ は 🪙 の「こうかん」で ふやせるよ", theme, 13, modifier = Modifier.weight(1f))
+                    else StampPicker(theme, null, Modifier.weight(1f), 60.dp) { send(it) }
                     RetroButton(if (sending) "…" else "📨 おくる", theme, theme.titleBars[0], fontSize = 17) { send(null) }
                 }
                 DotText("ことば を えらんで スタンプ を おす と いっしょ に おくれるよ", theme, 12, theme.outline.copy(alpha = 0.6f))

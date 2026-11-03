@@ -381,7 +381,7 @@ fun DrawingScreen(onBack: () -> Unit) {
                         val all = remember(com.theta.kidshome.data.StampLibrary.version, com.theta.kidshome.data.Points.version) { com.theta.kidshome.data.StampLibrary.list() }
                         val (mine, locked) = all.partition { com.theta.kidshome.data.StampLibrary.usable(it) }
                         RetroIconButton("➕", theme, size = 56.dp) { showMaker = true }
-                        mine.forEach { item -> StampThumb(theme, item.id, stamp == "img:${item.id}", 64.dp) { stamp = "img:${item.id}" } }
+                        StampPicker(theme, stamp.removePrefix("img:"), Modifier.width(560.dp), 56.dp) { stamp = "img:$it" }
                         locked.forEach { item ->
                             Box(contentAlignment = Alignment.Center) {
                                 Box(Modifier.alpha(0.35f)) { StampThumb(theme, item.id, false, 64.dp) { showShop = true } }

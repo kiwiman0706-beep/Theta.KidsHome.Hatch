@@ -121,9 +121,12 @@ private fun Setup(theme: KidTheme, level: Int, setLevel: (Int) -> Unit, onBack: 
             if (list.size > 1) RetroButton("－", theme, Color.White, fontSize = 22, modifier = Modifier.padding(start = 6.dp)) { list.removeAt(list.size - 1); editing = 0 }
         }
         DotText("${list[editing.coerceAtMost(list.size - 1)].name} の コマ", theme, 16, modifier = Modifier.padding(top = 10.dp))
+        run {
+            val e = editing.coerceAtMost(list.size - 1)
+            StampPicker(theme, list[e].piece.removePrefix("img:"), Modifier.fillMaxWidth(), 60.dp) { list[e] = list[e].copy(piece = "img:$it") }
+        }
         Row(Modifier.horizontalScroll(rememberScrollState()).padding(vertical = 4.dp)) {
             val e = editing.coerceAtMost(list.size - 1)
-            mine.forEach { s -> Box(Modifier.padding(4.dp).clickable { list[e] = list[e].copy(piece = "img:${s.id}") }) { Piece("img:${s.id}", 60.dp) } }
             PIECE_EMOJI.forEach { em -> Box(Modifier.padding(4.dp).clickable { list[e] = list[e].copy(piece = em) }) { Piece(em, 60.dp) } }
         }
         DotText("❓ マス の もんだい", theme, 16, modifier = Modifier.padding(top = 6.dp))

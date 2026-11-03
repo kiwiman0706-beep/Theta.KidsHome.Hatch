@@ -377,8 +377,8 @@ private fun Decorate(theme: KidTheme, shots: List<Bitmap>, four: Boolean, onReta
             if (tool == "pen") Row(Modifier.padding(top = 4.dp)) {
                 PENS.forEach { c -> Box(Modifier.padding(3.dp).size(38.dp).clip(CircleShape).background(Color(c)).border(if (pen == c) 4.dp else 2.dp, theme.outline, CircleShape).clickable { pen = c }) }
             } else {
+                StampPicker(theme, piece.removePrefix("img:"), Modifier.fillMaxWidth(), 52.dp) { piece = "img:$it" }
                 Row(Modifier.padding(top = 4.dp).horizontalScroll(rememberScrollState())) {
-                    mine.forEach { s -> StampThumb(theme, s.id, piece == "img:${s.id}", 52.dp) { piece = "img:${s.id}" } }
                     EMOJI.forEach { e -> RetroIconButton(e, theme, piece == e, 48.dp) { piece = e } }
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {

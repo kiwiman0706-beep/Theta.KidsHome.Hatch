@@ -21,7 +21,7 @@ import java.util.zip.ZipOutputStream
 import kotlin.math.abs
 
 /** スタンプ・シール 1 まい（すけた PNG） */
-data class StampItem(val id: String, val name: String, val created: Long, val price: Int = 0) {
+data class StampItem(val id: String, val name: String, val created: Long, val price: Int = 0, val set: String = "") {
     /** ごほうび（ポイント で こうかん する まで つかえない） */
     val reward get() = price > 0
 }
@@ -56,8 +56,20 @@ object StampLibrary {
         version++
     }
 
+    /** パック を いれた・かった とき の 合図 */
+    fun touch() { version++ }
+
+    /** スタンプ パック（セット）の もの。id は「pk:セット/ファイル」 */
+    fun packItems(): List<StampItem> = StampPack.sets.flatMap { s -> s.items.map { f -> StampItem("pk:${s.id}/$f", s.name, 0L, 0, s.id) } }
+
     fun bitmap(id: String): Bitmap? {
         cache.get(id)?.let { return it }
+        if (id.startsWith("pk:")) {
+            val (set, item) = id.removePrefix("pk:").split('/', limit = 2).let { it[0] to it.getOrElse(1) { "" } }
+            val f = StampPack.file(app, set, item)
+            if (!f.exists()) return null
+            return BitmapFactory.decodeFile(f.path)?.also { cache.put(id, it) }
+        }
         val f = File(dir(), "$id.png")
         if (!f.exists()) return null
         return BitmapFactory.decodeFile(f.path)?.also { cache.put(id, it) }
@@ -75,9 +87,10 @@ object StampLibrary {
     private fun ownPrefs() = app.getSharedPreferences("stamps", Context.MODE_PRIVATE)
     private fun owned(profile: String) = ownPrefs().getStringSet("own:$profile", emptySet()).orEmpty()
     /** この 子 が つかえる か（ふつう の シール は いつも、ごほうび は こうかん した もの だけ） */
-    fun usable(s: StampItem, profile: String = Store.config.currentProfileId) = !s.reward || s.id in owned(profile)
-    /** この 子 が つかえる シール */
-    fun mine(profile: String = Store.config.currentProfileId) = list().filter { usable(it, profile) }
+    fun usable(s: StampItem, profile: String = Store.config.currentProfileId) =
+        if (s.set.isNotEmpty()) StampPack.usable(app, s.set, profile) else !s.reward || s.id in owned(profile)
+    /** この 子 が つかえる シール（じぶん の ＋ こうかん した セット） */
+    fun mine(profile: String = Store.config.currentProfileId) = list().filter { usable(it, profile) } + packItems().filter { usable(it, profile) }
     /** 🪙 で こうかん */
     fun buy(s: StampItem, profile: String = Store.config.currentProfileId): Boolean {
         if (usable(s, profile)) return true

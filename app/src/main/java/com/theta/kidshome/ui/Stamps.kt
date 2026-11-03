@@ -185,6 +185,38 @@ fun StampThumb(theme: KidTheme, id: String, selected: Boolean, size: androidx.co
     ) { if (img != null) Image(img, null, Modifier.fillMaxSize().padding(4.dp), contentScale = ContentScale.Fit) }
 }
 
+/**
+ * スタンプ を えらぶ：うえ の だん で なかま（🖐 じぶん の・こうかん した セット）、した の だん に その スタンプ。
+ * よこ スクロール の 中 でも つかえる よう に、modifier で はば を きめて ね。
+ */
+@Composable
+fun StampPicker(theme: KidTheme, selected: String?, modifier: Modifier, size: androidx.compose.ui.unit.Dp = 56.dp, onPick: (String) -> Unit) {
+    val all = remember(StampLibrary.version, com.theta.kidshome.data.StampPack.version, com.theta.kidshome.data.Points.version) { StampLibrary.mine() }
+    val groups = remember(all) { all.map { it.set }.distinct().sortedBy { if (it.isEmpty()) "" else "z$it" } }
+    var group by remember(groups) { mutableStateOf(selected?.let { id -> all.firstOrNull { it.id == id }?.set } ?: groups.firstOrNull() ?: "") }
+    val items = remember(all, group) { all.filter { it.set == group } }
+    Column(modifier) {
+        if (groups.size > 1) androidx.compose.foundation.lazy.LazyRow {
+            items(groups.size) { i ->
+                val g = groups[i]
+                val first = all.firstOrNull { it.set == g }
+                Box(
+                    Modifier.padding(3.dp).height(40.dp).clip(RoundedCornerShape(12.dp))
+                        .background(if (g == group) theme.titleBars[1] else Color.White)
+                        .border(2.dp, theme.outline, RoundedCornerShape(12.dp)).clickable { group = g }.padding(horizontal = 6.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (g.isEmpty()) Text("🖐 じぶん", fontSize = 14.sp, color = theme.outline)
+                    else first?.let { f -> val img = remember(f.id) { StampLibrary.bitmap(f.id)?.asImageBitmap() }; if (img != null) Image(img, f.set, Modifier.size(32.dp)) }
+                }
+            }
+        }
+        androidx.compose.foundation.lazy.LazyRow {
+            items(items.size) { i -> val it = items[i]; StampThumb(theme, it.id, selected == it.id || selected == "img:${it.id}", size) { onPick(it.id) } }
+        }
+    }
+}
+
 /** ホームに シールを うかべる（いまの子） */
 fun floatOnHome(id: String) = Store.addSticker(Sticker(stamp = id))
 
@@ -335,3 +367,39 @@ private fun loadImage(context: Context, uri: Uri): Bitmap? = runCatching {
         if (s < 1f) d.setTargetSize((info.size.width * s).toInt(), (info.size.height * s).toInt())
     }
 }.getOrNull()
+
+// ---------------------------------------------------------------- 🌟 スタンプ パック（おやモード）
+
+@Composable
+fun StampPackSection() {
+    val context = LocalContext.current
+    val v = com.theta.kidshome.data.StampPack.version
+    val sets = com.theta.kidshome.data.StampPack.sets
+    val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> if (uri != null) com.theta.kidshome.data.StampPack.importZip(context, uri) }
+    Section("🌟 スタンプ パック（非公開）") {
+        Text(
+            "購入 した スタンプ を、非公開 リポジトリ の Release（stamp-pack.zip）から とってきます（ガイド役・きせかえ と おなじ トークン）。" +
+                "セット ごと に 🪙 ポイント で こうかん（0 なら はじめ から つかえる）。家 の 中 だけ で つかって ください。",
+            fontSize = 13.sp,
+        )
+        FlowRow8 {
+            Button(enabled = !com.theta.kidshome.data.StampPack.busy, onClick = { com.theta.kidshome.data.StampPack.update(context) }) { Text("📥 とってくる") }
+            OutlinedButton(onClick = { pick.launch(arrayOf("application/zip", "application/octet-stream")) }) { Text("zip から") }
+            if (sets.isNotEmpty()) TextButton(onClick = { com.theta.kidshome.data.StampPack.remove(context) }) { Text("はずす", color = Color(0xFFD03B5C)) }
+        }
+        com.theta.kidshome.data.StampPack.status?.let { Text(it, fontSize = 13.sp) }
+        if (sets.isNotEmpty()) {
+            Text("${sets.size} セット・${sets.sumOf { it.items.size }} まい（${com.theta.kidshome.data.StampPack.installedTag(context)}）", fontSize = 13.sp)
+            sets.forEach { s ->
+                val price = remember(v) { com.theta.kidshome.data.StampPack.price(context, s) }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    StampThumb(themeById(Store.config.currentProfile.themeId), "pk:${s.id}/${s.items.firstOrNull().orEmpty()}", false, 40.dp) {}
+                    Text(s.name, fontSize = 13.sp, maxLines = 1, modifier = Modifier.weight(1f))
+                    listOf(0, 10, 30, 50).forEach { p ->
+                        FilterChip(price == p, { com.theta.kidshome.data.StampPack.setPrice(context, s, p) }, label = { Text(if (p == 0) "むりょう" else "🪙$p") }, modifier = Modifier.padding(start = 4.dp))
+                    }
+                }
+            }
+        }
+    }
+}

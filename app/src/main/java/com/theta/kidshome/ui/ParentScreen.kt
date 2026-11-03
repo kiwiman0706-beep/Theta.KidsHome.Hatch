@@ -255,6 +255,8 @@ private fun SettingsTab(modifier: Modifier) {
 
         StampLibrarySection(config)
 
+        StampPackSection()
+
         ShopLabelSection()
 
         }

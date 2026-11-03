@@ -131,6 +131,7 @@ fun PointsDialog(theme: KidTheme, onDismiss: () -> Unit) {
     val fmt = remember { SimpleDateFormat("M/d H:mm", Locale.JAPAN) }
     var tab by remember { mutableIntStateOf(0) }
     var buy by remember { mutableStateOf<com.theta.kidshome.data.StampItem?>(null) }
+    var buySet by remember { mutableStateOf<com.theta.kidshome.data.StampPack.Set?>(null) }
 
     fun onCode(code: String) {
         val b = Points.decodeBill(code)
@@ -177,8 +178,19 @@ fun PointsDialog(theme: KidTheme, onDismiss: () -> Unit) {
                     }
                     if (tab == 0) {
                         val stamps = remember(v, com.theta.kidshome.data.StampLibrary.version) { com.theta.kidshome.data.StampLibrary.list().filter { it.reward } }
-                        if (stamps.isEmpty()) DotText("まだ ごほうび スタンプ は ないよ", theme, 14, modifier = Modifier.padding(top = 10.dp))
+                        val packSets = remember(v, com.theta.kidshome.data.StampPack.version) { com.theta.kidshome.data.StampPack.sets }
+                        if (stamps.isEmpty() && packSets.isEmpty()) DotText("まだ ごほうび スタンプ は ないよ", theme, 14, modifier = Modifier.padding(top = 10.dp))
                         androidx.compose.foundation.lazy.grid.LazyVerticalGrid(androidx.compose.foundation.lazy.grid.GridCells.Adaptive(96.dp), Modifier.fillMaxSize().padding(top = 6.dp)) {
+                            // 🌟 スタンプ セット（まるごと）
+                            items(packSets.size, span = { androidx.compose.foundation.lazy.grid.GridItemSpan(2) }) { i ->
+                                val set = packSets[i]
+                                val own = com.theta.kidshome.data.StampPack.usable(context, set.id)
+                                Column(Modifier.padding(3.dp).clip(RoundedCornerShape(10.dp)).background(if (own) Color(0xFFE6F7E6) else Color(0xFFFFF6E0)).clickable { if (!own) buySet = set }.padding(4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Row { set.items.take(4).forEach { f -> StampThumb(theme, "pk:${set.id}/$f", false, 44.dp) { if (!own) buySet = set } } }
+                                    Text(set.name, fontSize = 12.sp, maxLines = 1)
+                                    Text(if (own) "✅ つかえる（${set.items.size}）" else "🪙 ${com.theta.kidshome.data.StampPack.price(context, set)}　${set.items.size} こ", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
                             items(stamps.size) { i ->
                                 val st = stamps[i]
                                 val own = com.theta.kidshome.data.StampLibrary.usable(st)
@@ -210,6 +222,21 @@ fun PointsDialog(theme: KidTheme, onDismiss: () -> Unit) {
             text = { Text(if (bal >= st.price) "「${st.name}」が つかえる よう に なるよ（いま ${bal}）" else "ポイント が たりないよ（いま ${bal}、あと ${st.price - bal}）") },
             confirmButton = { if (bal < st.price) EarnButtons(theme) { buy = null; onDismiss() } else TextButton(onClick = { if (com.theta.kidshome.data.StampLibrary.buy(st)) msg = "🎉 「${st.name}」を ゲット！"; buy = null }) { Text("こうかん！") } },
             dismissButton = { TextButton(onClick = { buy = null }) { Text("やめる") } },
+        )
+    }
+    buySet?.let { set ->
+        val price = com.theta.kidshome.data.StampPack.price(context, set)
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { buySet = null },
+            title = { Text("🪙 $price ポイント で「${set.name}」を こうかん する？") },
+            text = {
+                Column {
+                    Row { set.items.take(6).forEach { f -> StampThumb(theme, "pk:${set.id}/$f", false, 52.dp) {} } }
+                    Text(if (bal >= price) "${set.items.size} こ の スタンプ が ぜんぶ つかえる よう に なるよ（いま ${bal}）" else "ポイント が たりないよ（いま ${bal}、あと ${price - bal}）")
+                }
+            },
+            confirmButton = { if (bal < price) EarnButtons(theme) { buySet = null; onDismiss() } else TextButton(onClick = { if (com.theta.kidshome.data.StampPack.buy(context, set)) msg = "🎉「${set.name}」を ゲット！"; buySet = null }) { Text("こうかん！") } },
+            dismissButton = { TextButton(onClick = { buySet = null }) { Text("やめる") } },
         )
     }
     if (gate) ParentGate(
