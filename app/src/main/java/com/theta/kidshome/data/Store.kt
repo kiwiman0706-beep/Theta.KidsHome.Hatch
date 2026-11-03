@@ -97,6 +97,10 @@ object Store {
             }
             prefs.edit().putBoolean("added:tasu", true).apply()
         }
+        if (!prefs.getBoolean("added:sugoroku", false)) {
+            update { c -> c.copy(profiles = c.profiles.map { p -> if (p.tiles.any { it.type == TileType.SUGOROKU }) p else p.copy(tiles = p.tiles + AppConfig.sugorokuTile()) }) }
+            prefs.edit().putBoolean("added:sugoroku", true).apply()
+        }
         if (!prefs.getBoolean("added:touch", false)) {
             update { c -> c.copy(profiles = c.profiles.map { p -> if (p.tiles.any { it.type == TileType.TOUCH }) p else p.copy(tiles = p.tiles + AppConfig.touchTile()) }) }
             prefs.edit().putBoolean("added:touch", true).apply()

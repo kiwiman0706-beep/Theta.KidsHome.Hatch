@@ -28,6 +28,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -102,6 +104,7 @@ fun JapanPuzzleScreen(onBack: () -> Unit) {
     // ひらがな が さいしょ（えらんだ ほう を おぼえる）
     val kanaPrefs = androidx.compose.ui.platform.LocalContext.current.getSharedPreferences("japan", android.content.Context.MODE_PRIVATE)
     var kana by remember { mutableStateOf(kanaPrefs.getBoolean("kana", true)) }
+    var yuruBook by remember { mutableStateOf(false) }
     val memory = mode == -2
     val visited = remember(JapanPhotos.version) { JapanPhotos.visited(context) }
     val targets = remember(mode) { if (mode < 0) (1..47).toList() else Japan.REGIONS[mode].codes.toList() }
@@ -113,6 +116,7 @@ fun JapanPuzzleScreen(onBack: () -> Unit) {
     fun start(m: Int) { mode = m; placed = emptySet(); info = null }
 
     Column(Modifier.fillMaxSize().background(theme.bgBottom).windowInsetsPadding(WindowInsets.safeDrawing).padding(14.dp)) {
+        if (yuruBook) YuruBook(theme, kana) { yuruBook = false }
         Row(verticalAlignment = Alignment.CenterVertically) {
             RetroIconButton("🏠", theme, onClick = onBack)
             DotText("にっぽん パズル", theme, 28, theme.text, modifier = Modifier.padding(start = 10.dp))
@@ -125,6 +129,7 @@ fun JapanPuzzleScreen(onBack: () -> Unit) {
                 }
             }
             DotText(if (memory) "いった ところ ${visited.size}" else "${targets.count { it in placed }} / ${targets.size}", theme, 18, theme.text, modifier = Modifier.padding(horizontal = 8.dp))
+            RetroButton("🧸", theme, Color.White, fontSize = 15, modifier = Modifier.padding(end = 6.dp)) { yuruBook = true }
             RetroButton(if (kana) "あ ひらがな" else "漢 かんじ", theme, if (kana) theme.titleBars[2] else Color.White, fontSize = 15, modifier = Modifier.padding(end = 6.dp)) { kana = !kana; kanaPrefs.edit().putBoolean("kana", kana).apply() }
             RetroButton(if (names) "🏷 なまえ" else "🙈 なまえ", theme, if (names) theme.titleBars[1] else Color.White, fontSize = 15) { names = !names }
         }
@@ -378,7 +383,7 @@ private fun DrawScope.label(text: String, at: Offset, size: Float, color: Color)
 @Composable
 private fun InfoCard(p: Japan.Pref, color: Color, theme: KidTheme, kana: Boolean, modifier: Modifier, onClose: () -> Unit) {
     RetroWindow(theme, modifier.width(400.dp), title = Japan.REGIONS[p.region].name + " ちほう", titleColor = color, onClick = onClose) {
-        Column(Modifier.padding(14.dp)) {
+        Column(Modifier.padding(14.dp).verticalScroll(rememberScrollState())) {
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(if (kana) p.kana else p.name, fontSize = 34.sp, fontWeight = FontWeight.Bold, color = theme.outline)
                 if (!kana) Text("（${p.kana}）", fontSize = 18.sp, color = theme.outline.copy(alpha = 0.75f), modifier = Modifier.padding(start = 4.dp, bottom = 4.dp))
@@ -393,8 +398,42 @@ private fun InfoCard(p: Japan.Pref, color: Color, theme: KidTheme, kana: Boolean
                 }
             }
             Text(p.about, fontSize = 17.sp, color = theme.outline, lineHeight = 24.sp)
+            com.theta.kidshome.data.Yuru.of(LocalContext.current, p.code).forEach { y -> YuruBox(y, theme, kana) }
             Photos(p, theme)
             Text("（タップ で とじる）", fontSize = 12.sp, color = theme.outline.copy(alpha = 0.5f), modifier = Modifier.padding(top = 6.dp))
+        }
+    }
+}
+
+/** ゆるキャラ の しょうかい（絵 は 入れない。モチーフ の 絵文字 と おはなし） */
+@Composable
+internal fun YuruBox(y: com.theta.kidshome.data.Yuru.Chara, theme: KidTheme, kana: Boolean) {
+    Column(Modifier.padding(top = 10.dp).fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color(0xFFFFF4D6)).padding(10.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(y.emoji, fontSize = 34.sp)
+            Column(Modifier.padding(start = 8.dp)) {
+                Text("🧸 ゆるキャラ：" + if (kana) y.kana else y.name, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = theme.outline)
+                Text(y.who, fontSize = 13.sp, color = theme.outline.copy(alpha = 0.7f))
+            }
+        }
+        Text(y.story, fontSize = 15.sp, color = theme.outline, lineHeight = 22.sp, modifier = Modifier.padding(top = 4.dp))
+    }
+}
+
+/** 🧸 ゆるキャラ ずかん：ぜんぶ を ならべて 見る */
+@Composable
+private fun YuruBook(theme: KidTheme, kana: Boolean, onClose: () -> Unit) {
+    val list = com.theta.kidshome.data.Yuru.all(LocalContext.current)
+    Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        RetroWindow(theme, Modifier.width(760.dp).fillMaxHeight(0.92f), title = "🧸 ゆるキャラ ずかん（${list.size}）", titleColor = theme.titleBars[1], onClick = null) {
+            Column(Modifier.fillMaxSize().padding(12.dp).verticalScroll(rememberScrollState())) {
+                Text("けん や まち を しょうかい する キャラクター。ほんもの の 絵 は おうちのひと と しらべて みよう！", fontSize = 14.sp, color = theme.outline)
+                list.forEach { y ->
+                    Text(Japan.pref(y.pref).let { if (kana) it.kana else it.name }, fontSize = 13.sp, color = theme.outline.copy(alpha = 0.6f), modifier = Modifier.padding(top = 8.dp))
+                    YuruBox(y, theme, kana)
+                }
+                RetroButton("とじる", theme, Color.White, fontSize = 16, modifier = Modifier.padding(top = 10.dp)) { onClose() }
+            }
         }
     }
 }

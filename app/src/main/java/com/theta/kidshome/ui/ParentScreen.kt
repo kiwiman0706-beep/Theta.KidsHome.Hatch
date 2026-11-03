@@ -527,6 +527,9 @@ private fun ProfileEditor(profile: Profile, canDelete: Boolean, onDelete: () -> 
         if (profile.tiles.none { it.type == TileType.DICT }) {
             OutlinedButton(onClick = { Store.addTiles(profile.id, listOf(AppConfig.dictTile())) }) { Text("📖 じしょ を追加") }
         }
+        if (profile.tiles.none { it.type == TileType.SUGOROKU }) {
+            OutlinedButton(onClick = { Store.addTiles(profile.id, listOf(AppConfig.sugorokuTile())) }) { Text("🎲 すごろく を追加") }
+        }
         if (profile.tiles.none { it.type == TileType.TOUCH }) {
             OutlinedButton(onClick = { Store.addTiles(profile.id, listOf(AppConfig.touchTile())) }) { Text("👆 タッチ で あそぼ を追加") }
         }
@@ -660,6 +663,7 @@ private fun TileRow(tile: Tile, onUp: (() -> Unit)?, onDown: (() -> Unit)?, onEd
                     TileType.REGISTER -> add("おみせやさん（内蔵）")
                     TileType.CODING -> add("うごかして ゴール（プログラミング、内蔵）")
                     TileType.TOUCH -> add("タッチ で あそぼ（内蔵）")
+                    TileType.SUGOROKU -> add("すごろく（内蔵）")
                 }
                 if (tile.isVideo) add("🔒ロック対象")
                 if (missing) add("⚠️ アプリが見つかりません")
