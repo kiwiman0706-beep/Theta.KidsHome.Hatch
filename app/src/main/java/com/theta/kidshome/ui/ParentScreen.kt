@@ -18,6 +18,7 @@ import com.theta.kidshome.data.Categories
 import com.theta.kidshome.data.InstalledApp
 import androidx.compose.material3.Switch
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.ui.text.style.TextAlign
 import com.theta.kidshome.R
 import com.theta.kidshome.rescue.Rescue
@@ -165,44 +166,21 @@ private fun SettingsTab(modifier: Modifier) {
     val profile = config.profiles.firstOrNull { it.id == editingProfileId } ?: config.profiles.first()
     val context = LocalContext.current
 
-    Column(modifier.verticalScroll(rememberScrollState()).widthIn(max = 900.dp)) {
+    val groups = listOf("👧" to "こども・ホーム", "⏰" to "せいげん・あんしん", "🪙" to "ごほうび・あそび", "🎬" to "どうが・おんがく・じしょ", "🔗" to "つなぐ・うつす", "🔧" to "キー・アップデート")
+    var group by remember { mutableIntStateOf(0) }
+    Row(modifier) {
+        // ひだり：なかま わけ
+        Column(Modifier.width(220.dp).fillMaxHeight().verticalScroll(rememberScrollState()).padding(end = 12.dp)) {
+            groups.forEachIndexed { k, (e, n) ->
+                FilterChip(selected = group == k, onClick = { group = k }, label = { Text("$e $n", fontSize = 16.sp) }, modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp))
+            }
+        }
+        Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()).widthIn(max = 900.dp)) {
+        when (group) {
+        0 -> {
         DefaultHomeSection()
 
         ThisTabletSection(config)
-
-        UpdateSection(config)
-
-        QrSection(config)
-
-        SheetSection(config)
-
-        MediaSection(config)
-
-        SongSection(config)
-
-        MojiExportSection(config)
-
-        HatchSection()
-
-        GeminiSection()
-
-        GuideSection()
-
-        DollSection()
-
-        ShopLabelSection()
-
-        PointsSection(config)
-
-        ChatSection()
-
-        DictSection(config)
-
-        StampLibrarySection(config)
-
-        CategorySection(config)
-
-        VideoLockSection(config)
 
         Section("👧 こどもごとの設定") {
             ProfileTabs(config, profile.id) { editingProfileId = it }
@@ -219,13 +197,15 @@ private fun SettingsTab(modifier: Modifier) {
             }
         }
 
-        RemoteSection(config)
+        CategorySection(config)
+
+        WidgetSection(config)
 
         WeatherSection(config)
 
-        MusicSection(config)
-
-        WidgetSection(config)
+        }
+        1 -> {
+        VideoLockSection(config)
 
         Section("🔑 おうちのひと かくにん") {
             Text("⚙️ を2秒ながおし → かけ算 に答えると、このメニューに入れます。", fontSize = 14.sp)
@@ -235,18 +215,7 @@ private fun SettingsTab(modifier: Modifier) {
                 FilterChip(selected = config.hardGate, onClick = { Store.update { it.copy(hardGate = true) } }, label = { Text("むずかしい（23 × 47）") })
             }
             Text("お子さんが九九を覚えたら「むずかしい」に。", fontSize = 13.sp, color = Color.Gray, modifier = Modifier.padding(top = 8.dp))
-        }
-
-        Section("📱 おやモード（おや の スマホ 用）") {
-            Text(
-                "この アプリ を おや の スマホ に 入れた とき は、おやモード に すると、つないだ 子ども の タブレット に " +
-                    "メッセージ・どうが の おやすみ・曲・せってい を おくれます（子ども の タブレット では つかいません）。",
-                fontSize = 14.sp,
-            )
-            OutlinedButton(onClick = {
-                com.theta.kidshome.remote.Family.setParent(context, true)
-                (context as? android.app.Activity)?.recreate()
-            }) { Text("📱 この スマホ を おやモード に") }
+            Text("暗証番号 に する こと も できます（「🪙 ごほうび・あそび」→ ポイント の 🔑 暗証番号）。", fontSize = 13.sp, color = Color.Gray)
         }
 
         Section("🛟 もしものとき（レスキュー）") {
@@ -272,6 +241,65 @@ private fun SettingsTab(modifier: Modifier) {
                 "ヒント: Netflix や Prime Video で作品を開き「共有」→「キッズホームに登録」を選ぶと、そのままお気に入り登録できます。",
                 fontSize = 13.sp, color = Color.Gray, modifier = Modifier.padding(top = 12.dp),
             )
+        }
+
+        }
+        2 -> {
+        PointsSection(config)
+
+        DollSection()
+
+        GuideSection()
+
+        StampLibrarySection(config)
+
+        ShopLabelSection()
+
+        }
+        3 -> {
+        MediaSection(config)
+
+        SongSection(config)
+
+        MusicSection(config)
+
+        DictSection(config)
+
+        MojiExportSection(config)
+
+        }
+        4 -> {
+        SettingsTransferSection()
+        QrSection(config)
+
+        SheetSection(config)
+
+        ChatSection()
+
+        RemoteSection(config)
+
+        Section("📱 おやモード（おや の スマホ 用）") {
+            Text(
+                "この アプリ を おや の スマホ に 入れた とき は、おやモード に すると、つないだ 子ども の タブレット に " +
+                    "メッセージ・どうが の おやすみ・曲・せってい を おくれます（子ども の タブレット では つかいません）。",
+                fontSize = 14.sp,
+            )
+            OutlinedButton(onClick = {
+                com.theta.kidshome.remote.Family.setParent(context, true)
+                (context as? android.app.Activity)?.recreate()
+            }) { Text("📱 この スマホ を おやモード に") }
+        }
+
+        }
+        5 -> {
+        GeminiSection()
+
+        UpdateSection(config)
+
+        HatchSection()
+
+        }
+        }
         }
     }
 }
