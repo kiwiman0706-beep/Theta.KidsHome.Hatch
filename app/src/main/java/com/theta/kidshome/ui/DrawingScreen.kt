@@ -63,6 +63,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -126,6 +127,7 @@ fun DrawingScreen(onBack: () -> Unit) {
 
     var brush by remember { mutableStateOf(Brush.CRAYON) }
     var stampMode by remember { mutableStateOf(false) }
+    var showShop by remember { mutableStateOf(false) }
     var color by remember { mutableStateOf(palette[2]) }
     var widthIndex by remember { mutableIntStateOf(1) }
     // えもじ か "img:<ライブラリの id>"
@@ -320,6 +322,21 @@ fun DrawingScreen(onBack: () -> Unit) {
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     if (stampMode) {
+                        // じぶん の スタンプ を さき に 大きく（ごほうび の まだ の もの は 🔒、おす と こうかん）
+                        val all = remember(com.theta.kidshome.data.StampLibrary.version, com.theta.kidshome.data.Points.version) { com.theta.kidshome.data.StampLibrary.list() }
+                        val (mine, locked) = all.partition { com.theta.kidshome.data.StampLibrary.usable(it) }
+                        RetroIconButton("➕", theme, size = 56.dp) { showMaker = true }
+                        mine.forEach { item -> StampThumb(theme, item.id, stamp == "img:${item.id}", 64.dp) { stamp = "img:${item.id}" } }
+                        locked.forEach { item ->
+                            Box(contentAlignment = Alignment.Center) {
+                                Box(Modifier.alpha(0.35f)) { StampThumb(theme, item.id, false, 64.dp) { showShop = true } }
+                                Text("🔒", fontSize = 20.sp)
+                            }
+                        }
+                        RetroButton("🎁 もっと", theme, theme.titleBars[1], fontSize = 15, modifier = Modifier.padding(horizontal = 6.dp)) { showShop = true }
+                        Spacer(Modifier.width(6.dp))
+                        stamps.forEach { s -> RetroIconButton(s, theme, stamp == s, 50.dp) { stamp = s } }
+                        Spacer(Modifier.width(10.dp))
                         // かたむき：↺ ↻ で 30 ど ずつ、🎲 で おす たび ばらばら
                         RetroIconButton("↺", theme, size = 50.dp) { stampRandom = false; stampRot = (stampRot - 30f + 360f) % 360f }
                         Box(Modifier.size(56.dp), contentAlignment = Alignment.Center) {
@@ -328,18 +345,12 @@ fun DrawingScreen(onBack: () -> Unit) {
                         }
                         RetroIconButton("↻", theme, size = 50.dp) { stampRandom = false; stampRot = (stampRot + 30f) % 360f }
                         RetroIconButton("🎲", theme, stampRandom, 50.dp) { stampRandom = !stampRandom }
-                        Spacer(Modifier.width(10.dp))
-                        RetroIconButton("➕", theme, size = 50.dp) { showMaker = true }
-                        val lib = remember(com.theta.kidshome.data.StampLibrary.version) { com.theta.kidshome.data.StampLibrary.mine() }
-                        lib.forEach { item -> StampThumb(theme, item.id, stamp == "img:${item.id}") { stamp = "img:${item.id}" } }
                         if (stamp.startsWith("img:")) {
                             RetroIconButton("🏠", theme, size = 50.dp) {
                                 floatOnHome(stamp.removePrefix("img:"))
                                 Toast.makeText(context, "ホームに うかべたよ！", Toast.LENGTH_SHORT).show()
                             }
                         }
-                        Spacer(Modifier.width(10.dp))
-                        stamps.forEach { s -> RetroIconButton(s, theme, stamp == s, 50.dp) { stamp = s } }
                     } else if (brush == Brush.FINGER) {
                         DotText("☝️ ゆびで さわった いろを のばすよ", theme, 18)
                     } else {
@@ -398,6 +409,7 @@ fun DrawingScreen(onBack: () -> Unit) {
     }
 
     if (showMaker) StampMakerDialog(theme, onDismiss = { showMaker = false }) { stamp = "img:${it.id}" }
+    if (showShop) PointsDialog(theme) { showShop = false }
 
     if (showMagic) {
         Dialog(onDismissRequest = { showMagic = false }) {
