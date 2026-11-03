@@ -99,7 +99,9 @@ fun JapanPuzzleScreen(onBack: () -> Unit) {
     var info by remember { mutableStateOf<Int?>(null) }
     var names by remember { mutableStateOf(false) }
     // ひらがな で 出す（まだ 漢字 が よめない とき）
-    var kana by remember { mutableStateOf(false) }
+    // ひらがな が さいしょ（えらんだ ほう を おぼえる）
+    val kanaPrefs = androidx.compose.ui.platform.LocalContext.current.getSharedPreferences("japan", android.content.Context.MODE_PRIVATE)
+    var kana by remember { mutableStateOf(kanaPrefs.getBoolean("kana", true)) }
     val memory = mode == -2
     val visited = remember(JapanPhotos.version) { JapanPhotos.visited(context) }
     val targets = remember(mode) { if (mode < 0) (1..47).toList() else Japan.REGIONS[mode].codes.toList() }
@@ -123,7 +125,7 @@ fun JapanPuzzleScreen(onBack: () -> Unit) {
                 }
             }
             DotText(if (memory) "いった ところ ${visited.size}" else "${targets.count { it in placed }} / ${targets.size}", theme, 18, theme.text, modifier = Modifier.padding(horizontal = 8.dp))
-            RetroButton(if (kana) "あ ひらがな" else "漢 かんじ", theme, if (kana) theme.titleBars[2] else Color.White, fontSize = 15, modifier = Modifier.padding(end = 6.dp)) { kana = !kana }
+            RetroButton(if (kana) "あ ひらがな" else "漢 かんじ", theme, if (kana) theme.titleBars[2] else Color.White, fontSize = 15, modifier = Modifier.padding(end = 6.dp)) { kana = !kana; kanaPrefs.edit().putBoolean("kana", kana).apply() }
             RetroButton(if (names) "🏷 なまえ" else "🙈 なまえ", theme, if (names) theme.titleBars[1] else Color.White, fontSize = 15) { names = !names }
         }
         Spacer(Modifier.height(8.dp))
