@@ -65,6 +65,27 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+/** ポイント を ために いく さき（MainActivity が せっと する） */
+object EarnNav {
+    var open: (String) -> Unit = {}
+}
+
+/** のこり と「ために いく」ボタン（ポイント を つかう 画面 に） */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+fun EarnButtons(theme: KidTheme, onGo: () -> Unit = {}) {
+    val v = Points.version
+    val n = remember(v, Store.config.currentProfileId) { Points.balance() }
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        DotText("いま 🪙 $n", theme, 20, theme.text)
+        androidx.compose.foundation.layout.FlowRow(Modifier.padding(top = 4.dp), horizontalArrangement = Arrangement.Center, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            RetroButton("✏️ 字 を かいて ためる", theme, theme.titleBars[0], fontSize = 14, modifier = Modifier.padding(end = 6.dp)) { onGo(); EarnNav.open("moji") }
+            RetroButton("➕ たしざん", theme, theme.titleBars[2], fontSize = 14, modifier = Modifier.padding(end = 6.dp)) { onGo(); EarnNav.open("tasu") }
+            RetroButton("✖️ くく", theme, theme.titleBars[3], fontSize = 14) { onGo(); EarnNav.open("kuku") }
+        }
+    }
+}
+
 /** ホーム の みだし に 出す「🪙 123」。タップ で つうちょう */
 @Composable
 fun PointsChip(theme: KidTheme, onClick: () -> Unit) {
@@ -145,6 +166,7 @@ fun PointsDialog(theme: KidTheme, onDismiss: () -> Unit) {
                     }
                     msg?.let { DotText(it, theme, 15, Color(0xFFD03B5C), modifier = Modifier.padding(top = 6.dp)) }
                     Spacer(Modifier.weight(1f))
+                    EarnButtons(theme, onDismiss)
                     DotText("字 を 1 つ かく・もんだい を 1 つ とく と 🪙 1", theme, 13, theme.outline.copy(alpha = 0.7f))
                     DotText("👗 きせかえ は 1 こ ${Points.DOLL_COST} ポイント", theme, 13, theme.outline.copy(alpha = 0.7f))
                 }
@@ -186,7 +208,7 @@ fun PointsDialog(theme: KidTheme, onDismiss: () -> Unit) {
             onDismissRequest = { buy = null },
             title = { Text("🪙 ${st.price} ポイント で こうかん する？") },
             text = { Text(if (bal >= st.price) "「${st.name}」が つかえる よう に なるよ（いま ${bal}）" else "ポイント が たりないよ（いま ${bal}、あと ${st.price - bal}）") },
-            confirmButton = { if (bal >= st.price) TextButton(onClick = { if (com.theta.kidshome.data.StampLibrary.buy(st)) msg = "🎉 「${st.name}」を ゲット！"; buy = null }) { Text("こうかん！") } },
+            confirmButton = { if (bal < st.price) EarnButtons(theme) { buy = null; onDismiss() } else TextButton(onClick = { if (com.theta.kidshome.data.StampLibrary.buy(st)) msg = "🎉 「${st.name}」を ゲット！"; buy = null }) { Text("こうかん！") } },
             dismissButton = { TextButton(onClick = { buy = null }) { Text("やめる") } },
         )
     }

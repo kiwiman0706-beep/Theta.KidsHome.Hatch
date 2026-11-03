@@ -223,6 +223,15 @@ fun DrawingScreen(onBack: () -> Unit) {
                     val ok = committed?.let { savePhoto(context, it) } == true
                     Toast.makeText(context, if (ok) "「しゃしん」に いれたよ！" else "いれられなかったよ", Toast.LENGTH_SHORT).show()
                 }
+                ToolButton(theme, "🌟", "スタンプ に する") {
+                    val ok = Drawing.marks.isNotEmpty() && committed?.let { full ->
+                        runCatching {
+                            val cut = com.theta.kidshome.data.StampLibrary.removeBackground(full)
+                            com.theta.kidshome.data.StampLibrary.add(com.theta.kidshome.data.StampLibrary.finish(cut, true), "${Store.config.currentProfile.name} の え")
+                        }.isSuccess
+                    } == true
+                    Toast.makeText(context, if (ok) "スタンプ に なったよ！ チャット や スタンプ で つかえるよ" else "なにか かいてから してね", Toast.LENGTH_SHORT).show()
+                }
                 ToolButton(theme, "📌", "ホーム に はる") {
                     val ok = Drawing.marks.isNotEmpty() && committed?.let { pin(context, it) } == true
                     Toast.makeText(context, if (ok) "ホームに はったよ！" else "なにか かいてから はってね", Toast.LENGTH_SHORT).show()

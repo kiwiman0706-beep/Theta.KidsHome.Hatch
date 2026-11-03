@@ -119,6 +119,7 @@ fun DollDressUp(theme: KidTheme, profile: String) {
             }
             DotText("🪙 ${tickets} ポイント", theme, 22, theme.text)
             DotText("1 こ ${com.theta.kidshome.data.Points.DOLL_COST} ポイント で あけられる", theme, 12, theme.outline.copy(alpha = 0.7f))
+            EarnButtons(theme)
             Row(Modifier.padding(top = 4.dp)) {
                 RetroButton("🎲", theme, theme.titleBars[2], fontSize = 18, modifier = Modifier.padding(end = 6.dp)) { DollPack.random(context, profile) }
                 val g = DollPack.guideOn(context, profile)

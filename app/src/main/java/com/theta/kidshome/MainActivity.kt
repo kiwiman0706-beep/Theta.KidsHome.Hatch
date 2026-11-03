@@ -133,6 +133,7 @@ class MainActivity : ComponentActivity() {
             RemoteDialog(themeById(Store.config.currentProfile.themeId))
             // 🪙 +1
             com.theta.kidshome.ui.PointsToast()
+            com.theta.kidshome.ui.EarnNav.open = { k -> screen = when (k) { "moji" -> Screen.MOJI; "kuku" -> Screen.KUKU; else -> Screen.TASU } }
             // 💌 かぞく の チャット：30 びょう ごと に とってくる
             com.theta.kidshome.ui.ChatToast()
             androidx.compose.runtime.LaunchedEffect(Unit) {
