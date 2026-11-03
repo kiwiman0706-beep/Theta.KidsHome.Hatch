@@ -72,19 +72,20 @@ fun cameraOnTop(context: Context): Boolean {
     return rot == Surface.ROTATION_0 || rot == Surface.ROTATION_90
 }
 
-private fun frontCameraId(): Int {
+private fun cameraId(front: Boolean): Int {
     @Suppress("DEPRECATION")
     for (i in 0 until android.hardware.Camera.getNumberOfCameras()) {
         val info = android.hardware.Camera.CameraInfo()
         android.hardware.Camera.getCameraInfo(i, info)
-        if (info.facing == android.hardware.Camera.CameraInfo.CAMERA_FACING_FRONT) return i
+        val want = if (front) android.hardware.Camera.CameraInfo.CAMERA_FACING_FRONT else android.hardware.Camera.CameraInfo.CAMERA_FACING_BACK
+        if (info.facing == want) return i
     }
     return -1
 }
 
 /** インカメラ で QR を 読む 小さな まど（おなじ もの は 1.5 びょう あける） */
 @Composable
-fun FrontScanner(modifier: Modifier, onCode: (String) -> Unit) {
+fun FrontScanner(modifier: Modifier, front: Boolean = true, onCode: (String) -> Unit) {
     val context = LocalContext.current
     val owner = LocalLifecycleOwner.current
     var granted by remember { mutableStateOf(context.checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) }
@@ -94,11 +95,11 @@ fun FrontScanner(modifier: Modifier, onCode: (String) -> Unit) {
     var last by remember { mutableStateOf("") }
     var lastAt by remember { mutableLongStateOf(0L) }
     if (!granted) { Box(modifier.background(Color(0xFF333344)), contentAlignment = Alignment.Center) { Text("📷？", fontSize = 28.sp, color = Color.White) }; return }
-    var view by remember { mutableStateOf<BarcodeView?>(null) }
-    AndroidView(
+    var view by remember(front) { mutableStateOf<BarcodeView?>(null) }
+    androidx.compose.runtime.key(front) { AndroidView(
         factory = { ctx ->
             BarcodeView(ctx).apply {
-                cameraSettings = CameraSettings().apply { val id = frontCameraId(); if (id >= 0) requestedCameraId = id }
+                cameraSettings = CameraSettings().apply { val id = cameraId(front); if (id >= 0) requestedCameraId = id }
                 decoderFactory = DefaultDecoderFactory(listOf(BarcodeFormat.QR_CODE))
                 decodeContinuous { r ->
                     val t = r.text ?: return@decodeContinuous
@@ -111,14 +112,26 @@ fun FrontScanner(modifier: Modifier, onCode: (String) -> Unit) {
                 view = this
             }
         },
-        modifier = modifier.graphicsLayer { scaleX = -1f }, // かがみ の よう に
-    )
+        modifier = modifier.graphicsLayer { scaleX = if (front) -1f else 1f }, // インカメラ は かがみ の よう に
+    ) }
     DisposableEffect(owner, view) {
         val obs = LifecycleEventObserver { _, e ->
             when (e) { Lifecycle.Event.ON_RESUME -> view?.resume(); Lifecycle.Event.ON_PAUSE -> view?.pause(); else -> {} }
         }
         owner.lifecycle.addObserver(obs)
         onDispose { owner.lifecycle.removeObserver(obs); view?.pause() }
+    }
+}
+
+/** ほか の タブレット の 画面 の QR を 読む：そと の カメラ が さいしょ（🔄 で きりかえ） */
+@Composable
+fun QrScanBox(modifier: Modifier, onCode: (String) -> Unit) {
+    var front by remember { mutableStateOf(false) }
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        FrontScanner(modifier, front, onCode)
+        androidx.compose.material3.TextButton(onClick = { front = !front }) {
+            Text(if (front) "🔄 そと の カメラ に する" else "🔄 うち の カメラ に する（いま：うしろ）", fontSize = 13.sp)
+        }
     }
 }
 
@@ -131,7 +144,7 @@ fun PipWindow(onTop: Boolean, labelTurn: Float = 0f, onCode: (String) -> Unit) {
         FrontScanner(
             Modifier.padding(4.dp).size(150.dp, 112.dp).clip(RoundedCornerShape(16.dp))
                 .border(5.dp, Color(0xFFFF5A8A).copy(alpha = blink), RoundedCornerShape(16.dp)),
-            onCode,
+            onCode = onCode,
         )
         if (onTop) PipLabel(blink, true, labelTurn)
     }

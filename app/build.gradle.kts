@@ -15,8 +15,8 @@ android {
         applicationId = "com.theta.kidshome"
         minSdk = 29
         targetSdk = 35
-        versionCode = 72
-        versionName = "0.57.0"
+        versionCode = 73
+        versionName = "0.57.1"
     }
 
     signingConfigs {

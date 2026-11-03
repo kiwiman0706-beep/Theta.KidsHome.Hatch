@@ -80,7 +80,7 @@ fun SettingsTransferSection() {
             OutlinedButton(onClick = { scanning = !scanning; parts = emptyList(); progress = "" }) { Text(if (scanning) "やめる" else "📷 QR を 読みこむ") }
         }
         if (parts.isNotEmpty()) {
-            Text("うけとる タブレット で「📷 QR を 読みこむ」→ この 画面 を インカメラ に むける（${parts.size} まい を じゅんばん に 出します）", fontSize = 13.sp)
+            Text("うけとる タブレット で「📷 QR を 読みこむ」→ うしろ の カメラ で この 画面 を うつす（${parts.size} まい を じゅんばん に 出します）", fontSize = 13.sp)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Image(remember(page, parts) { qrBitmap(parts[page], 600).asImageBitmap() }, null, Modifier.size(300.dp))
                 Column(Modifier.padding(start = 12.dp)) {
@@ -95,7 +95,7 @@ fun SettingsTransferSection() {
             }
         }
         if (scanning) Row(verticalAlignment = Alignment.CenterVertically) {
-            FrontScanner(Modifier.size(260.dp, 195.dp).clip(RoundedCornerShape(12.dp))) { t ->
+            QrScanBox(Modifier.size(260.dp, 195.dp).clip(RoundedCornerShape(12.dp))) { t ->
                 if (collector.add(t)) {
                     progress = "${collector.count} / ${collector.total} まい"
                     if (collector.done) {

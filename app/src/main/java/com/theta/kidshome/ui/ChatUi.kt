@@ -182,7 +182,7 @@ fun ChatSection() {
             OutlinedButton(onClick = { scan = !scan }) { Text(if (scan) "やめる" else "📷 QR を よみこむ") }
         }
         if (showQr) Image(remember(v) { qrBitmap("KHCHAT1.${Chat.secret(context)}", 360).asImageBitmap() }, null, Modifier.size(200.dp))
-        if (scan) FrontScanner(Modifier.size(240.dp, 180.dp).clip(RoundedCornerShape(12.dp))) { t ->
+        if (scan) QrScanBox(Modifier.size(240.dp, 180.dp).clip(RoundedCornerShape(12.dp))) { t ->
             if (t.startsWith("KHCHAT1.")) { Chat.setSecret(context, t.removePrefix("KHCHAT1.")); scan = false }
         }
         Text(if (Chat.on(context)) "つかえます" else "まだ です（あいことば を 8 もじ いじょう）", fontSize = 13.sp, fontWeight = FontWeight.Bold)
