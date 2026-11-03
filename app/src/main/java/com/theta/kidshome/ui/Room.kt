@@ -84,6 +84,13 @@ import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
 
+/** へや の 行事 の かざり：auto（日付 で）／none／行事 の なまえ（ためし に 見る） */
+object RoomEventPref {
+    var version by androidx.compose.runtime.mutableIntStateOf(0)
+    fun get(c: android.content.Context) = c.getSharedPreferences("room", android.content.Context.MODE_PRIVATE).getString("event", "auto") ?: "auto"
+    fun set(c: android.content.Context, v: String) { c.getSharedPreferences("room", android.content.Context.MODE_PRIVATE).edit().putString("event", v).apply(); version++ }
+}
+
 /** 本棚の 1 だん／ショーウインドウの 1 だん。open があれば だん を押すと それを ひらく（おはなし など） */
 class Shelf(val key: String, val emoji: String, val title: String, val tiles: List<Tile>, val open: (() -> Unit)? = null)
 
@@ -109,6 +116,7 @@ private val PIANO = R(880f, 430f, 270f, 400f)
 private val TOYBOX = R(860f, 640f, 270f, 330f)
 private val MASCOT = R(705f, 720f, 190f, 230f)
 private val GUIDE = R(700f, 500f, 200f, 470f)
+private val VASE = R(990f, 150f, 120f, 180f)
 
 private enum class Slide { CLOCK, CALENDAR, TIMETABLE }
 
@@ -150,6 +158,7 @@ fun RoomView(
     val hour = cal.get(Calendar.HOUR_OF_DAY)
     val night = Store.config.nightDim && !com.theta.kidshome.data.Beta.on && (hour >= 19 || hour < 6)
     var popup by remember { mutableStateOf(initialPopup) } // "shelf" / "toys"
+    val roomEventSetting = remember(RoomEventPref.version) { RoomEventPref.get(context) }
     var popupKey by remember { mutableStateOf(shelves.firstOrNull { it.tiles.isNotEmpty() }?.key) }
     BoxWithConstraints(modifier, contentAlignment = Alignment.Center) {
         val u = minOf(maxWidth / RW, maxHeight / RH)
@@ -204,6 +213,20 @@ fun RoomView(
                     contentAlignment = Alignment.Center,
                 ) { Text("👗", fontSize = (u.value * 44).sp) }
             } else Mascot(theme, mascotLine, u, playful, onMascot)
+            // 🌷 つき の 花（まどべ の 花びん。おす と なまえ）
+            val month = cal.get(Calendar.MONTH) + 1
+            var vaseTag by remember { mutableStateOf(false) }
+            Thing(VASE, u, 160f, 240f, onClick = { vaseTag = true }) { flowerVase(month, theme.outline) }
+            if (vaseTag) {
+                LaunchedEffect(Unit) { delay(3500); vaseTag = false }
+                Tag("${month}がつ の はな：${RoomSeason.FLOWERS[month - 1]}", VASE.x + VASE.w / 2, VASE.y + VASE.h + 8f, u, theme, Color.White)
+            }
+            // 🎄 行事 の かざり
+            val ev = remember(cal.get(Calendar.DAY_OF_YEAR), roomEventSetting) { roomEventSetting.let { if (it == "auto") RoomSeason.eventOf(cal) else if (it == "none") null else it } }
+            if (ev != null) Canvas(Modifier.fillMaxSize()) {
+                val k = size.width / RW
+                withTransform({ scale(k, k, pivot = Offset.Zero) }) { seasonDecor(ev, theme.outline) }
+            }
             if (night) Box(Modifier.fillMaxSize().background(Color(0xFF1B1F4A).copy(alpha = 0.22f)))
 
         }

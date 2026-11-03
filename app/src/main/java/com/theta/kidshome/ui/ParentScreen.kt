@@ -178,6 +178,8 @@ private fun SettingsTab(modifier: Modifier) {
         Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()).widthIn(max = 900.dp)) {
         when (group) {
         0 -> {
+        RoomEventSection()
+
         DefaultHomeSection()
 
         ThisTabletSection(config)
@@ -300,6 +302,20 @@ private fun SettingsTab(modifier: Modifier) {
 
         }
         }
+        }
+    }
+}
+
+@Composable
+private fun RoomEventSection() {
+    val context = LocalContext.current
+    val cur = remember(RoomEventPref.version) { RoomEventPref.get(context) }
+    Section("🎄 へや の 行事 の かざり") {
+        Text("「じどう」で 日付 に あわせて へや を かざります（おしょうがつ・せつぶん・ひなまつり・こどもの日・たなばた・なつやすみ・おつきみ・ハロウィン・クリスマス）。まどべ の 花びん の 花 は 毎月 かわります。ためし に 見る とき は 行事 を えらぶ（もどす とき は じどう）。", fontSize = 13.sp)
+        FlowRow8 {
+            (listOf("auto" to "じどう", "none" to "かざらない") + RoomSeason.EVENTS).forEach { (k, l) ->
+                FilterChip(selected = cur == k, onClick = { RoomEventPref.set(context, k) }, label = { Text(l) })
+            }
         }
     }
 }

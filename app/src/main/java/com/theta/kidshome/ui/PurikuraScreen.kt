@@ -402,11 +402,49 @@ private fun Decorate(theme: KidTheme, shots: List<Bitmap>, four: Boolean, onReta
                     scope.launch { val b = withContext(Dispatchers.Default) { final() }; androidx.print.PrintHelper(context).apply { scaleMode = androidx.print.PrintHelper.SCALE_MODE_FIT }.printBitmap("プリクラ", b) }
                 }
             }
+            // 🌟 スタンプ に する（しかく：かどまる＋しろ ふち／きりぬき：Gemini で ひと だけ）
+            var stampBusy by remember { mutableStateOf<String?>(null) }
+            Row(Modifier.padding(top = 6.dp)) {
+                RetroButton("🌟 スタンプ に する", theme, theme.titleBars[3], fontSize = 15, modifier = Modifier.padding(end = 6.dp)) {
+                    if (stampBusy != null) return@RetroButton
+                    stampBusy = "つくって いるよ…"
+                    scope.launch {
+                        runCatching { withContext(Dispatchers.Default) { StampLibrary.add(StampLibrary.finish(roundPhoto(final()), true), "プリクラ") } }
+                        stampBusy = null
+                        Toast.makeText(context, "スタンプ に なったよ！ おえかき・すごろく・チャット で つかえるよ", Toast.LENGTH_LONG).show()
+                    }
+                }
+                if (com.theta.kidshome.data.Gemini.apiKey(context).isNotBlank()) RetroButton("✨ きりぬき スタンプ", theme, theme.titleBars[2], fontSize = 15) {
+                    if (stampBusy != null) return@RetroButton
+                    stampBusy = "きりぬいて いるよ…"
+                    scope.launch {
+                        val r = runCatching {
+                            val src = withContext(Dispatchers.Default) { composePhotos(shots.take(1), false, pretty, 900, 1200) }
+                            val cut = StampLibrary.chromaKey(com.theta.kidshome.data.Gemini.cutout(context, src))
+                            withContext(Dispatchers.Default) { StampLibrary.add(StampLibrary.finish(cut, true), "プリクラ") }
+                        }
+                        stampBusy = null
+                        Toast.makeText(context, if (r.isSuccess) "きりぬき スタンプ が できたよ！" else "できなかったよ（${r.exceptionOrNull()?.message}）", Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+            stampBusy?.let { DotText(it, theme, 14) }
         }
     }
 }
 
 // ---------------------------------------------------------------- 絵 を つくる
+
+/** かど を まるく した しゃしん（スタンプ 用。まわり は すける） */
+private fun roundPhoto(src: Bitmap): Bitmap {
+    val s = 600f / maxOf(src.width, src.height)
+    val w = (src.width * s).toInt(); val h = (src.height * s).toInt()
+    val out = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+    val c = Canvas(out)
+    c.clipPath(Path().apply { addRoundRect(RectF(0f, 0f, w.toFloat(), h.toFloat()), w * 0.08f, w * 0.08f, Path.Direction.CW) })
+    c.drawBitmap(src, null, RectF(0f, 0f, w.toFloat(), h.toFloat()), Paint(Paint.FILTER_BITMAP_FLAG))
+    return out
+}
 
 /** しゃしん を ならべる（1 まい：いっぱい、4 まい：2×2）。きらきら：すこし あかるく・あざやか に */
 private fun composePhotos(shots: List<Bitmap>, four: Boolean, pretty: Boolean, w: Int, h: Int): Bitmap {
