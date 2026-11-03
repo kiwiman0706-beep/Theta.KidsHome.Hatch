@@ -259,6 +259,8 @@ private fun SettingsTab(modifier: Modifier) {
 
         NuriePackSection()
 
+        YuruPicSection()
+
         ShopLabelSection()
 
         }

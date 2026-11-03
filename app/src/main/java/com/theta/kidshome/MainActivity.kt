@@ -61,6 +61,7 @@ class MainActivity : ComponentActivity() {
         com.theta.kidshome.data.DollPack.load(this)
         com.theta.kidshome.data.StampPack.load(this)
         com.theta.kidshome.data.NuriePack.load(this)
+        com.theta.kidshome.data.YuruPack.load(this)
         com.theta.kidshome.data.Points.init(this)
         com.theta.kidshome.data.Chat.init(this)
         com.theta.kidshome.data.SongSync.init(this)

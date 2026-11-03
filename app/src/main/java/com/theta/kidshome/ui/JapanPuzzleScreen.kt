@@ -410,7 +410,12 @@ private fun InfoCard(p: Japan.Pref, color: Color, theme: KidTheme, kana: Boolean
 internal fun YuruBox(y: com.theta.kidshome.data.Yuru.Chara, theme: KidTheme, kana: Boolean) {
     Column(Modifier.padding(top = 10.dp).fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color(0xFFFFF4D6)).padding(10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(y.emoji, fontSize = 34.sp)
+            // ほんもの の 絵（パック か おうちのひと が 足した もの）。なければ 絵文字
+            val ctx = LocalContext.current
+            val pic by produceState<ImageBitmap?>(null, y.pref, com.theta.kidshome.data.YuruPack.version) {
+                value = withContext(Dispatchers.IO) { com.theta.kidshome.data.YuruPack.image(ctx, y.pref)?.let { android.graphics.BitmapFactory.decodeFile(it.path)?.asImageBitmap() } }
+            }
+            pic?.let { Image(it, y.name, Modifier.size(110.dp).clip(RoundedCornerShape(10.dp)), contentScale = ContentScale.Fit) } ?: Text(y.emoji, fontSize = 34.sp)
             Column(Modifier.padding(start = 8.dp)) {
                 Text("🧸 ゆるキャラ：" + if (kana) y.kana else y.name, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = theme.outline)
                 Text(y.who, fontSize = 13.sp, color = theme.outline.copy(alpha = 0.7f))
@@ -496,3 +501,48 @@ private fun PhotoViewer(files: List<File>, start: Int, theme: KidTheme, onClose:
 private fun shortName(p: Japan.Pref, kana: Boolean): String =
     if (kana) p.kana.removeSuffix("けん").removeSuffix("ふ").let { if (it == "とうきょうと") "とうきょう" else it }
     else p.name.removeSuffix("県").removeSuffix("府").let { if (it == "東京都") "東京" else it }
+
+// ---------------------------------------------------------------- 🧸 ゆるキャラ の 絵（おやモード）
+
+@Composable
+fun YuruPicSection() {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val v = com.theta.kidshome.data.YuruPack.version
+    var target by remember { mutableStateOf<Int?>(null) }
+    var open by remember { mutableStateOf(false) }
+    val pickZip = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> if (uri != null) com.theta.kidshome.data.YuruPack.importZip(context, uri) }
+    val pickImg = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        val pref = target
+        if (uri != null && pref != null) scope.launch {
+            withContext(Dispatchers.IO) {
+                runCatching {
+                    val b = android.graphics.ImageDecoder.decodeBitmap(android.graphics.ImageDecoder.createSource(context.contentResolver, uri)) { d, _, _ -> d.allocator = android.graphics.ImageDecoder.ALLOCATOR_SOFTWARE }
+                    com.theta.kidshome.data.YuruPack.setOwn(context, pref, b)
+                }
+            }
+        }
+    }
+    Section("🧸 ゆるキャラ の 絵（非公開）") {
+        androidx.compose.material3.Text("ゆるキャラ の 絵 は 県・市 の 著作物 なので アプリ には 入って いません。家 の 中 だけ で つかう 絵 を 入れる と、にほん パズル の カード・ずかん に 出ます（ない ところ は 絵文字）。" +
+            "まとめて：非公開 リポジトリ の yuru パック（43.png の よう に 都道府県 番号）を「📥 とってくる」。1 たい ずつ：下 の 📷 で ギャラリー から。", fontSize = 13.sp)
+        Row {
+            androidx.compose.material3.Button(enabled = !com.theta.kidshome.data.YuruPack.busy, onClick = { com.theta.kidshome.data.YuruPack.update(context) }) { androidx.compose.material3.Text("📥 とってくる") }
+            Spacer(Modifier.width(8.dp))
+            androidx.compose.material3.OutlinedButton(onClick = { pickZip.launch(arrayOf("application/zip", "application/octet-stream")) }) { androidx.compose.material3.Text("zip から") }
+            Spacer(Modifier.width(8.dp))
+            androidx.compose.material3.OutlinedButton(onClick = { open = !open }) { androidx.compose.material3.Text(if (open) "とじる" else "📷 1 たい ずつ") }
+        }
+        com.theta.kidshome.data.YuruPack.status?.let { androidx.compose.material3.Text(it, fontSize = 13.sp) }
+        val list = remember { com.theta.kidshome.data.Yuru.all(context) }
+        androidx.compose.material3.Text("絵 が ある：${remember(v) { list.count { com.theta.kidshome.data.YuruPack.image(context, it.pref) != null } }} / ${list.size}", fontSize = 13.sp)
+        if (open) list.forEach { y ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                val has = remember(v) { com.theta.kidshome.data.YuruPack.image(context, y.pref) != null }
+                androidx.compose.material3.Text("${Japan.pref(y.pref).name}　${y.name}" + if (has) "　✅" else "", fontSize = 14.sp, modifier = Modifier.weight(1f))
+                androidx.compose.material3.TextButton(onClick = { target = y.pref; pickImg.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }) { androidx.compose.material3.Text("📷") }
+                if (has) androidx.compose.material3.TextButton(onClick = { com.theta.kidshome.data.YuruPack.clearOwn(context, y.pref) }) { androidx.compose.material3.Text("けす") }
+            }
+        }
+    }
+}
