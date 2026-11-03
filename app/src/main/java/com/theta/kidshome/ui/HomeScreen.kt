@@ -73,6 +73,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.systemGestureExclusion
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
@@ -148,6 +150,8 @@ fun HomeScreen(
     val locked = config.isVideoLocked(now)
     var showGate by remember { mutableStateOf(false) }
     var showPoints by remember { mutableStateOf(false) }
+    val railHidden = remember(RailPref.version) { RailPref.hidden(context) }
+    var railOpen by remember { mutableStateOf(false) }
     var showChat by remember { mutableStateOf(false) }
     var showLockedDialog by remember { mutableStateOf(false) }
     val bursts = remember { mutableStateListOf<Burst>() }
@@ -318,8 +322,40 @@ fun HomeScreen(
                         else tabContent(t)
                     }
                 }
-                TabRail(tabs, tab.key, theme, locked) { tabKey = it }
+                if (!railHidden) TabRail(tabs, tab.key, theme, locked) { tabKey = it }
             }
+        }
+
+        // 👉 みぎ はし から スワイプ で タブ を だす（Theta Home Hatch と おなじ）
+        if (railHidden) {
+            // めじるし と スワイプ を うける ところ（戻る ジェスチャー から はずす）
+            Box(
+                Modifier.align(Alignment.CenterEnd).width(28.dp).height(220.dp).systemGestureExclusion()
+                    .pointerInput(Unit) {
+                        var dx = 0f
+                        detectHorizontalDragGestures(onDragStart = { dx = 0f }, onDragEnd = {}) { ch, d -> dx += d; ch.consume(); if (dx < -30f) railOpen = true }
+                    }
+                    .pointerInput(Unit) { detectTapGestures { railOpen = true } },
+                contentAlignment = Alignment.CenterEnd,
+            ) {
+                Box(Modifier.width(14.dp).height(96.dp).clip(RoundedCornerShape(topStart = 10.dp, bottomStart = 10.dp)).background(theme.outline.copy(alpha = 0.35f)), contentAlignment = Alignment.Center) {
+                    Text("◀", fontSize = 10.sp, color = Color.White)
+                }
+            }
+            if (railOpen) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.18f)).pointerInput(Unit) { detectTapGestures { railOpen = false } })
+            androidx.compose.animation.AnimatedVisibility(
+                railOpen, Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
+                enter = androidx.compose.animation.slideInHorizontally { it }, exit = androidx.compose.animation.slideOutHorizontally { it },
+            ) {
+                Box(
+                    Modifier.fillMaxHeight().windowInsetsPadding(WindowInsets.safeDrawing).padding(vertical = 12.dp)
+                        .clip(RoundedCornerShape(topStart = 20.dp, bottomStart = 20.dp)).background(theme.bgBottom)
+                        .border(3.dp, theme.outline, RoundedCornerShape(topStart = 20.dp, bottomStart = 20.dp))
+                        .pointerInput(Unit) { var dx = 0f; detectHorizontalDragGestures(onDragStart = { dx = 0f }) { ch, d -> dx += d; if (dx > 40f) { railOpen = false; ch.consume() } } }
+                        .padding(start = 8.dp),
+                ) { TabRail(tabs, tab.key, theme, locked) { tabKey = it; railOpen = false } }
+            }
+            LaunchedEffect(railOpen) { if (railOpen) { delay(8000); railOpen = false } }
         }
 
         // へや の もの を おしたとき：タブの なかみ を まど で ひらく
@@ -434,6 +470,13 @@ private fun VideoPage(tab: KidTab, theme: KidTheme, locked: Boolean, onTile: (Ti
 }
 
 // ---------------------------------------------------------------- タブ
+
+/** タブ：みぎ はし スワイプ で だす（さいしょ）／いつも だす */
+object RailPref {
+    var version by mutableIntStateOf(0)
+    fun hidden(c: android.content.Context) = c.getSharedPreferences("home", android.content.Context.MODE_PRIVATE).getBoolean("railHidden", true)
+    fun set(c: android.content.Context, v: Boolean) { c.getSharedPreferences("home", android.content.Context.MODE_PRIVATE).edit().putBoolean("railHidden", v).apply(); version++ }
+}
 
 private enum class TabKind { HOME, CLOCK, TIMETABLE, LOCAL_VIDEO, MUSIC, BOOKS, CATEGORY, VIDEO, WIDGETS, MUSIC_REMOTE }
 

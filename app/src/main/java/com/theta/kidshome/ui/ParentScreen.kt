@@ -315,6 +315,14 @@ private fun SettingsTab(modifier: Modifier) {
 @Composable
 private fun RoomEventSection() {
     val context = LocalContext.current
+    val hidden = remember(RailPref.version) { RailPref.hidden(context) }
+    Section("👉 ホーム の タブ") {
+        Text("みぎ はし の タブ を、ふだん は かくして「みぎ はし から ひだり へ スワイプ」で だす か、いつも だす か。", fontSize = 13.sp)
+        FlowRow8 {
+            FilterChip(selected = hidden, onClick = { RailPref.set(context, true) }, label = { Text("スワイプ で だす") })
+            FilterChip(selected = !hidden, onClick = { RailPref.set(context, false) }, label = { Text("いつも だす") })
+        }
+    }
     val cur = remember(RoomEventPref.version) { RoomEventPref.get(context) }
     Section("🎄 へや の 行事 の かざり") {
         Text("「じどう」で 日付 に あわせて へや を かざります（おしょうがつ・せつぶん・ひなまつり・こどもの日・たなばた・なつやすみ・おつきみ・ハロウィン・クリスマス）。まどべ の 花びん の 花 は 毎月 かわります。ためし に 見る とき は 行事 を えらぶ（もどす とき は じどう）。", fontSize = 13.sp)
