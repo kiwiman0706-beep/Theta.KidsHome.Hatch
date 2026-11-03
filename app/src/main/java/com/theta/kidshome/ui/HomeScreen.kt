@@ -163,8 +163,18 @@ fun HomeScreen(
         if (config.showMusic && visibleMusic().isNotEmpty()) add(KidTab("local:music", TabKind.MUSIC, "🎵", "おんがく"))
         if (config.showBooks && visibleBooks().isNotEmpty()) add(KidTab("local:book", TabKind.BOOKS, "🎧", "おはなし"))
     }
-    val tabs = remember(profile, config.widgetIds, config.appCategory, config.categories, installed, media) {
-        kidTabs(profile.tiles, config.widgetIds.isNotEmpty(), media + categoryTabs(config, profile.id, installed))
+    // 内蔵 アプリ の なかま（へや の ほんだな・おもちゃばこ と おなじ）を タブ にも
+    val builtinTabs = remember(profile.tiles) {
+        fun bt(vararg types: TileType) = types.mapNotNull { t -> profile.tiles.firstOrNull { it.type == t } }
+        listOf(
+            KidTab("builtin:play", TabKind.CATEGORY, "🧩", "あそぶ", tiles = bt(TileType.TOUCH, TileType.SUGOROKU, TileType.PURIKURA, TileType.PUZZLE, TileType.REGISTER, TileType.CODING, TileType.DRAWING, TileType.INSTRUMENT)),
+            KidTab("builtin:math", TabKind.CATEGORY, "🔢", "さんすう", tiles = bt(TileType.KUKU, TileType.TASU, TileType.SOROBAN, TileType.HISSAN, TileType.EDUPAD)),
+            KidTab("builtin:lang", TabKind.CATEGORY, "✏️", "こくご", tiles = bt(TileType.MOJI, TileType.TYPING, TileType.WORDPRO)),
+            KidTab("builtin:look", TabKind.CATEGORY, "🔍", "しらべる", tiles = bt(TileType.DICT, TileType.MAP, TileType.JAPAN)),
+        ).filter { it.tiles.isNotEmpty() }
+    }
+    val tabs = remember(profile, config.widgetIds, config.appCategory, config.categories, installed, media, builtinTabs) {
+        kidTabs(profile.tiles, config.widgetIds.isNotEmpty(), media + builtinTabs + categoryTabs(config, profile.id, installed))
     }
     LaunchedEffect(Unit) { com.theta.kidshome.data.MediaLibrary.refresh(context) }
     // ホームを開いたままでも、ときどき シート と てんき を取り直す（どちらも間隔は中で決める）
@@ -215,11 +225,11 @@ fun HomeScreen(
     // おもちゃばこ：あそぶ もの と、仕分けた アプリ
     val toys = listOf(Shelf("play", "🧩", "あそぶ", builtins(TileType.TOUCH, TileType.SUGOROKU, TileType.PURIKURA, TileType.PUZZLE, TileType.REGISTER, TileType.CODING))) +
         listOfNotNull(appTiles.takeIf { it.isNotEmpty() }?.let { Shelf("apps", "📱", "アプリ", it) }) +
-        tabs.filter { it.kind == TabKind.CATEGORY }.map { Shelf(it.key, it.emoji, it.label, it.tiles) }
+        tabs.filter { it.kind == TabKind.CATEGORY && !it.key.startsWith("builtin:") }.map { Shelf(it.key, it.emoji, it.label, it.tiles) }
     val toyShelves = toys.filter { it.tiles.isNotEmpty() }
     // 📱 アプリ の いちらん（ドロワー）：この子に 見せる アプリ ぜんぶ
     val drawer = (listOf(Shelf("apps", "📱", "アプリ", appTiles), Shelf("tvapps", "📺", "どうがアプリ", tvApps)) +
-        tabs.filter { it.kind == TabKind.CATEGORY }.map { Shelf(it.key, it.emoji, it.label, it.tiles) }).filter { it.tiles.isNotEmpty() }
+        tabs.filter { it.kind == TabKind.CATEGORY && !it.key.startsWith("builtin:") }.map { Shelf(it.key, it.emoji, it.label, it.tiles) }).filter { it.tiles.isNotEmpty() }
 
     val onTile: (Tile) -> Unit = { tile ->
         when {
