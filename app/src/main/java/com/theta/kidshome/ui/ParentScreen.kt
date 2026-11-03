@@ -257,6 +257,8 @@ private fun SettingsTab(modifier: Modifier) {
 
         StampPackSection()
 
+        NuriePackSection()
+
         ShopLabelSection()
 
         }

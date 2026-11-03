@@ -57,7 +57,11 @@ fun NurieDialog(theme: KidTheme, onDismiss: () -> Unit, onPick: (Bitmap) -> Unit
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var ver by remember { mutableIntStateOf(0) }
-    val items = remember(ver) { Nurie.list(context) }
+    val all = remember(ver, com.theta.kidshome.data.NuriePack.version) { Nurie.list(context) }
+    // 本 ごと に わける：パック の 本 → 内蔵 → じぶん の
+    val groups = remember(all) { all.map { it.group }.distinct().sortedBy { when (it) { "" -> "1"; "self" -> "2"; else -> "0$it" } } }
+    var group by remember(groups) { mutableStateOf(groups.firstOrNull() ?: "") }
+    val items = remember(all, group) { all.filter { it.group == group } }
     var busy by remember { mutableStateOf(false) }
     val pick = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) scope.launch {
@@ -81,6 +85,12 @@ fun NurieDialog(theme: KidTheme, onDismiss: () -> Unit, onPick: (Bitmap) -> Unit
                     }
                     Spacer(Modifier.width(6.dp))
                     RetroButton("とじる", theme, Color.White, fontSize = 15) { onDismiss() }
+                }
+                if (groups.size > 1) Row(Modifier.padding(top = 6.dp)) {
+                    groups.forEach { g ->
+                        val label = when (g) { "" -> "✏️ アプリ の"; "self" -> "📷 じぶん で 足した"; else -> "📕 " + (com.theta.kidshome.data.NuriePack.books.firstOrNull { it.id == g }?.name ?: g) }
+                        RetroButton(label, theme, if (g == group) theme.titleBars[1] else Color.White, fontSize = 15, modifier = Modifier.padding(end = 6.dp)) { group = g }
+                    }
                 }
                 LazyVerticalGrid(GridCells.Adaptive(180.dp), Modifier.fillMaxSize().padding(top = 8.dp)) {
                     items(items, key = { it.id }) { item ->
@@ -113,5 +123,25 @@ fun NurieDialog(theme: KidTheme, onDismiss: () -> Unit, onPick: (Bitmap) -> Unit
                 }
             }
         }
+    }
+}
+
+// ---------------------------------------------------------------- 🖍 ぬりえ パック（おやモード）
+
+@Composable
+fun NuriePackSection() {
+    val context = LocalContext.current
+    val books = com.theta.kidshome.data.NuriePack.books
+    val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> if (uri != null) com.theta.kidshome.data.NuriePack.importZip(context, uri) }
+    Section("🖍 ぬりえ パック（非公開）") {
+        Text("購入 した ぬりえ帳 を、非公開 リポジトリ の Release（nurie-pack.zip）から とってきます（ガイド役・きせかえ と おなじ トークン）。おえかき の「🖍 ぬりえ」に 本 ごと に ならびます。家 の 中 だけ で つかって ください。", fontSize = 13.sp)
+        Row {
+            androidx.compose.material3.Button(enabled = !com.theta.kidshome.data.NuriePack.busy, onClick = { com.theta.kidshome.data.NuriePack.update(context) }) { Text("📥 とってくる") }
+            Spacer(Modifier.width(8.dp))
+            androidx.compose.material3.OutlinedButton(onClick = { pick.launch(arrayOf("application/zip", "application/octet-stream")) }) { Text("zip から") }
+            if (books.isNotEmpty()) androidx.compose.material3.TextButton(onClick = { com.theta.kidshome.data.NuriePack.remove(context) }) { Text("はずす", color = Color(0xFFD03B5C)) }
+        }
+        com.theta.kidshome.data.NuriePack.status?.let { Text(it, fontSize = 13.sp) }
+        if (books.isNotEmpty()) Text(books.joinToString("・") { "${it.name}（${it.pages.size}）" } + "　" + com.theta.kidshome.data.NuriePack.installedTag(context), fontSize = 13.sp)
     }
 }

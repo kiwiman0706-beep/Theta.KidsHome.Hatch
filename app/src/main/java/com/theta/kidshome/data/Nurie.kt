@@ -20,7 +20,8 @@ import kotlin.math.sin
  * - 画像 から：写真・ぬりえ の 画像 を えらぶ と 黒 い 線 だけ に して 保存（filesDir/nurie）
  */
 object Nurie {
-    data class Item(val id: String, val name: String)
+    /** group：""＝内蔵、"self"＝じぶん で 足した、ほか は ぬりえ パック の 本 の id */
+    data class Item(val id: String, val name: String, val group: String = "")
 
     const val W = 1600
     const val H = 1100
@@ -143,7 +144,8 @@ object Nurie {
     fun list(c: Context): List<Item> =
         builtins.map { it.first } +
             (runCatching { c.assets.list("nurie")?.filter { it.endsWith(".png") } }.getOrNull().orEmpty().sorted().map { Item("a:$it", it.removeSuffix(".png")) }) +
-            (dir(c).listFiles()?.filter { it.extension == "png" }?.sortedBy { it.lastModified() }?.map { Item("f:${it.name}", "じぶん の") }.orEmpty())
+            (dir(c).listFiles()?.filter { it.extension == "png" }?.sortedBy { it.lastModified() }?.map { Item("f:${it.name}", "じぶん の", "self") }.orEmpty()) +
+            NuriePack.books.flatMap { b -> b.pages.mapIndexed { k, f -> Item("p:${b.id}/$f", "${b.name} ${k + 1}", b.id) } }
 
     /** 線画（黒 い 線、ほか は すけて いる） */
     fun bitmap(c: Context, id: String): Bitmap? = when {
@@ -152,11 +154,14 @@ object Nurie {
         }
         id.startsWith("a:") -> runCatching { c.assets.open("nurie/" + id.removePrefix("a:")).use { BitmapFactory.decodeStream(it) } }.getOrNull()?.let { toLine(it) }
         id.startsWith("f:") -> File(dir(c), id.removePrefix("f:")).takeIf { it.exists() }?.let { BitmapFactory.decodeFile(it.path) }
+        id.startsWith("p:") -> id.removePrefix("p:").split('/', limit = 2).let { (b, f) -> NuriePack.file(c, b, f) }
+            .takeIf { it.exists() }?.let { BitmapFactory.decodeFile(it.path) }?.let { toLine(it, thicken = true) }
         else -> null
     }
 
     /** 画像 を 黒 い 線 だけ に する（くらい ところ → 黒、あかるい ところ → すける） */
-    fun toLine(src: Bitmap, threshold: Int = 110): Bitmap {
+    /** thicken：ほそい 線 を 1 ドット ふとく（ちいさく して も バケツ が もれない よう に） */
+    fun toLine(src: Bitmap, threshold: Int = 110, thicken: Boolean = false): Bitmap {
         val s = minOf(1f, 1800f / maxOf(src.width, src.height))
         val b = if (s < 1f) Bitmap.createScaledBitmap(src, (src.width * s).toInt(), (src.height * s).toInt(), true) else src
         val w = b.width; val h = b.height
@@ -166,6 +171,13 @@ object Nurie {
             val a = c ushr 24
             val lum = (Color.red(c) * 30 + Color.green(c) * 59 + Color.blue(c) * 11) / 100
             px[i] = if (a > 100 && lum < threshold) Color.BLACK else Color.TRANSPARENT
+        }
+        if (thicken) {
+            val src2 = px.copyOf()
+            for (i in px.indices) if (src2[i] == Color.TRANSPARENT) {
+                val x = i % w
+                if ((x > 0 && src2[i - 1] == Color.BLACK) || (x < w - 1 && src2[i + 1] == Color.BLACK) || (i >= w && src2[i - w] == Color.BLACK) || (i + w < px.size && src2[i + w] == Color.BLACK)) px[i] = Color.BLACK
+            }
         }
         return Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888).also { it.setPixels(px, 0, w, 0, 0, w, h) }
     }
