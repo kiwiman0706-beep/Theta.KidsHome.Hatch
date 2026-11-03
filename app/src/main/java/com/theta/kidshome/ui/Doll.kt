@@ -107,7 +107,7 @@ fun DollDressUp(theme: KidTheme, profile: String) {
     val slots = remember(v) { p.slots.filter { DollPack.visible(context, it) } }
     var slotId by remember { mutableStateOf(slots.firstOrNull { it.id == "hair" }?.id ?: slots.first().id) }
     val slot = slots.firstOrNull { it.id == slotId } ?: slots.first()
-    val tickets = remember(profile, v) { DollPack.tickets(context, profile) }
+    val tickets = remember(profile, v, com.theta.kidshome.data.Points.version) { com.theta.kidshome.data.Points.balance(context, profile) }
     var ask by remember { mutableStateOf<DollPack.Item?>(null) }
     var msg by remember { mutableStateOf<String?>(null) }
     val img by produceState<ImageBitmap?>(null, look) { value = withContext(Dispatchers.IO) { DollPack.compose(context, look)?.asImageBitmap() } }
@@ -117,8 +117,8 @@ fun DollDressUp(theme: KidTheme, profile: String) {
             Box(Modifier.weight(1f).aspectRatio(2f / 3f).clip(RoundedCornerShape(16.dp)).background(Color(0xFFFFF4FA))) {
                 img?.let { Image(it, null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit) }
             }
-            DotText("🎟 ${tickets} まい", theme, 22, theme.text)
-            DotText("もじ れんしゅう で ${DollPack.perTicket(context)} もじ かくと 🎟 1 まい", theme, 12, theme.outline.copy(alpha = 0.7f))
+            DotText("🪙 ${tickets} ポイント", theme, 22, theme.text)
+            DotText("1 こ ${com.theta.kidshome.data.Points.DOLL_COST} ポイント で あけられる", theme, 12, theme.outline.copy(alpha = 0.7f))
             Row(Modifier.padding(top = 4.dp)) {
                 RetroButton("🎲", theme, theme.titleBars[2], fontSize = 18, modifier = Modifier.padding(end = 6.dp)) { DollPack.random(context, profile) }
                 val g = DollPack.guideOn(context, profile)
@@ -169,8 +169,8 @@ fun DollDressUp(theme: KidTheme, profile: String) {
     ask?.let { item ->
         AlertDialog(
             onDismissRequest = { ask = null },
-            title = { Text("🎟 1 まい で あける？") },
-            text = { Text("のこり ${tickets} まい") },
+            title = { Text("🪙 ${com.theta.kidshome.data.Points.DOLL_COST} ポイント で あける？") },
+            text = { Text(if (tickets >= com.theta.kidshome.data.Points.DOLL_COST) "いま ${tickets} ポイント" else "ポイント が たりないよ（いま ${tickets}）。字 を かいたり もんだい を といたり して ためよう") },
             confirmButton = {
                 TextButton(onClick = {
                     if (DollPack.unlock(context, profile, item)) DollPack.toggle(context, profile, slot, item)
@@ -203,10 +203,7 @@ fun DollSection() {
         DollPack.status?.let { Text(it, fontSize = 13.sp) }
         val p = DollPack.pack ?: return@Section
         Text("はいって いる：${p.slots.sumOf { it.items.size }} こ（${DollPack.installedTag(context)}）", fontSize = 13.sp, fontWeight = FontWeight.Bold)
-        Text("🎟 1 まい に かく 字 の 数", fontSize = 13.sp)
-        Row {
-            listOf(3, 5, 10).forEach { n -> FilterChip(DollPack.perTicket(context) == n, { DollPack.setPerTicket(context, n) }, label = { Text("$n もじ") }, modifier = Modifier.padding(end = 6.dp)) }
-        }
+        Text("1 こ あける の は 🪙 ${com.theta.kidshome.data.Points.DOLL_COST} ポイント（ポイント の せってい は「🪙 ポイント」で）", fontSize = 13.sp)
         Text("はじめ から あける 数（それぞれ の しゅるい ごと）", fontSize = 13.sp)
         Row {
             listOf(0, 3, 5, 10).forEach { n -> FilterChip(DollPack.freePerSlot(context) == n, { DollPack.setFreePerSlot(context, n) }, label = { Text("$n こ") }, modifier = Modifier.padding(end = 6.dp)) }
@@ -217,8 +214,7 @@ fun DollSection() {
         }
         config.profiles.forEach { pr ->
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("${pr.name}：🎟 ${DollPack.tickets(context, pr.id)} まい", modifier = Modifier.weight(1f), fontSize = 14.sp)
-                TextButton(onClick = { DollPack.addBonus(context, pr.id, 1) }) { Text("🎟 ＋1 おまけ") }
+                Text("${pr.name}：🪙 ${com.theta.kidshome.data.Points.balance(context, pr.id)}", modifier = Modifier.weight(1f), fontSize = 14.sp)
                 Text("ガイド", fontSize = 13.sp); Switch(DollPack.guideOn(context, pr.id), { DollPack.setGuide(context, pr.id, it) })
             }
         }

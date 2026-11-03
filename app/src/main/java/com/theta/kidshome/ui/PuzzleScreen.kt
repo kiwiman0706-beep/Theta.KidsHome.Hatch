@@ -169,6 +169,7 @@ private fun Board(theme: KidTheme, src: Bitmap, level: Pair<Int, Int>, rotate: B
         }
     }
     val done = pieces.isNotEmpty() && pieces.all { it.placed }
+    androidx.compose.runtime.LaunchedEffect(done) { if (done) com.theta.kidshome.data.Points.earn(3, "パズル", "puzzle:${pieces.size}:${System.currentTimeMillis() / 600_000}") }
     val density = LocalDensity.current
 
     BoxWithConstraints(Modifier.fillMaxSize()) {

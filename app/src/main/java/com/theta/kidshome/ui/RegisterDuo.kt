@@ -221,7 +221,7 @@ fun RegisterDuo(theme: KidTheme, shop: Money.Shop, level: Int, onExit: () -> Uni
                                 val need = paid - total
                                 val give = Money.sum(change)
                                 when {
-                                    give == need -> { phase = Phase.DONE; stars++; cashMsg = "せいかい！"; speak("ありがとうございました") }
+                                    give == need -> { phase = Phase.DONE; stars++; com.theta.kidshome.data.Points.earn(1, "ふたり で おみせやさん", "duo:$paid:$total"); cashMsg = "せいかい！"; speak("ありがとうございました") }
                                     give < need -> { cashMsg = "おつり が あと ${need - give}えん たりないよ"; speak(cashMsg!!) }
                                     else -> { cashMsg = "おつり が ${give - need}えん おおいよ"; speak(cashMsg!!) }
                                 }

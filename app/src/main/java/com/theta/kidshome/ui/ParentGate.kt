@@ -57,12 +57,16 @@ data class GateQuestion(val a: Int, val b: Int) {
  * まちがえたら別の問題に変わる。
  */
 @Composable
-fun ParentGate(onSuccess: () -> Unit, onDismiss: () -> Unit) {
+fun ParentGate(onSuccess: () -> Unit, onDismiss: () -> Unit, pinOnly: Boolean = false, title: String = "おうちのひと かくにん") {
     // ベータ（おや の スマホ）では きかない
     if (com.theta.kidshome.data.Beta.on) { LaunchedEffect(Unit) { onSuccess() }; return }
     val config = Store.config
     val theme = themeById(config.currentProfile.themeId)
-    var question by remember { mutableStateOf(GateQuestion.next(config.hardGate)) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    // 暗証番号：ごほうび しへい は いつも（きめて いれば）、入り口 は おや が えらんだ とき
+    val pin = remember { if (pinOnly) com.theta.kidshome.data.Points.hasPin(context) else com.theta.kidshome.data.Points.pinForGate(context) }
+    val hard = config.hardGate || pinOnly
+    var question by remember { mutableStateOf(GateQuestion.next(hard)) }
     var input by remember { mutableStateOf("") }
     var wrong by remember { mutableIntStateOf(0) }
     val shake = remember { Animatable(0f) }
@@ -73,19 +77,19 @@ fun ParentGate(onSuccess: () -> Unit, onDismiss: () -> Unit) {
     }
 
     Dialog(onDismissRequest = onDismiss) {
-        RetroWindow(theme, title = "おうちのひと かくにん", titleColor = theme.titleBars[2], modifier = Modifier.width(340.dp)) {
+        RetroWindow(theme, title = title, titleColor = theme.titleBars[2], modifier = Modifier.width(340.dp)) {
             Column(Modifier.fillMaxWidth().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                DotText("こたえを いれてね", theme, 15, theme.outline.copy(alpha = 0.7f))
+                DotText(if (pin) "おうちのひと の 暗証番号" else "こたえを いれてね", theme, 15, theme.outline.copy(alpha = 0.7f))
                 Row(Modifier.offset(x = shake.value.dp).padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    DotText("${question.a} × ${question.b} =", theme, 30)
+                    if (!pin) DotText("${question.a} × ${question.b} =", theme, 30)
                     Box(
                         Modifier.padding(start = 10.dp).width(96.dp).height(52.dp)
                             .clip(RoundedCornerShape(10.dp)).background(Color.White)
                             .border(3.dp, theme.outline, RoundedCornerShape(10.dp)),
                         contentAlignment = Alignment.Center,
-                    ) { DotText(input, theme, 30) }
+                    ) { DotText(if (pin) "●".repeat(input.length) else input, theme, 30) }
                 }
-                DotText(if (wrong > 0) "ちがうよ。べつの もんだい だよ" else " ", theme, 13, Color(0xFFD03B5C))
+                DotText(if (wrong > 0) (if (pin) "ちがいます" else "ちがうよ。べつの もんだい だよ") else " ", theme, 13, Color(0xFFD03B5C))
                 val keys = listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "✕", "0", "⌫")
                 keys.chunked(3).forEach { row ->
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(top = 10.dp)) {
@@ -100,7 +104,7 @@ fun ParentGate(onSuccess: () -> Unit, onDismiss: () -> Unit) {
                                         when (k) {
                                             "✕" -> onDismiss()
                                             "⌫" -> input = input.dropLast(1)
-                                            else -> if (input.length < 4) input += k
+                                            else -> if (input.length < (if (pin) 8 else 4)) input += k
                                         }
                                     },
                                 contentAlignment = Alignment.Center,
@@ -109,12 +113,12 @@ fun ParentGate(onSuccess: () -> Unit, onDismiss: () -> Unit) {
                     }
                 }
                 RetroButton("OK", theme, theme.titleBars[0], modifier = Modifier.padding(top = 16.dp)) {
-                    if (input.toIntOrNull() == question.answer) {
+                    if (if (pin) com.theta.kidshome.data.Points.checkPin(context, input) else input.toIntOrNull() == question.answer) {
                         onSuccess()
                     } else {
                         wrong++
                         input = ""
-                        question = GateQuestion.next(config.hardGate)
+                        question = GateQuestion.next(hard)
                     }
                 }
             }

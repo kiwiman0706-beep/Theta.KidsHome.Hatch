@@ -145,6 +145,8 @@ fun HomeScreen(
     }
     val locked = config.isVideoLocked(now)
     var showGate by remember { mutableStateOf(false) }
+    var showPoints by remember { mutableStateOf(false) }
+    var showChat by remember { mutableStateOf(false) }
     var showLockedDialog by remember { mutableStateOf(false) }
     val bursts = remember { mutableStateListOf<Burst>() }
     var stars by remember { mutableIntStateOf(0) }
@@ -270,7 +272,7 @@ fun HomeScreen(
                 .windowInsetsPadding(WindowInsets.safeDrawing)
                 .padding(start = 20.dp, top = 12.dp, bottom = 12.dp)
         ) {
-            Header(config, theme, now, updateBadge = SelfUpdate.state.newer, onGate = { showGate = true })
+            Header(config, theme, now, updateBadge = SelfUpdate.state.newer, onGate = { showGate = true }, onPoints = { showPoints = true }, onChat = { showChat = true })
             VSpace(14)
             Row(Modifier.weight(1f)) {
                 Box(Modifier.weight(1f).fillMaxHeight()) {
@@ -347,6 +349,8 @@ fun HomeScreen(
             bursts.forEach { b -> key(b.id) { BurstView(b) { bursts.remove(b) } } }
         }
 
+        if (showPoints) PointsDialog(theme) { showPoints = false }
+        if (showChat) ChatDialog(theme) { showChat = false }
         if (showGate) ParentGate(onSuccess = { showGate = false; onOpenParent() }, onDismiss = { showGate = false })
         if (showLockedDialog) LockedDialog(config, theme, now) { showLockedDialog = false }
     }
@@ -509,7 +513,7 @@ private fun key(id: Long, content: @Composable () -> Unit) = androidx.compose.ru
 // ---------------------------------------------------------------- 上のバー
 
 @Composable
-private fun Header(config: AppConfig, theme: KidTheme, now: Long, updateBadge: Boolean, onGate: () -> Unit) {
+private fun Header(config: AppConfig, theme: KidTheme, now: Long, updateBadge: Boolean, onGate: () -> Unit, onPoints: () -> Unit = {}, onChat: () -> Unit = {}) {
     val cal = Calendar.getInstance().apply { timeInMillis = now }
     val (battery, charging) = rememberBattery()
     Row(Modifier.fillMaxWidth().padding(end = 20.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -524,6 +528,8 @@ private fun Header(config: AppConfig, theme: KidTheme, now: Long, updateBadge: B
             )
         }
         Spacer(Modifier.weight(1f))
+        ChatChip(theme, onChat)
+        PointsChip(theme, onPoints)
         Chip(theme, "%d:%02d".format(cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE)))
         if (battery >= 0) Chip(theme, "${if (charging) "⚡" else "🔋"}$battery%")
         HSpace(8)

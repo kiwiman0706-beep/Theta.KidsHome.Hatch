@@ -106,6 +106,7 @@ fun JapanPuzzleScreen(onBack: () -> Unit) {
     var queue by remember(mode) { mutableStateOf(targets.shuffled()) }
     val tray = if (memory) emptyList() else queue.filter { it !in placed }.take(6)
     val done = !memory && targets.all { it in placed }
+    androidx.compose.runtime.LaunchedEffect(done) { if (done) com.theta.kidshome.data.Points.earn(if (mode < 0) 20 else 5, "にほん パズル", "japan:$mode") }
 
     fun start(m: Int) { mode = m; placed = emptySet(); info = null }
 

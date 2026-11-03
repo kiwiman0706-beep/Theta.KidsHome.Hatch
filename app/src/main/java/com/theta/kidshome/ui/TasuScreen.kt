@@ -68,7 +68,7 @@ fun TasuScreen(startHard: Boolean = false, startHidden: Boolean = false, onBack:
         selected = a to b
         cheer = null
         if (hide) {
-            if (quiz == (a to b)) cheer = listOf("せいかい！", "すごい！", "よくできました！", "ばっちり！").random()
+            if (quiz == (a to b)) { cheer = listOf("せいかい！", "すごい！", "よくできました！", "ばっちり！").random(); com.theta.kidshome.data.Points.earn(1, "たしざん $a+$b", "tasu:$a:$b") }
             opened = opened + (a to b)
             quiz = null
         }

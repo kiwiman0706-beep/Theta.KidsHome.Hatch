@@ -79,16 +79,14 @@ fun MojiScreen(onBack: () -> Unit) {
 
     fun save() {
         if (strokes.isEmpty()) return
-        val before = com.theta.kidshome.data.DollPack.earned(context, profile.id)
         Moji.save(context, profile.id, ch, strokes.toList())
         written = written + (ch to strokes.toList())
         val done = chars.count { it in written }
-        val per = com.theta.kidshome.data.DollPack.perTicket(context)
-        val ticket = com.theta.kidshome.data.DollPack.installed && com.theta.kidshome.data.DollPack.earned(context, profile.id) > before
+        val got = com.theta.kidshome.data.Points.earn(1, "もじ「$ch」", "moji:$ch") +
+            if (done == chars.size) com.theta.kidshome.data.Points.earn(10, "${set.title} ぜんぶ", "mojiset:${set.title}") else 0
         cheer = when {
-            ticket -> "🎟 きせかえ チケット を もらった！（へや の 👗 で つかえるよ）"
-            done == chars.size -> "🏅 ${set.title} ぜんぶ かけた！"
-            com.theta.kidshome.data.DollPack.installed -> listOf("じょうず！", "すてき！", "いいね！").random() + "　🎟 まで あと ${per - written.size % per} もじ"
+            done == chars.size -> "🏅 ${set.title} ぜんぶ かけた！" + if (got > 0) "　🪙 +$got" else ""
+            got > 0 -> listOf("じょうず！", "すてき！", "いいね！", "かっこいい！").random() + "　🪙 +$got"
             else -> listOf("じょうず！", "すてき！", "いいね！", "かっこいい！").random()
         }
         // つぎの まだ書いていない字へ

@@ -59,6 +59,8 @@ class MainActivity : ComponentActivity() {
         Store.init(this)
         com.theta.kidshome.data.KinStore.load(this)
         com.theta.kidshome.data.DollPack.load(this)
+        com.theta.kidshome.data.Points.init(this)
+        com.theta.kidshome.data.Chat.init(this)
         if (safe) Store.safeMode = true
         enableEdgeToEdge()
         hideSystemBars()
@@ -129,6 +131,13 @@ class MainActivity : ComponentActivity() {
             }
             // おうちのひとからの呼びかけは、どの画面の上にも出す
             RemoteDialog(themeById(Store.config.currentProfile.themeId))
+            // 🪙 +1
+            com.theta.kidshome.ui.PointsToast()
+            // 💌 かぞく の チャット：30 びょう ごと に とってくる
+            com.theta.kidshome.ui.ChatToast()
+            androidx.compose.runtime.LaunchedEffect(Unit) {
+                while (true) { runCatching { com.theta.kidshome.data.Chat.poll() }; kotlinx.coroutines.delay(30_000) }
+            }
             // ベータ（おや の スマホ で ためし中）：いつでも おやモード に もどれる
             if (com.theta.kidshome.data.Beta.on) {
                 androidx.compose.material3.Button(

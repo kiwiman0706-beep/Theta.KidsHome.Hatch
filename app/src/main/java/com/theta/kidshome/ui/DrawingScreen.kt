@@ -321,7 +321,7 @@ fun DrawingScreen(onBack: () -> Unit) {
                         RetroIconButton("🎲", theme, stampRandom, 50.dp) { stampRandom = !stampRandom }
                         Spacer(Modifier.width(10.dp))
                         RetroIconButton("➕", theme, size = 50.dp) { showMaker = true }
-                        val lib = remember(com.theta.kidshome.data.StampLibrary.version) { com.theta.kidshome.data.StampLibrary.list() }
+                        val lib = remember(com.theta.kidshome.data.StampLibrary.version) { com.theta.kidshome.data.StampLibrary.mine() }
                         lib.forEach { item -> StampThumb(theme, item.id, stamp == "img:${item.id}") { stamp = "img:${item.id}" } }
                         if (stamp.startsWith("img:")) {
                             RetroIconButton("🏠", theme, size = 50.dp) {

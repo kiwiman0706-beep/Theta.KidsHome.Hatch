@@ -192,6 +192,10 @@ private fun SettingsTab(modifier: Modifier) {
 
         ShopLabelSection()
 
+        PointsSection(config)
+
+        ChatSection()
+
         DictSection(config)
 
         StampLibrarySection(config)

@@ -124,6 +124,7 @@ fun CodingScreen(onBack: () -> Unit) {
             Coding.Outcome.GOAL -> {
                 gotStars = Coding.stars(level, prog)
                 Coding.save(context, config.currentProfileId, li, gotStars); starVersion++
+                com.theta.kidshome.data.Points.earn(gotStars, "うごかして ゴール ${li + 1}", "coding:$li:$gotStars")
                 speak(if (gotStars == 3) "やったね！ さいこう！" else "ゴール！ もっと すくない カード でも できるかな")
             }
             Coding.Outcome.BUMP -> speak("ごつん！ あかい カード の ところ で ぶつかったよ")

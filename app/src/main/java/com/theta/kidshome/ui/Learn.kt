@@ -117,7 +117,7 @@ fun ClockQuizDialog(theme: KidTheme, onDismiss: () -> Unit) {
                         RetroButton("${c.first}:%02d  $label".format(c.second), theme, Color.White, fontSize = 18, modifier = Modifier.fillMaxWidth()) {
                             if (result != null) return@RetroButton
                             result = c == q
-                            if (c == q) score++
+                            if (c == q) { score++; com.theta.kidshome.data.Points.earn(1, "とけい", "clock:${q.first}:${q.second}") }
                             speak(Almanac.readTime(q.first, q.second))
                         }
                     }

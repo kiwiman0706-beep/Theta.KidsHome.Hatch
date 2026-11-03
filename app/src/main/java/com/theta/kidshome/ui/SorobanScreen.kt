@@ -71,7 +71,7 @@ fun SorobanScreen(onBack: () -> Unit) {
     }
     fun check() {
         val q = quiz ?: return
-        if (Soroban.value(rods) == q.second) { cheer = listOf("せいかい！", "すごい！", "ばっちり！", "よくできました！").random(); quiz = null }
+        if (Soroban.value(rods) == q.second) { cheer = listOf("せいかい！", "すごい！", "ばっちり！", "よくできました！").random(); com.theta.kidshome.data.Points.earn(1, "そろばん", "soroban:${q.first}:${q.second}"); quiz = null }
     }
     fun newQuiz(kind: Int) {
         cheer = null

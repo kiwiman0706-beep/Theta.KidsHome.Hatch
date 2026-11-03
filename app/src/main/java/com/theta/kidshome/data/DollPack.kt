@@ -186,11 +186,12 @@ object DollPack {
     /** もらった チケット（もじ れんしゅう で かいた 字 の 数 ÷ perTicket） */
     fun earned(c: Context, profile: String) = STARTER + Moji.writtenChars(c, profile).size / perTicket(c) + prefs(c).getInt("bonus:$profile", 0)
 
-    fun tickets(c: Context, profile: String) = (earned(c, profile) - opened(c, profile).size).coerceAtLeast(0)
+    /** まえ の 🎟（ポイント に かわる まえ に のこって いた 数。Points が はじめ に 1 かい だけ よむ） */
+    fun legacyTickets(c: Context, profile: String) = (earned(c, profile) - opened(c, profile).size).coerceAtLeast(0)
 
-    /** 🎟 1 まい で あける */
+    /** 🪙 Points.DOLL_COST で あける */
     fun unlock(c: Context, profile: String, item: Item): Boolean {
-        if (tickets(c, profile) <= 0) return false
+        if (!Points.spend(c, profile, Points.DOLL_COST, "きせかえ：${item.label}")) return false
         prefs(c).edit().putStringSet("open:$profile", opened(c, profile) + item.id).apply()
         version++
         return true

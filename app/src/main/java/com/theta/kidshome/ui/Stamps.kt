@@ -60,6 +60,10 @@ import com.theta.kidshome.data.StampLibrary
 import com.theta.kidshome.data.Sticker
 import com.theta.kidshome.data.Store
 import kotlinx.coroutines.Dispatchers
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.material3.FilterChip
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -190,6 +194,7 @@ fun floatOnHome(id: String) = Store.addSticker(Sticker(stamp = id))
 fun StampLibrarySection(config: AppConfig) {
     val context = LocalContext.current
     var making by remember { mutableStateOf(false) }
+    var splitting by remember { mutableStateOf(false) }
     val items = remember(StampLibrary.version) { StampLibrary.list() }
     val import = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -206,6 +211,7 @@ fun StampLibrarySection(config: AppConfig) {
         )
         FlowRow8 {
             Button(onClick = { making = true }) { Text("＋ シールを つくる") }
+            Button(onClick = { splitting = true }) { Text("🧩 1 まい の 絵 を きりわける") }
             OutlinedButton(enabled = items.isNotEmpty(), onClick = { exportStamps(context) }) { Text("ZIP で書き出す") }
             OutlinedButton(onClick = { import.launch(arrayOf("application/zip", "application/octet-stream")) }) { Text("ZIP を読み込む") }
         }
@@ -219,6 +225,10 @@ fun StampLibrarySection(config: AppConfig) {
                             if (img != null) Image(img, null, Modifier.fillMaxSize().padding(4.dp), contentScale = ContentScale.Fit)
                         }
                         Text(s.name, fontSize = 12.sp, maxLines = 1)
+                        // タップ で ふつう → 🪙10 → 20 → 50（ごほうび は ポイント で こうかん する まで つかえない）
+                        TextButton(onClick = { StampLibrary.setPrice(s.id, PRICES[(PRICES.indexOf(s.price) + 1) % PRICES.size]) }) {
+                            Text(if (s.reward) "🎁 🪙${s.price}" else "ふつう", fontSize = 12.sp)
+                        }
                         Row {
                             TextButton(onClick = { floatOnHome(s.id); Toast.makeText(context, "${config.currentProfile.name}の ホームに うかべました", Toast.LENGTH_SHORT).show() }) { Text("🏠") }
                             TextButton(onClick = { StampLibrary.delete(s.id) }) { Text("削除", color = Color(0xFFD03B5C)) }
@@ -229,6 +239,82 @@ fun StampLibrarySection(config: AppConfig) {
         }
     }
     if (making) StampMakerDialog(themeById(config.currentProfile.themeId), onDismiss = { making = false })
+    if (splitting) SheetSplitDialog { splitting = false }
+}
+
+private val PRICES = listOf(0, 10, 20, 50)
+
+/** 1 まい に たくさん ならんだ イラスト を きりわけて、えらんだ もの を ライブラリ へ */
+@Composable
+private fun SheetSplitDialog(onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var parts by remember { mutableStateOf<List<Bitmap>>(emptyList()) }
+    val chosen = remember { mutableStateListOf<Int>() }
+    var busy by remember { mutableStateOf(false) }
+    var name by remember { mutableStateOf("") }
+    var price by remember { mutableIntStateOf(0) }
+    var gap by remember { mutableFloatStateOf(0.012f) }
+    var src by remember { mutableStateOf<Bitmap?>(null) }
+    fun run() {
+        val b = src ?: return
+        busy = true
+        scope.launch {
+            val r = withContext(Dispatchers.Default) { runCatching { StampLibrary.splitSheet(b, gap).map { StampLibrary.finish(it, true) } }.getOrDefault(emptyList()) }
+            parts = r; chosen.clear(); chosen.addAll(r.indices); busy = false
+        }
+    }
+    val pick = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) scope.launch { src = withContext(Dispatchers.IO) { loadImage(context, uri) }; run() }
+    }
+    Dialog(onDismissRequest = onDismiss, properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
+        androidx.compose.material3.Surface(Modifier.width(860.dp).heightIn(max = 700.dp), shape = RoundedCornerShape(20.dp)) {
+            Column(Modifier.padding(16.dp)) {
+                Text("🧩 きりわけ", fontSize = 20.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                Text("イラスト が たくさん ならんだ 画像（白 など 1 色 の 背景）を えらぶと、1 こ ずつ に きって 背景 を けします。", fontSize = 13.sp)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Button(onClick = { pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }) { Text("🖼 画像 を えらぶ") }
+                    if (src != null) {
+                        Text("　まとめる きょり", fontSize = 13.sp)
+                        listOf(0.006f to "ちいさい", 0.012f to "ふつう", 0.025f to "おおきい").forEach { (g, l) ->
+                            FilterChip(gap == g, { gap = g; run() }, label = { Text(l) }, modifier = Modifier.padding(start = 4.dp))
+                        }
+                    }
+                }
+                if (busy) Text("きりわけて います…", fontSize = 14.sp)
+                if (parts.isNotEmpty()) {
+                    Text("${parts.size} こ みつかりました（タップ で えらぶ／はずす。まざって いたら「まとめる きょり」を かえる）", fontSize = 13.sp)
+                    LazyVerticalGrid(GridCells.Adaptive(100.dp), Modifier.weight(1f, fill = false).heightIn(max = 380.dp)) {
+                        items(parts.size) { i ->
+                            val img = remember(parts[i]) { parts[i].asImageBitmap() }
+                            Box(
+                                Modifier.padding(4.dp).size(96.dp).clip(RoundedCornerShape(10.dp))
+                                    .border(3.dp, if (i in chosen) Color(0xFF2E9E6A) else Color.LightGray, RoundedCornerShape(10.dp))
+                                    .clickable { if (i in chosen) chosen.remove(i) else chosen.add(i) },
+                            ) {
+                                Checker(Modifier.fillMaxSize())
+                                Image(img, null, Modifier.fillMaxSize().padding(4.dp), contentScale = ContentScale.Fit)
+                                if (i in chosen) Text("✅", fontSize = 16.sp, modifier = Modifier.align(Alignment.TopEnd))
+                            }
+                        }
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        OutlinedTextField(name, { name = it }, singleLine = true, label = { Text("なまえ（あと に ばんごう）") }, modifier = Modifier.width(240.dp))
+                        Text("　", fontSize = 13.sp)
+                        PRICES.forEach { p -> FilterChip(price == p, { price = p }, label = { Text(if (p == 0) "ふつう" else "🎁 🪙$p") }, modifier = Modifier.padding(end = 4.dp)) }
+                    }
+                    Row {
+                        Button(enabled = chosen.isNotEmpty(), onClick = {
+                            chosen.sorted().forEachIndexed { k, i -> StampLibrary.add(parts[i], "${name.ifBlank { "スタンプ" }}${k + 1}", price) }
+                            Toast.makeText(context, "${chosen.size} こ いれました", Toast.LENGTH_SHORT).show()
+                            onDismiss()
+                        }) { Text("📥 ${chosen.size} こ を ライブラリ へ") }
+                        TextButton(onClick = onDismiss) { Text("とじる") }
+                    }
+                }
+            }
+        }
+    }
 }
 
 private fun exportStamps(context: Context) {

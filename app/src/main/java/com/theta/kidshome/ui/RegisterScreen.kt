@@ -220,7 +220,7 @@ fun RegisterScreen(onBack: () -> Unit) {
                                     when {
                                         traySum < total -> { message = "あと ${total - traySum}えん たりないよ"; speak(message!!) }
                                         else -> {
-                                            done = true; stars++
+                                            done = true; stars++; com.theta.kidshome.data.Points.earn(1, "おみせやさん", "reg:${basket.joinToString { it.name }}:$traySum")
                                             val change = traySum - total
                                             message = if (change == 0) "ぴったり！ ありがとうございました" else "おつり は ${change}えん です"
                                             speak(message!!)
@@ -236,7 +236,7 @@ fun RegisterScreen(onBack: () -> Unit) {
                             if (!done) RegKey("おつり を わたす", Color(0xFFB8D8FF), Modifier.weight(2f)) {
                                 val change = paid - total
                                 when {
-                                    traySum == change -> { done = true; stars++; message = "せいかい！ おつり ${change}えん"; speak("ありがとうございました") }
+                                    traySum == change -> { done = true; stars++; com.theta.kidshome.data.Points.earn(1, "おみせやさん（おつり）", "regc:$paid:$total"); message = "せいかい！ おつり ${change}えん"; speak("ありがとうございました") }
                                     traySum < change -> { message = "おつり が あと ${change - traySum}えん たりないよ"; speak(message!!) }
                                     else -> { message = "おつり が ${traySum - change}えん おおいよ"; speak(message!!) }
                                 }

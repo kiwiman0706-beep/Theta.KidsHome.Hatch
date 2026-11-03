@@ -136,6 +136,7 @@ fun TypingScreen(onBack: () -> Unit) {
             if (matcher.done) {
                 if (index + 1 >= items.size) {
                     finishedAt = System.currentTimeMillis()
+                    com.theta.kidshome.data.Points.earn(3, "タイピング", "typing:${items.hashCode()}")
                 } else {
                     index++
                     matcher = TypingMatcher(items[index])
