@@ -190,6 +190,8 @@ private fun SettingsTab(modifier: Modifier) {
 
         DollSection()
 
+        ShopLabelSection()
+
         DictSection(config)
 
         StampLibrarySection(config)

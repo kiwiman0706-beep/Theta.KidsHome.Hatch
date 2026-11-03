@@ -6,3 +6,7 @@ local.properties
 .DS_Store
 captures/
 .kotlin/
+
+# TEPRA-Print SDK（使用許諾：公開 しない）
+app/libs/TepraPrint.jar
+app/src/main/jniLibs/

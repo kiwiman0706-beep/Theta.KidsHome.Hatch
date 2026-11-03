@@ -35,6 +35,27 @@ jobs:
           grep -q "versionName = \"$ver\"" app/build.gradle.kts || { echo "::error::app/build.gradle.kts の versionName が $ver ではありません"; exit 1; }
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "ver=$ver" >> "$GITHUB_OUTPUT"
+      - name: TEPRA-Print SDK（シークレット が ある とき だけ）
+        # KING JIM の SDK は 使用許諾 が いる ので 公開 リポジトリ には 置かない。
+        # 非公開 リポジトリ の tepra-sdk/ に TepraPrint.jar と <abi>/libTepraPrint.so を 置き、
+        # このリポジトリ の シークレット TEPRA_SDK_TOKEN（読みとり 専用）を 入れる と テプラ 印刷 つき に なる。
+        env:
+          TOKEN: ${{ secrets.TEPRA_SDK_TOKEN }}
+        run: |
+          [ -n "$TOKEN" ] || { echo "TEPRA SDK なし（テプラ 印刷 は 画像 共有 に なる）"; exit 0; }
+          api=https://api.github.com/repos/kiwiman0706-beep/Theta.Kidshome.Hatch.Closed/contents/tepra-sdk
+          get() { curl -fsSL -H "Authorization: Bearer $TOKEN" -H "Accept: application/vnd.github.raw" "$api/$1" -o "$2"; }
+          mkdir -p app/libs
+          if get TepraPrint.jar app/libs/TepraPrint.jar && unzip -tq app/libs/TepraPrint.jar >/dev/null; then
+            for abi in arm64-v8a armeabi-v7a x86 x86_64; do
+              mkdir -p app/src/main/jniLibs/$abi
+              get $abi/libTepraPrint.so app/src/main/jniLibs/$abi/libTepraPrint.so || rm -f app/src/main/jniLibs/$abi/libTepraPrint.so
+            done
+            echo "TEPRA SDK あり"; ls -la app/libs app/src/main/jniLibs/*
+          else
+            echo "::warning::TEPRA SDK を とれません でした（テプラ なし で つくります）"
+            rm -rf app/libs/TepraPrint.jar app/src/main/jniLibs
+          fi
       - run: ./gradlew testDebugUnitTest assembleRelease
       - name: APK とハッシュ
         run: |

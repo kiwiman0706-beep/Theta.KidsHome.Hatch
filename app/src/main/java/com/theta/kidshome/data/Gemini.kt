@@ -101,4 +101,34 @@ object Gemini {
         }
         throw IOException("Gemini から画像が返りませんでした")
     }
+
+    /** 写真 を 見て 文 で こたえて もらう（画像 は つくらない）。うまく いかない モデル は つぎ へ */
+    suspend fun ask(context: Context, photo: Bitmap, prompt: String): String = withContext(Dispatchers.IO) {
+        val key = apiKey(context).ifBlank { throw IOException("Gemini の API キーが ありません（おうちのひと メニューで入れてね）") }
+        val s = 768f / maxOf(photo.width, photo.height)
+        val scaled = if (s < 1f) Bitmap.createScaledBitmap(photo, (photo.width * s).toInt(), (photo.height * s).toInt(), true) else photo
+        val jpeg = ByteArrayOutputStream().also { scaled.compress(Bitmap.CompressFormat.JPEG, 85, it) }.toByteArray()
+        val body = JSONObject().put(
+            "contents", JSONArray().put(JSONObject().put("parts", JSONArray()
+                .put(JSONObject().put("text", prompt))
+                .put(JSONObject().put("inline_data", JSONObject().put("mime_type", "image/jpeg").put("data", Base64.encodeToString(jpeg, Base64.NO_WRAP)))))),
+        ).put("generationConfig", JSONObject().put("responseMimeType", "application/json")).toString()
+        var last: Exception? = null
+        for (m in listOf("gemini-2.5-flash", "gemini-2.0-flash", "gemini-flash-latest")) {
+            val c = URL("https://generativelanguage.googleapis.com/v1beta/models/$m:generateContent").openConnection() as HttpURLConnection
+            c.connectTimeout = 20_000; c.readTimeout = 60_000; c.requestMethod = "POST"; c.doOutput = true
+            c.setRequestProperty("Content-Type", "application/json"); c.setRequestProperty("x-goog-api-key", key)
+            c.outputStream.use { it.write(body.toByteArray()) }
+            val code = c.responseCode
+            if (code == 404) { last = ModelNotFound(m); continue }
+            if (code !in 200..299) {
+                val err = c.errorStream?.bufferedReader()?.readText().orEmpty()
+                throw IOException("Gemini HTTP $code：" + runCatching { JSONObject(err).getJSONObject("error").getString("message") }.getOrDefault(err.take(200)))
+            }
+            val parts = JSONObject(c.inputStream.bufferedReader().readText()).optJSONArray("candidates")?.optJSONObject(0)?.optJSONObject("content")?.optJSONArray("parts")
+                ?: throw IOException("Gemini から こたえ が ありません")
+            return@withContext (0 until parts.length()).joinToString("") { parts.getJSONObject(it).optString("text") }
+        }
+        throw last ?: IOException("Gemini を呼べませんでした")
+    }
 }

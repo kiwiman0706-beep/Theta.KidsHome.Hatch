@@ -35,7 +35,11 @@ object Money {
         return options[pick.mod(options.size)]
     }
 
-    data class Item(val emoji: String, val name: String, val price: Int)
+    /** real：本物 の ねだん（ラベル の QR から。レベル で まるめ ない） */
+    data class Item(val emoji: String, val name: String, val price: Int, val real: Boolean = false)
+
+    /** QR ラベル の しょうひん */
+    fun fromLabel(i: ShopItems.Item) = Item("🏷️", i.name, i.price, real = true)
     data class Shop(val id: String, val name: String, val emoji: String, val items: List<Item>)
 
     private var shops: List<Shop>? = null

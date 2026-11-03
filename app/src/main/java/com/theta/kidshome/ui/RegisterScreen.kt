@@ -86,7 +86,16 @@ fun RegisterScreen(onBack: () -> Unit) {
     var stars by remember { mutableIntStateOf(0) }
     var duo by remember { mutableStateOf(false) }
 
-    fun price(i: Money.Item) = Money.price(i.price, level)
+    fun price(i: Money.Item) = if (i.real) i.price else Money.price(i.price, level)
+    var pip by remember { mutableStateOf(false) }
+    /** QR ラベル を ピッ（カメラ でも 外付け リーダー でも） */
+    fun scanned(code: String) {
+        val it = com.theta.kidshome.data.ShopItems.decode(code)
+        if (it == null) { message = "この QR は しょうひん では ないよ"; return }
+        if (cashier || paying) return
+        basket = basket + Money.fromLabel(it); message = "ピッ！ ${it.name} ${it.price}えん"
+        speak("${it.name}、${it.price}えん")
+    }
     val subtotal = basket.sumOf { price(it) }
     val total = Money.total(basket.map { price(it) }, level)
     val traySum = Money.sum(tray)
@@ -114,6 +123,7 @@ fun RegisterScreen(onBack: () -> Unit) {
         return
     }
 
+    Box(Modifier.fillMaxSize().scannerKeys(::scanned)) {
     Column(Modifier.fillMaxSize().background(theme.bgBottom).windowInsetsPadding(WindowInsets.safeDrawing).padding(12.dp)) {
         // みだし
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -127,6 +137,7 @@ fun RegisterScreen(onBack: () -> Unit) {
                     }
                 }
             }
+            RetroButton(if (pip) "📷 ピッ ON" else "📷 ピッ", theme, if (pip) Color(0xFFFF8FB1) else Color.White, fontSize = 15, modifier = Modifier.padding(end = 6.dp)) { pip = !pip }
             RetroButton("👭 ふたりで", theme, theme.titleBars[3], fontSize = 15, modifier = Modifier.padding(end = 6.dp)) { duo = true }
             RetroButton("🧒 おきゃくさん", theme, if (!cashier) theme.titleBars[1] else Color.White, fontSize = 15, modifier = Modifier.padding(end = 6.dp)) { setMode(false) }
             RetroButton("🧑‍🍳 おみせのひと", theme, if (cashier) theme.titleBars[1] else Color.White, fontSize = 15) { setMode(true) }
@@ -267,6 +278,12 @@ fun RegisterScreen(onBack: () -> Unit) {
                 }
             }
         }
+    }
+    if (pip) {
+        val ctx = LocalContext.current
+        val top = remember { cameraOnTop(ctx) }
+        Box(Modifier.align(if (top) Alignment.TopCenter else Alignment.BottomCenter)) { PipWindow(top) { scanned(it) } }
+    }
     }
 }
 

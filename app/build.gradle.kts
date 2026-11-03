@@ -4,6 +4,9 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+// テプラ（KING JIM TEPRA-Print SDK）：使用許諾 の ため 公開 リポジトリ には 入れない。ある とき だけ くみこむ
+val tepraJar = file("libs/TepraPrint.jar")
+
 android {
     namespace = "com.theta.kidshome"
     compileSdk = 35
@@ -12,8 +15,8 @@ android {
         applicationId = "com.theta.kidshome"
         minSdk = 29
         targetSdk = 35
-        versionCode = 55
-        versionName = "0.48.0"
+        versionCode = 56
+        versionName = "0.49.0"
     }
 
     signingConfigs {
@@ -49,7 +52,10 @@ android {
     }
 }
 
+android.sourceSets.getByName("main").java.srcDir(if (tepraJar.exists()) "src/tepra/java" else "src/notepra/java")
+
 dependencies {
+    if (tepraJar.exists()) implementation(files(tepraJar))
     val composeBom = platform("androidx.compose:compose-bom:2024.12.01")
     implementation(composeBom)
     implementation("androidx.core:core-ktx:1.13.1")

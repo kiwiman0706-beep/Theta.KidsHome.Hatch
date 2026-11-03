@@ -1,0 +1,7 @@
+Powered by KING JIM TEPRA-Print SDK
+
+テプラ 印刷 つき の 版 では、キングジム の TEPRA-Print SDK for Android（v1.4.0）の
+再頒布 対象 モジュール（TepraPrint.jar / libTepraPrint.so）を、使用許諾 条件 に したがって
+未改変 で 組み込んで います。日本国内 で 使用 して ください。
+SDK：https://www.kingjim.co.jp/download/tepra/sdk/
+SDK 本体 は 公開 リポジトリ には 含まれません。

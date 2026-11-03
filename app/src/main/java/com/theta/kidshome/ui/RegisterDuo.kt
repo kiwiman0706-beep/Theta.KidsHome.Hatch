@@ -37,6 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -61,7 +62,18 @@ fun RegisterDuo(theme: KidTheme, shop: Money.Shop, level: Int, onExit: () -> Uni
     var cashMsg by remember { mutableStateOf<String?>(null) }
     var stars by remember { mutableIntStateOf(0) }
 
-    fun price(i: Money.Item) = Money.price(i.price, level)
+    fun price(i: Money.Item) = if (i.real) i.price else Money.price(i.price, level)
+    var pip by remember { mutableStateOf(false) }
+    /** てんいんさん が ラベル を ピッ：かご に 入れて ピッ ずみ に */
+    fun scanned(code: String) {
+        val it = com.theta.kidshome.data.ShopItems.decode(code) ?: return
+        if (phase != Phase.SHOP && phase != Phase.SCAN) return
+        basket = basket + Money.fromLabel(it)
+        scanned = scanned + (basket.size - 1)
+        phase = Phase.SCAN
+        beep?.startTone(ToneGenerator.TONE_PROP_BEEP, 120)
+        speak("${it.name}、${it.price}えん")
+    }
     val scannedItems = scanned.map { basket[it] }
     val subtotal = scannedItems.sumOf { price(it) }
     val total = Money.total(scannedItems.map { price(it) }, level)
@@ -81,9 +93,10 @@ fun RegisterDuo(theme: KidTheme, shop: Money.Shop, level: Int, onExit: () -> Uni
         }
     }
 
-    Column(Modifier.fillMaxSize()) {
+    var side by rememberSaveableSide()
+    // ふたり の いち：左右（みじかい 辺 に すわる）か 上下（ながい 辺 で むかいあう）
         // ======================== おきゃくさん（むこう がわ：さかさま）
-        Box(Modifier.weight(1f).fillMaxWidth().rotate(180f).background(Color(0xFFFFF1F6)).padding(8.dp)) {
+        val customer: @Composable (Modifier) -> Unit = { m -> Box(m.background(Color(0xFFFFF1F6)).padding(8.dp)) {
             Row(Modifier.fillMaxSize()) {
                 Column(Modifier.weight(1.2f).fillMaxHeight()) {
                     DotText("🧒 おきゃくさん ・ ${shop.emoji} ${shop.name}", theme, 18, theme.text)
@@ -143,17 +156,19 @@ fun RegisterDuo(theme: KidTheme, shop: Money.Shop, level: Int, onExit: () -> Uni
                     if (phase == Phase.DONE) RegKey("もういちど", Color(0xFFFFB3CF), Modifier.fillMaxWidth().padding(top = 6.dp)) { again() }
                 }
             }
-        }
-        // まんなか の カウンター
-        Box(Modifier.fillMaxWidth().height(10.dp).background(Color(0xFF8A5A33)))
+        } }
+
+
         // ======================== てんいんさん（てまえ）
-        Box(Modifier.weight(1f).fillMaxWidth().background(Color(0xFFF1F8FF)).padding(8.dp)) {
+        val cashier: @Composable (Modifier) -> Unit = { m -> Box(m.background(Color(0xFFF1F8FF)).padding(8.dp)) {
             Row(Modifier.fillMaxSize()) {
                 Column(Modifier.weight(1f).fillMaxHeight()) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         DotText("🧑‍🍳 てんいんさん", theme, 18, theme.text, modifier = Modifier.weight(1f))
                         DotText("⭐ $stars", theme, 16)
                         Spacer(Modifier.width(8.dp))
+                        RetroButton(if (pip) "📷 ON" else "📷", theme, if (pip) Color(0xFFFF8FB1) else Color.White, fontSize = 13, modifier = Modifier.padding(end = 6.dp)) { pip = !pip }
+                        RetroButton(if (side) "↕" else "↔", theme, Color.White, fontSize = 13, modifier = Modifier.padding(end = 6.dp)) { side = !side }
                         RetroButton("✖", theme, Color.White, fontSize = 13, onClick = onExit)
                     }
                     when (phase) {
@@ -211,6 +226,31 @@ fun RegisterDuo(theme: KidTheme, shop: Money.Shop, level: Int, onExit: () -> Uni
                     cashMsg?.let { DotText(it, theme, 16, if (it == "せいかい！") Color(0xFF2E9E6A) else Color(0xFFD03B5C)) }
                 }
             }
+        } }
+        Box(Modifier.fillMaxSize().scannerKeys(::scanned)) {
+            if (side) Row(Modifier.fillMaxSize()) {
+                customer(Modifier.weight(1f).fillMaxHeight().turned(90))
+                Box(Modifier.width(10.dp).fillMaxHeight().background(Color(0xFF8A5A33)))
+                cashier(Modifier.weight(1f).fillMaxHeight().turned(-90))
+            } else Column(Modifier.fillMaxSize()) {
+                customer(Modifier.weight(1f).fillMaxWidth().rotate(180f))
+                Box(Modifier.fillMaxWidth().height(10.dp).background(Color(0xFF8A5A33)))
+                cashier(Modifier.weight(1f).fillMaxWidth())
+            }
+            // カメラ の そば に「ここ で ピッ」（てんいんさん むき）
+            if (pip) {
+                val ctx = androidx.compose.ui.platform.LocalContext.current
+                val top = remember { cameraOnTop(ctx) }
+                Box(Modifier.align(if (top) Alignment.TopCenter else Alignment.BottomCenter)) { PipWindow(top, labelTurn = 0f) { scanned(it) } }
+            }
         }
-    }
+}
+
+@Composable
+private fun rememberSaveableSide() = androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(true) }
+
+/** 90 ど まわして おく（たて と よこ を いれかえて はかる） */
+private fun Modifier.turned(deg: Int) = this.layout { m, c ->
+    val p = m.measure(androidx.compose.ui.unit.Constraints(minWidth = c.minHeight, maxWidth = c.maxHeight, minHeight = c.minWidth, maxHeight = c.maxWidth))
+    layout(c.maxWidth, c.maxHeight) { p.placeWithLayer((c.maxWidth - p.width) / 2, (c.maxHeight - p.height) / 2) { rotationZ = deg.toFloat() } }
 }
