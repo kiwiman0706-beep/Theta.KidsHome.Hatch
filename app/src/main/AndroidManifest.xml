@@ -50,6 +50,11 @@
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="https" />
         </intent>
+        <!-- 📸 プリクラ を instax mini Link の アプリ へ わたす -->
+        <intent>
+            <action android:name="android.intent.action.SEND" />
+            <data android:mimeType="image/*" />
+        </intent>
         <!-- くくの ひょう の 読み上げ（音声読み上げエンジン） -->
         <intent>
             <action android:name="android.intent.action.TTS_SERVICE" />
