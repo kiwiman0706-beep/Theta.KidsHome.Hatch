@@ -128,6 +128,7 @@ fun DrawingScreen(onBack: () -> Unit) {
     var brush by remember { mutableStateOf(Brush.CRAYON) }
     var stampMode by remember { mutableStateOf(false) }
     var showShop by remember { mutableStateOf(false) }
+    var stampPreview by remember { mutableStateOf<Stamp?>(null) }
     var color by remember { mutableStateOf(palette[2]) }
     var widthIndex by remember { mutableIntStateOf(1) }
     // えもじ か "img:<ライブラリの id>"
@@ -137,8 +138,8 @@ fun DrawingScreen(onBack: () -> Unit) {
     var stampRot by remember { mutableStateOf(0f) }
     var stampRandom by remember { mutableStateOf(false) }
     /** pressure：ペン の ときは つよく おすほど 大きく（ゆび は null） */
-    fun stampMark(x: Float, y: Float, pressure: Float? = null): Stamp {
-        val scale = listOf(0.7f, 1.2f, 2.0f)[widthIndex] * (pressure?.let { 0.45f + it.coerceIn(0f, 1f) * 1.3f } ?: 1f)
+    fun stampMark(x: Float, y: Float, pressure: Float? = null, grow: Float = 1f): Stamp {
+        val scale = listOf(0.7f, 1.2f, 2.0f)[widthIndex] * (pressure?.let { 0.45f + it.coerceIn(0f, 1f) * 1.3f } ?: 1f) * grow
         val rot = if (stampRandom) (-40..40).random().toFloat() else stampRot
         return if (stamp.startsWith("img:")) Stamp(x, y, "", stampSize * scale, stamp.removePrefix("img:"), rot) else Stamp(x, y, stamp, stampSize * scale, null, rot)
     }
@@ -215,10 +216,19 @@ fun DrawingScreen(onBack: () -> Unit) {
                 if (Drawing.background != null && Gemini.apiKey(context).isNotBlank()) {
                     ToolButton(theme, "🪄", "まほう") { showMagic = true }
                 }
-                ToolButton(theme, "✏️", "ペン だけ", penMode) {
-                    penMode = !penMode
-                    PenPrefs.set(context, penMode)
-                    Toast.makeText(context, if (penMode) "ペンモード：ペンだけで かけるよ（て は さわっても だいじょうぶ）" else "ゆびでも かけるよ", Toast.LENGTH_LONG).show()
+                // ペン だけ：うっかり かわらない よう に ながおし で きりかえ
+                Box {
+                    ToolButton(theme, "✏️", "ペン だけ", penMode) {}
+                    Box(Modifier.matchParentSize().pointerInput(Unit) {
+                        detectTapGestures(
+                            onTap = { Toast.makeText(context, "ながく おすと ${if (penMode) "ゆび でも かける よう に" else "ペン だけ に"} なるよ", Toast.LENGTH_SHORT).show() },
+                            onLongPress = {
+                                penMode = !penMode
+                                PenPrefs.set(context, penMode)
+                                Toast.makeText(context, if (penMode) "ペンモード：ペンだけで かけるよ（て は さわっても だいじょうぶ）" else "ゆびでも かけるよ", Toast.LENGTH_LONG).show()
+                            },
+                        )
+                    })
                 }
                 ToolButton(theme, "🖨️", "いんさつ") { committed?.let { printBitmap(context, it) } }
                 ToolButton(theme, "📥", "しゃしん に いれる") {
@@ -280,8 +290,26 @@ fun DrawingScreen(onBack: () -> Unit) {
                                     // ペンモード：手のひら・指は描かない
                                     if (penMode && !stylus) return@awaitEachGesture
                                     down.consume()
-                                    if (stampMode) {
+                                    if (stampMode && penMode) {
                                         commit(stampMark(down.position.x, down.position.y, if (stylus) down.pressure else null))
+                                        return@awaitEachGesture
+                                    }
+                                    if (stampMode) {
+                                        // ながく おす ほど 大きく（みじかく はなす と 小さい）。おして いる あいだ は 見本 が ふくらむ
+                                        val t0 = System.currentTimeMillis()
+                                        var pos = down.position
+                                        fun grow() = 0.5f + ((System.currentTimeMillis() - t0).coerceAtMost(2000L) / 2000f) * 2.5f
+                                        while (true) {
+                                            val ev = withTimeoutOrNull(40L) { awaitPointerEvent() }
+                                            if (ev != null) {
+                                                val ch = ev.changes.firstOrNull { it.id == down.id } ?: break
+                                                if (!ch.pressed) break
+                                                pos = ch.position; ch.consume()
+                                            }
+                                            stampPreview = stampMark(pos.x, pos.y, null, grow())
+                                        }
+                                        stampPreview = null
+                                        commit(stampMark(pos.x, pos.y, null, grow()))
                                         return@awaitEachGesture
                                     }
                                     // ペンのおしり（けしごむ側）なら けしごむ
@@ -311,6 +339,7 @@ fun DrawingScreen(onBack: () -> Unit) {
                             drawIntoCanvas { c ->
                                 committed?.let { c.nativeCanvas.drawBitmap(it, 0f, 0f, null) }
                                 if (current.isNotEmpty()) Painter.draw(c.nativeCanvas, line(current.toList()).copy(seed = 1))
+                                stampPreview?.let { Painter.draw(c.nativeCanvas, it) }
                             }
                         }
                     }
