@@ -97,6 +97,10 @@ object Store {
             }
             prefs.edit().putBoolean("added:tasu", true).apply()
         }
+        if (!prefs.getBoolean("added:touch", false)) {
+            update { c -> c.copy(profiles = c.profiles.map { p -> if (p.tiles.any { it.type == TileType.TOUCH }) p else p.copy(tiles = p.tiles + AppConfig.touchTile()) }) }
+            prefs.edit().putBoolean("added:touch", true).apply()
+        }
         if (!prefs.getBoolean("added:coding", false)) {
             update { c -> c.copy(profiles = c.profiles.map { p -> if (p.tiles.any { it.type == TileType.CODING }) p else p.copy(tiles = p.tiles + AppConfig.codingTile()) }) }
             prefs.edit().putBoolean("added:coding", true).apply()

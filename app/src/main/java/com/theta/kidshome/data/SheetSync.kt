@@ -196,6 +196,7 @@ object SheetSync {
                         "ちず" -> Tile(id = id, type = TileType.MAP, label = label.ifEmpty { "ちず" }, emoji = emoji ?: "🗺️")
                         "じしょ" -> Tile(id = id, type = TileType.DICT, label = label.ifEmpty { "じしょ" }, emoji = emoji ?: "📖")
                         "たしざん" -> Tile(id = id, type = TileType.TASU, label = label.ifEmpty { "たしざん の ひょう" }, emoji = emoji ?: "➕")
+                        "タッチ" -> Tile(id = id, type = TileType.TOUCH, label = label.ifEmpty { "タッチ で あそぼ" }, emoji = emoji ?: "👆")
                         "プログラミング" -> Tile(id = id, type = TileType.CODING, label = label.ifEmpty { "うごかして ゴール" }, emoji = emoji ?: "🤖")
                         "おみせ" -> Tile(id = id, type = TileType.REGISTER, label = label.ifEmpty { "おみせやさん" }, emoji = emoji ?: "🛒")
                         "にっぽん" -> Tile(id = id, type = TileType.JAPAN, label = label.ifEmpty { "にっぽん パズル" }, emoji = emoji ?: "🗾")
@@ -289,7 +290,7 @@ object SheetSync {
                     listOf(
                         who(p),
                         when (t.type) {
-                            TileType.VIDEO -> "どうが"; TileType.APP -> "アプリ"; TileType.DRAWING -> "おえかき"; TileType.CALL -> "でんわ"; TileType.INSTRUMENT -> "がっき"; TileType.EDUPAD -> "くるくる"; TileType.WORDPRO -> "わーぷろ"; TileType.PUZZLE -> "パズル"; TileType.TYPING -> "タイピング"; TileType.MOJI -> "もじ"; TileType.KUKU -> "くく"; TileType.MAP -> "ちず"; TileType.TASU -> "たしざん"; TileType.DICT -> "じしょ"; TileType.SOROBAN -> "そろばん"; TileType.HISSAN -> "ひっさん"; TileType.JAPAN -> "にっぽん"; TileType.REGISTER -> "おみせ"; TileType.CODING -> "プログラミング"
+                            TileType.VIDEO -> "どうが"; TileType.APP -> "アプリ"; TileType.DRAWING -> "おえかき"; TileType.CALL -> "でんわ"; TileType.INSTRUMENT -> "がっき"; TileType.EDUPAD -> "くるくる"; TileType.WORDPRO -> "わーぷろ"; TileType.PUZZLE -> "パズル"; TileType.TYPING -> "タイピング"; TileType.MOJI -> "もじ"; TileType.KUKU -> "くく"; TileType.MAP -> "ちず"; TileType.TASU -> "たしざん"; TileType.DICT -> "じしょ"; TileType.SOROBAN -> "そろばん"; TileType.HISSAN -> "ひっさん"; TileType.JAPAN -> "にっぽん"; TileType.REGISTER -> "おみせ"; TileType.CODING -> "プログラミング"; TileType.TOUCH -> "タッチ"
                         },
                         t.label,
                         when (t.type) { TileType.APP -> t.packageName.orEmpty(); else -> t.url.orEmpty() },
