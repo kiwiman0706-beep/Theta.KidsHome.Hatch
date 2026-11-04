@@ -64,9 +64,12 @@ import kotlinx.coroutines.withContext
 
 /** 子どもに見せる動画（かくしたフォルダを除く） */
 private fun MediaEntry.shown() = folder !in Store.config.hiddenFolders && shelf !in Store.config.hiddenFolders
-fun visibleVideos(): List<MediaEntry> = MediaLibrary.videos.filter { it.shown() }
-fun visibleMusic(): List<MediaEntry> = MediaLibrary.music.filter { it.shown() }
-fun visibleBooks(): List<MediaEntry> = MediaLibrary.books.filter { it.shown() }
+fun visibleVideos(): List<MediaEntry> = MediaLibrary.videos.filter { it.shown() && !it.study }
+fun visibleMusic(): List<MediaEntry> = MediaLibrary.music.filter { it.shown() && !it.study }
+fun visibleBooks(): List<MediaEntry> = MediaLibrary.books.filter { it.shown() && !it.study }
+/** 📚 べんきょう（KidsHome/べんきょう/）：どうが と おと */
+fun visibleStudyVideos(): List<MediaEntry> = MediaLibrary.videos.filter { it.shown() && it.study }
+fun visibleStudyAudio(): List<MediaEntry> = (MediaLibrary.music + MediaLibrary.books).filter { it.shown() && it.study }
 
 /**
  * ひだり に フォルダ（シリーズ）の 一覧、みぎ に なかみ。フォルダ が 1 つ なら みぎ だけ。
@@ -142,9 +145,9 @@ private fun minutes(ms: Long): String {
 // ---------------------------------------------------------------- ビデオ（端末の動画）
 
 @Composable
-fun VideoLibraryPage(theme: KidTheme, locked: Boolean, onPlay: (List<MediaEntry>, Int) -> Unit, onLocked: () -> Unit) {
+fun VideoLibraryPage(theme: KidTheme, locked: Boolean, onPlay: (List<MediaEntry>, Int) -> Unit, source: List<MediaEntry>? = null, key: String = "video", onLocked: () -> Unit) {
     val context = LocalContext.current
-    ShelfPanes(theme, "video", visibleVideos().groupBy { it.shelf }, "🎬", square = false, count = { "${it.size} こ" }) { shelf, list ->
+    ShelfPanes(theme, key, (source ?: visibleVideos()).groupBy { it.shelf }, "🎬", square = false, count = { "${it.size} こ" }) { shelf, list ->
         // おなじ シリーズ の なか で フォルダ が わかれて いたら（シーズン1・2 など）見出し を 出す
         val parts = list.groupBy { it.folder }
         LazyVerticalGrid(
@@ -193,16 +196,16 @@ fun VideoLibraryPage(theme: KidTheme, locked: Boolean, onPlay: (List<MediaEntry>
 
 /** アルバム（オーディオブックは 1 冊）ごとの棚。押すと中の曲、1 曲だけならすぐ再生 */
 @Composable
-fun AudioLibraryPage(theme: KidTheme, kind: MediaKind) {
+fun AudioLibraryPage(theme: KidTheme, kind: MediaKind, source: List<MediaEntry>? = null) {
     val context = LocalContext.current
-    val all = if (kind == MediaKind.BOOK) visibleBooks() else visibleMusic()
+    val all = source ?: if (kind == MediaKind.BOOK) visibleBooks() else visibleMusic()
     var open by remember(kind) { mutableStateOf<String?>(null) }
     val fallback = if (kind == MediaKind.BOOK) "📖" else "💿"
 
     Column(Modifier.fillMaxSize()) {
         Box(Modifier.weight(1f)) {
           ShelfPanes(
-              theme, "audio:$kind", all.groupBy { it.shelf }, fallback, square = true,
+              theme, if (source != null) "audio:study" else "audio:$kind", all.groupBy { it.shelf }, fallback, square = true,
               count = { l -> l.map { it.album }.distinct().size.let { n -> if (n > 1) "$n まい" else "${l.size} きょく" } },
           ) { shelf, inShelf ->
             val albums = inShelf.groupBy { it.album }
@@ -327,4 +330,23 @@ fun NowPlayingBar(theme: KidTheme) {
 /** 棒をさわったところへ飛ぶ */
 private fun Modifier.pointerSeek(): Modifier = pointerInput(Unit) {
     detectTapGestures { o -> AudioPlayer.seekTo(o.x / size.width) }
+}
+
+// ---------------------------------------------------------------- 📚 べんきょう
+
+/** KidsHome/べんきょう/ の どうが と おと。どうが ロック の とき も 見られる */
+@Composable
+fun StudyPage(theme: KidTheme, onPlay: (List<MediaEntry>, Int) -> Unit) {
+    val videos = visibleStudyVideos(); val audio = visibleStudyAudio()
+    var showAudio by remember { mutableStateOf(videos.isEmpty()) }
+    Column(Modifier.fillMaxSize()) {
+        if (videos.isNotEmpty() && audio.isNotEmpty()) Row(Modifier.padding(bottom = 6.dp)) {
+            RetroButton("🎬 どうが", theme, if (!showAudio) theme.titleBars[1] else Color.White, fontSize = 16, modifier = Modifier.padding(end = 6.dp)) { showAudio = false }
+            RetroButton("🎧 おと", theme, if (showAudio) theme.titleBars[1] else Color.White, fontSize = 16) { showAudio = true }
+        }
+        Box(Modifier.weight(1f)) {
+            if (showAudio) AudioLibraryPage(theme, MediaKind.MUSIC, audio)
+            else VideoLibraryPage(theme, locked = false, onPlay = onPlay, onLocked = {}, source = videos, key = "study")
+        }
+    }
 }

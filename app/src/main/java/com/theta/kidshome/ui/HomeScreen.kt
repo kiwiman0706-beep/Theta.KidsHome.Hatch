@@ -166,6 +166,7 @@ fun HomeScreen(
         if (config.showVideos && visibleVideos().isNotEmpty()) add(KidTab("local:video", TabKind.LOCAL_VIDEO, "📼", "ビデオ"))
         if (config.showMusic && visibleMusic().isNotEmpty()) add(KidTab("local:music", TabKind.MUSIC, "🎵", "おんがく"))
         if (config.showBooks && visibleBooks().isNotEmpty()) add(KidTab("local:book", TabKind.BOOKS, "🎧", "おはなし"))
+        if (visibleStudyVideos().isNotEmpty() || visibleStudyAudio().isNotEmpty()) add(KidTab("local:study", TabKind.STUDY, "📚", "べんきょう"))
     }
     // 内蔵 アプリ の なかま（へや の ほんだな・おもちゃばこ と おなじ）を タブ にも
     val builtinTabs = remember(profile.tiles) {
@@ -222,6 +223,7 @@ fun HomeScreen(
     // ほんだな：1 だん ＝ 1 つの なかま（なかみ が ないものは おかない）
     val shelves = listOfNotNull(
         Shelf("book", "🎧", "おはなし", emptyList()) { open(listOf("local:book")) }.takeIf { tabs.any { it.key == "local:book" } },
+        Shelf("study", "📚", "べんきょう", emptyList()) { open(listOf("local:study")) }.takeIf { tabs.any { it.key == "local:study" } },
         Shelf("math", "🔢", "さんすう", builtins(TileType.KUKU, TileType.TASU, TileType.SOROBAN, TileType.HISSAN, TileType.EDUPAD)),
         Shelf("lang", "✏️", "こくご", builtins(TileType.MOJI, TileType.TYPING, TileType.WORDPRO)),
         Shelf("look", "🔍", "しらべる", builtins(TileType.DICT, TileType.MAP, TileType.JAPAN)),
@@ -271,6 +273,7 @@ fun HomeScreen(
             TabKind.LOCAL_VIDEO -> VideoLibraryPage(theme, locked, onPlayVideo) { showLockedDialog = true }
             TabKind.MUSIC -> AudioLibraryPage(theme, com.theta.kidshome.data.MediaKind.MUSIC)
             TabKind.BOOKS -> AudioLibraryPage(theme, com.theta.kidshome.data.MediaKind.BOOK)
+            TabKind.STUDY -> StudyPage(theme, onPlayVideo)
             TabKind.MUSIC_REMOTE -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { MusicWindow(theme, Modifier.width(420.dp)) }
         }
     }
@@ -478,7 +481,7 @@ object RailPref {
     fun set(c: android.content.Context, v: Boolean) { c.getSharedPreferences("home", android.content.Context.MODE_PRIVATE).edit().putBoolean("railHidden", v).apply(); version++ }
 }
 
-private enum class TabKind { HOME, CLOCK, TIMETABLE, LOCAL_VIDEO, MUSIC, BOOKS, CATEGORY, VIDEO, WIDGETS, MUSIC_REMOTE }
+private enum class TabKind { HOME, CLOCK, TIMETABLE, LOCAL_VIDEO, MUSIC, BOOKS, STUDY, CATEGORY, VIDEO, WIDGETS, MUSIC_REMOTE }
 
 private data class KidTab(
     val key: String,

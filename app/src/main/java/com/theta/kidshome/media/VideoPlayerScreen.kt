@@ -102,7 +102,7 @@ fun VideoPlayerScreen(list: List<MediaEntry>, startIndex: Int, onBack: () -> Uni
     LaunchedEffect(Unit) {
         while (true) {
             delay(1000)
-            if (Store.config.isVideoLocked()) {
+            if (Store.config.isVideoLocked() && list.any { !it.study }) {
                 player.pause()
                 save()
                 onLocked()
