@@ -75,10 +75,13 @@ SD カード（ルート）
 
 ### 動画
 
-- **MP4（H.264 映像 ＋ AAC 音声）** が いちばん 確実。1080p まで。
-- MKV・WebM も 再生 できる が、サムネイル が 出ない こと が あり ます。
+- **MP4（H.264 か HEVC/H.265 映像 ＋ AAC 音声）**。1080p まで。再生 は タブレット の ハードウェア（Media3 ExoPlayer）なので、**HEVC も 変換 しなくて よい**（まず 1 本 ためして 映れば OK）。
+- 変換 が いる の は：**10bit の HEVC（pix_fmt が yuv420p10le）**・**4K** など 大きすぎる もの・タブレット で 映らなかった もの だけ。
+  しらべかた：`ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,pix_fmt,width,height -of csv=p=0 "動画.mkv"`
+- MKV・WebM も 再生 できる が、サムネイル が 出ない こと が あり ます。中身 が 再生 できる 形 なら、作りなおさず に 入れもの だけ MP4 に（数秒）：
+  `ffmpeg -i "元.mkv" -c copy -tag:v hvc1 -movflags +faststart "01 タイトル.mp4"`（H.264 なら `-tag:v` は いらない）
 - 1 本 ずつ の サムネイル は 動画 の 1 コマ を 自動 で 使う。シリーズ の アイコン だけ `folder.jpg` で 好き な 絵 に できる。
-- 変換 の 例（ffmpeg）：
+- 作りなおす（変換）とき の 例（ffmpeg）：
 
 ```bash
 ffmpeg -i 元.mkv -c:v libx264 -crf 22 -preset medium -vf "scale='min(1920,iw)':-2" -c:a aac -b:a 160k -movflags +faststart "01 タイトル.mp4"
@@ -144,7 +147,7 @@ ffmpeg -i "01 さんぽ.m4a" -i cover.jpg -map 0:a -map 1 -c copy -disposition:v
 - [ ] `KidsHome/どうが`・`KidsHome/おんがく`・`KidsHome/おはなし` の 3 つ を 作る（名前 は ひらがな で 正確 に）
 - [ ] その 下 に シリーズ ごと の フォルダ。名前 は 子ども 向け の 読みやすい ことば
 - [ ] ファイル名 の 先頭 に けた を そろえた 番号
-- [ ] 動画 は MP4（H.264/AAC）。ちがう もの は 変換
+- [ ] 動画 は MP4（H.264 か HEVC＋AAC）。MKV は `-c copy` で MP4 に。10bit・4K・映らない もの だけ 作りなおす（変換）
 - [ ] 音楽・おはなし は MP3/M4A/M4B。アルバム = フォルダ。ジャケット は `cover.jpg` を 置く か 埋め込む
 - [ ] シリーズ の フォルダ に アイコン `folder.jpg`（正方形、512×512 くらい。なくても よい）
 - [ ] 使えない 文字 が ない か
