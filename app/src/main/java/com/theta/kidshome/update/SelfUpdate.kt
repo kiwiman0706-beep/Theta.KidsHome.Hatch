@@ -51,6 +51,8 @@ data class UpdateState(
     val checkedAt: Long = 0L,
     /** うらで ダウンロード して たしかめ ずみ の APK（あとは インストール だけ） */
     val ready: File? = null,
+    /** 新しい アプリ（app.thetahatch.kidshome）が 出た：上書き できない ので「新しい アプリ に 移る」 */
+    val migrate: Release? = null,
 )
 
 /**
@@ -62,6 +64,10 @@ object SelfUpdate {
     const val REPO = "Theta.KidsHome.Hatch"
     const val RELEASES_URL = "https://github.com/$OWNER/$REPO/releases"
     private const val ASSET_PREFIX = "KidsHome-"
+    /** シリーズ の 名前 の APK（新しい アプリ、アプリ ID も 鍵 も ちがう） */
+    private const val NEW_PREFIX = "ThetaKidsHomeHatch-"
+    const val NEW_PACKAGE = "app.thetahatch.kidshome"
+    const val LATEST_URL = "https://github.com/$OWNER/$REPO/releases/latest"
 
     var state by mutableStateOf(UpdateState())
         private set
@@ -83,7 +89,10 @@ object SelfUpdate {
             val r = runCatching { latest() }
             val now = System.currentTimeMillis()
             prefs.edit().putLong("lastCheck", now).apply()
-            val rel = r.getOrNull()
+            val found = r.getOrNull()
+            // 新しい アプリ の 版 は 上書き できない（アプリ ID と 鍵 が ちがう）→ 移る 案内 だけ
+            val migrate = found?.takeIf { it.apkName.startsWith(NEW_PREFIX) && context.packageName != NEW_PACKAGE }
+            val rel = found?.takeIf { migrate == null }
             val newer = rel != null && isNewer(rel.version, current)
             state = UpdateState(
                 latest = rel,
@@ -91,6 +100,7 @@ object SelfUpdate {
                 error = r.exceptionOrNull()?.message,
                 checkedAt = now,
                 ready = if (newer && rel != null) readyFile(context, rel) else null,
+                migrate = migrate,
             )
             if (newer && rel != null && state.ready == null) prefetch(context.applicationContext, rel)
         }
@@ -138,7 +148,7 @@ object SelfUpdate {
         }
     }
 
-    private suspend fun latest(): Release? = latestOf(REPO) { it.startsWith(ASSET_PREFIX) }
+    private suspend fun latest(): Release? = latestOf(REPO) { it.startsWith(ASSET_PREFIX) || it.startsWith(NEW_PREFIX) }
 
     /** そのリポジトリの Releases で、いちばん新しい APK（下書きは除く） */
     suspend fun latestOf(repo: String, isApk: (String) -> Boolean = { true }): Release? = withContext(Dispatchers.IO) {
@@ -201,6 +211,10 @@ object SelfUpdate {
         else Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}"))
 
     fun install(context: Context, apk: File) {
+        // ちがう アプリ（新しい アプリ ID）の APK は 入れない
+        @Suppress("DEPRECATION")
+        val pkg = context.packageManager.getPackageArchiveInfo(apk.path, 0)?.packageName
+        if (pkg != context.packageName) throw IOException("この アプリ の 更新 では ありません（$pkg）。新しい アプリ に 移って ください")
         val installer = context.packageManager.packageInstaller
         val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)
         // 自分自身の更新なら、Android 12 以降は確認を省ける場合がある

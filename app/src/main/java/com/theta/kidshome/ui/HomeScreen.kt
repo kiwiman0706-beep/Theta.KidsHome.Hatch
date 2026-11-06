@@ -290,7 +290,7 @@ fun HomeScreen(
                 .windowInsetsPadding(WindowInsets.safeDrawing)
                 .padding(start = 20.dp, top = 12.dp, bottom = 12.dp)
         ) {
-            Header(config, theme, now, updateBadge = SelfUpdate.state.newer, onGate = { showGate = true }, onPoints = { showPoints = true }, onChat = { showChat = true })
+            Header(config, theme, now, updateBadge = SelfUpdate.state.newer || SelfUpdate.state.migrate != null, onGate = { showGate = true }, onPoints = { showPoints = true }, onChat = { showChat = true })
             VSpace(14)
             Row(Modifier.weight(1f)) {
                 Box(Modifier.weight(1f).fillMaxHeight()) {
@@ -301,7 +301,7 @@ fun HomeScreen(
                             theme, now, profile, shelves, toyShelves, callTiles, hasTv = tvKeys.isNotEmpty(), locked = locked,
                             lockText = if (locked) "🔒 あと ${remainingText(config.videoLockUntil, now)}" else null,
                             tvEmoji = tabs.firstOrNull { it.kind == TabKind.VIDEO }?.emoji ?: "📺",
-                            mascotLine = mascotLine, playful = playful, updateBadge = SelfUpdate.state.newer,
+                            mascotLine = mascotLine, playful = playful, updateBadge = SelfUpdate.state.newer || SelfUpdate.state.migrate != null,
                             modifier = Modifier.fillMaxSize(),
                             tileView = { t, i -> TileWindow(t, theme, i, locked && t.isVideo) { onTile(t) } },
                             onGate = { showGate = true },
