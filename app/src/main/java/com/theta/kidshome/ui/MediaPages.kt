@@ -64,12 +64,9 @@ import kotlinx.coroutines.withContext
 
 /** 子どもに見せる動画（かくしたフォルダを除く） */
 private fun MediaEntry.shown() = folder !in Store.config.hiddenFolders && shelf !in Store.config.hiddenFolders
-fun visibleVideos(): List<MediaEntry> = MediaLibrary.videos.filter { it.shown() && !it.study }
-fun visibleMusic(): List<MediaEntry> = MediaLibrary.music.filter { it.shown() && !it.study }
-fun visibleBooks(): List<MediaEntry> = MediaLibrary.books.filter { it.shown() && !it.study }
-/** 📚 べんきょう（KidsHome/べんきょう/）：どうが と おと */
-fun visibleStudyVideos(): List<MediaEntry> = MediaLibrary.videos.filter { it.shown() && it.study }
-fun visibleStudyAudio(): List<MediaEntry> = (MediaLibrary.music + MediaLibrary.books).filter { it.shown() && it.study }
+fun visibleVideos(): List<MediaEntry> = MediaLibrary.videos.filter { it.shown() }
+fun visibleMusic(): List<MediaEntry> = MediaLibrary.music.filter { it.shown() }
+fun visibleBooks(): List<MediaEntry> = MediaLibrary.books.filter { it.shown() }
 
 /**
  * ひだり に フォルダ（シリーズ）の 一覧、みぎ に なかみ。フォルダ が 1 つ なら みぎ だけ。
@@ -166,6 +163,7 @@ fun VideoLibraryPage(theme: KidTheme, locked: Boolean, onPlay: (List<MediaEntry>
                 }
                 itemsIndexed(sub, key = { _, e -> e.id }) { j, e ->
                     val i = list.indexOf(e)
+                    val locked = locked && !e.study
                     val progress = remember(e.id) { Positions.progress(context, e) }
                     RetroWindow(
                         theme, title = minutes(e.durationMs), titleColor = if (locked) Color(0xFFDDDDDD) else theme.titleBars[j % theme.titleBars.size],
@@ -332,21 +330,3 @@ private fun Modifier.pointerSeek(): Modifier = pointerInput(Unit) {
     detectTapGestures { o -> AudioPlayer.seekTo(o.x / size.width) }
 }
 
-// ---------------------------------------------------------------- 📚 べんきょう
-
-/** KidsHome/べんきょう/ の どうが と おと。どうが ロック の とき も 見られる */
-@Composable
-fun StudyPage(theme: KidTheme, onPlay: (List<MediaEntry>, Int) -> Unit) {
-    val videos = visibleStudyVideos(); val audio = visibleStudyAudio()
-    var showAudio by remember { mutableStateOf(videos.isEmpty()) }
-    Column(Modifier.fillMaxSize()) {
-        if (videos.isNotEmpty() && audio.isNotEmpty()) Row(Modifier.padding(bottom = 6.dp)) {
-            RetroButton("🎬 どうが", theme, if (!showAudio) theme.titleBars[1] else Color.White, fontSize = 16, modifier = Modifier.padding(end = 6.dp)) { showAudio = false }
-            RetroButton("🎧 おと", theme, if (showAudio) theme.titleBars[1] else Color.White, fontSize = 16) { showAudio = true }
-        }
-        Box(Modifier.weight(1f)) {
-            if (showAudio) AudioLibraryPage(theme, MediaKind.MUSIC, audio)
-            else VideoLibraryPage(theme, locked = false, onPlay = onPlay, onLocked = {}, source = videos, key = "study")
-        }
-    }
-}

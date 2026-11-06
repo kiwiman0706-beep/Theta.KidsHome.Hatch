@@ -20,6 +20,9 @@ import kotlinx.coroutines.withContext
 
 enum class MediaKind { VIDEO, MUSIC, BOOK }
 
+/** べんきょう の シリーズ（KidsHome/どうが・おんがく・おはなし の すぐ 下） */
+const val STUDY_SHELF = "★べんきょう"
+
 /** 端末（本体・SD カード）の動画・音楽・オーディオブック 1 つ */
 data class MediaEntry(
     val id: Long,
@@ -39,8 +42,8 @@ data class MediaEntry(
     /** ひだり の 一覧 の フォルダ の 場所（アイコン を さがす） */
     val shelfPath: String = path,
 ) {
-    /** KidsHome/べんきょう/ の 中：どうが ロック でも 見られる（アニメ 日本 の 歴史・速読英単語 など） */
-    val study: Boolean get() = path.split('/').any { it == "べんきょう" || it == "勉強" || it.equals("study", true) }
+    /** どうが・おんがく・おはなし の すぐ 下 の「★べんきょう」の 中：ふつう の シリーズ と して 出し、どうが ロック でも 見られる */
+    val study: Boolean get() = shelf == STUDY_SHELF || path.split('/').any { it == STUDY_SHELF }
 }
 
 /**
@@ -180,7 +183,7 @@ object MediaLibrary {
     }
 
     /** SD の きまり：KidsHome/どうが・おんがく・おはなし の すぐ 下 の フォルダ が ひだり の 一覧 */
-    private val ROOTS = setOf("どうが", "おんがく", "おはなし", "べんきょう", "勉強", "videos", "music", "audiobooks", "books", "study")
+    private val ROOTS = setOf("どうが", "おんがく", "おはなし", "videos", "music", "audiobooks", "books")
 
     /** 「01 アンパンマン」「03_かえるのうた」の 先頭 の ばんごう は ならび用 なので 見せない */
     fun clean(title: String): String = title.replace(Regex("^\\d{1,3}[ 　._\\-]+"), "").ifBlank { title }
