@@ -8,35 +8,35 @@ plugins {
 val tepraJar = file("libs/TepraPrint.jar")
 
 android {
-    namespace = "com.theta.kidshome"
+    namespace = "app.thetahatch.kidshome"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.theta.kidshome"
+        applicationId = "app.thetahatch.kidshome"
         minSdk = 29
         targetSdk = 35
-        versionCode = 79
-        versionName = "0.61.0"
+        versionCode = 100
+        versionName = "1.0.0"
     }
 
     signingConfigs {
-        // どのPC・GitHub Actionsでビルドしても同じ署名になるよう、固定の鍵を使う
-        // (個人の端末にサイドロードする用途なので、鍵をリポジトリに同梱している)
-        create("shared") {
-            storeFile = file("kidshome.jks")
-            storePassword = "kidshome"
-            keyAlias = "kidshome"
-            keyPassword = "kidshome"
+        // シリーズ 共通 の 鍵（Theta.Hatch.Series の secrets/README.md）。CI では Secret の 4 つ から：
+        //   ANDROID_KEYSTORE_B64 を ファイル に した パス を ANDROID_KEYSTORE_PATH に、ほか は そのまま 環境変数 に
+        // 手元 で 環境変数 が ない とき は デバッグ 用 の 鍵 で ビルド（配る APK には しない）
+        val ksPath = System.getenv("ANDROID_KEYSTORE_PATH")
+        if (!ksPath.isNullOrBlank() && file(ksPath).exists()) create("series") {
+            storeFile = file(ksPath)
+            storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+            keyAlias = System.getenv("ANDROID_KEY_ALIAS")
+            keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
         }
     }
 
     buildTypes {
-        debug {
-            signingConfig = signingConfigs.getByName("shared")
-        }
+        debug {}
         release {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("shared")
+            signingConfig = signingConfigs.findByName("series") ?: signingConfigs.getByName("debug")
         }
     }
 

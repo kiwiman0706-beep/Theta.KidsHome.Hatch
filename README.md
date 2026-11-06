@@ -57,7 +57,7 @@
 3. ホームボタンを押して **「キッズホーム」→「常時」** を選ぶ
 4. ⚙️ を2秒ながおし → かけ算 →「せってい」でボタンを登録
 
-いつでも最新版：<https://github.com/kiwiman0706-beep/Theta.KidsHome.Hatch/releases/latest/download/KidsHome.apk>（0.12.0 から）
+いつでも最新版：<https://github.com/kiwiman0706-beep/Theta.KidsHome.Hatch/releases/latest>（APK は `ThetaKidsHomeHatch-<版>.apk`。1.0.0 から アプリ ID `app.thetahatch.kidshome`・シリーズ 共通 の 鍵。別 の タブレット へ は 親モード の「📲 QR」が 最新 の APK の URL を しらべて 出す）
 
 > 署名鍵（`app/kidshome.jks`）を同梱しているので、どこでビルドしたAPKでも上書き更新できます。
 

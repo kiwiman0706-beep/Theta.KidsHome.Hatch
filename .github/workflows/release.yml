@@ -56,13 +56,29 @@ jobs:
             echo "::warning::TEPRA SDK を とれません でした（テプラ なし で つくります）"
             rm -rf app/libs/TepraPrint.jar app/src/main/jniLibs
           fi
+      - name: シリーズ 共通 の 鍵（Secret）
+        env:
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+        run: |
+          [ -n "$KS_B64" ] || { echo "::error::Secret ANDROID_KEYSTORE_B64 が ありません（Theta.Hatch.Series の tools/sync-secrets で 配る）"; exit 1; }
+          echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/theta-hatch.jks"
+          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/theta-hatch.jks" >> "$GITHUB_ENV"
       - run: ./gradlew testDebugUnitTest assembleRelease
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      - name: 署名 が シリーズ 共通 の 鍵 か
+        run: |
+          apksigner=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          "$apksigner" verify --print-certs app/build/outputs/apk/release/app-release.apk | tee certs.txt
+          # secrets/README.md の SHA-256（更新 ハブ も これ で 照合 する）
+          grep -qi "SHA-256 digest: f47740d8549bc1c37feb00b18780d80b52758b60252ba0d2217d83ab3f012a23" certs.txt || { echo "::error::共通 の 鍵 で 署名 されて いません"; exit 1; }
       - name: APK とハッシュ
         run: |
           mkdir -p out
-          cp app/build/outputs/apk/release/app-release.apk "out/KidsHome-${{ steps.v.outputs.ver }}.apk"
-          # いつも同じ名前の APK も置く（releases/latest/download/KidsHome.apk = 別のタブレットに入れる QR）
-          cp "out/KidsHome-${{ steps.v.outputs.ver }}.apk" out/KidsHome.apk
+          # シリーズ の きまり：APK は 1 つ だけ、名前 は Theta<名前>Hatch-<版>.apk（spec §6.1）
+          cp app/build/outputs/apk/release/app-release.apk "out/ThetaKidsHomeHatch-${{ steps.v.outputs.ver }}.apk"
           (cd out && sha256sum *.apk > SHA256SUMS.txt && cat SHA256SUMS.txt)
       - name: Release を作る
         env:
@@ -71,4 +87,4 @@ jobs:
           pre=""
           case "${{ steps.v.outputs.tag }}" in *-*) pre="--prerelease";; esac
           gh release create "${{ steps.v.outputs.tag }}" out/*.apk out/SHA256SUMS.txt --target "$GITHUB_SHA" \
-            --title "キッズホーム ${{ steps.v.outputs.ver }}" --generate-notes $pre
+            --title "Theta KidsHome Hatch ${{ steps.v.outputs.ver }}" --generate-notes $pre

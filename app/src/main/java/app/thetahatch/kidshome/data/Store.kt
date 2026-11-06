@@ -1,0 +1,171 @@
+package app.thetahatch.kidshome.data
+
+import android.content.Context
+import android.content.SharedPreferences
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import org.json.JSONObject
+
+/** 設定の保存先。Compose から直接読めるように State で持つ */
+object Store {
+    private const val KEY = "config"
+    private lateinit var prefs: SharedPreferences
+
+    var config by mutableStateOf(AppConfig.default())
+        private set
+
+    /** レスキュー画面から「セーフモード」で開いたとき：アニメーションや遊びを止める（保存しない） */
+    var safeMode by mutableStateOf(false)
+
+    /** はじめて の 起動（まだ 設定 が ない）：前 の キッズホーム から の 引っ越し を きく */
+    var fresh = false
+        private set
+
+    fun init(context: Context) {
+        if (::prefs.isInitialized) return
+        prefs = context.applicationContext.getSharedPreferences("kidshome", Context.MODE_PRIVATE)
+        fresh = prefs.getString(KEY, null) == null
+        config = prefs.getString(KEY, null)
+            ?.let { runCatching { appConfigFromJson(JSONObject(it)) }.getOrNull() }
+            ?: AppConfig.default()
+        // 0.6.0：がっき を足したので、前からの端末にも 1 回だけ置く
+        if (!prefs.getBoolean("added:instrument", false)) {
+            if (config.profiles.none { p -> p.tiles.any { it.type == TileType.INSTRUMENT } }) {
+                update { c -> c.copy(profiles = c.profiles.map { it.copy(tiles = it.tiles + AppConfig.instrumentTile()) }) }
+            }
+            prefs.edit().putBoolean("added:instrument", true).apply()
+        }
+        // 0.7.0：くるくる思考パッド を内蔵したので、前からの端末にも 1 回だけ置く
+        if (!prefs.getBoolean("added:edupad", false)) {
+            if (config.profiles.none { p -> p.tiles.any { it.type == TileType.EDUPAD } }) {
+                update { c -> c.copy(profiles = c.profiles.map { it.copy(tiles = listOf(AppConfig.edupadTile()) + it.tiles) }) }
+            }
+            prefs.edit().putBoolean("added:edupad", true).apply()
+        }
+        // 0.9.0：わーぷろ
+        if (!prefs.getBoolean("added:wordpro", false)) {
+            if (config.profiles.none { p -> p.tiles.any { it.type == TileType.WORDPRO } }) {
+                update { c -> c.copy(profiles = c.profiles.map { it.copy(tiles = it.tiles + AppConfig.wordproTile()) }) }
+            }
+            prefs.edit().putBoolean("added:wordpro", true).apply()
+        }
+        if (!prefs.getBoolean("added:puzzle", false)) {
+            if (config.profiles.none { p -> p.tiles.any { it.type == TileType.PUZZLE } }) {
+                update { c -> c.copy(profiles = c.profiles.map { it.copy(tiles = it.tiles + AppConfig.puzzleTile()) }) }
+            }
+            prefs.edit().putBoolean("added:puzzle", true).apply()
+        }
+        if (!prefs.getBoolean("added:typing", false)) {
+            if (config.profiles.none { p -> p.tiles.any { it.type == TileType.TYPING } }) {
+                update { c -> c.copy(profiles = c.profiles.map { it.copy(tiles = it.tiles + AppConfig.typingTile()) }) }
+            }
+            prefs.edit().putBoolean("added:typing", true).apply()
+        }
+        if (!prefs.getBoolean("added:moji", false)) {
+            if (config.profiles.none { p -> p.tiles.any { it.type == TileType.MOJI } }) {
+                update { c -> c.copy(profiles = c.profiles.map { it.copy(tiles = it.tiles + AppConfig.mojiTile()) }) }
+            }
+            prefs.edit().putBoolean("added:moji", true).apply()
+        }
+        if (!prefs.getBoolean("added:kuku", false)) {
+            if (config.profiles.none { p -> p.tiles.any { it.type == TileType.KUKU } }) {
+                update { c -> c.copy(profiles = c.profiles.map { it.copy(tiles = it.tiles + AppConfig.kukuTile()) }) }
+            }
+            prefs.edit().putBoolean("added:kuku", true).apply()
+        }
+        if (!prefs.getBoolean("added:map", false)) {
+            if (config.profiles.none { p -> p.tiles.any { it.type == TileType.MAP } }) {
+                update { c -> c.copy(profiles = c.profiles.map { it.copy(tiles = it.tiles + AppConfig.mapTile()) }) }
+            }
+            prefs.edit().putBoolean("added:map", true).apply()
+        }
+        // くるくる の アイコン は のうみそ（🧠）を やめて 🌀
+        if (!prefs.getBoolean("icon:edupad", false)) {
+            update { c -> c.copy(profiles = c.profiles.map { p -> p.copy(tiles = p.tiles.map { if (it.type == TileType.EDUPAD && it.emoji == "\uD83E\uDDE0") it.copy(emoji = "🌀") else it }) }) }
+            prefs.edit().putBoolean("icon:edupad", true).apply()
+        }
+        // じしょ は はじめ から ぜんぶ 見せる（医学辞典 も）
+        if (!prefs.getBoolean("dict:all", false)) {
+            update { it.copy(dictLevel = 3) }
+            prefs.edit().putBoolean("dict:all", true).apply()
+        }
+        if (!prefs.getBoolean("added:dict", false)) {
+            if (config.profiles.none { p -> p.tiles.any { it.type == TileType.DICT } }) {
+                update { c -> c.copy(profiles = c.profiles.map { it.copy(tiles = it.tiles + AppConfig.dictTile()) }) }
+            }
+            prefs.edit().putBoolean("added:dict", true).apply()
+        }
+        if (!prefs.getBoolean("added:tasu", false)) {
+            if (config.profiles.none { p -> p.tiles.any { it.type == TileType.TASU } }) {
+                update { c -> c.copy(profiles = c.profiles.map { it.copy(tiles = it.tiles + AppConfig.tasuTile()) }) }
+            }
+            prefs.edit().putBoolean("added:tasu", true).apply()
+        }
+        if (!prefs.getBoolean("added:purikura", false)) {
+            update { c -> c.copy(profiles = c.profiles.map { p -> if (p.tiles.any { it.type == TileType.PURIKURA }) p else p.copy(tiles = p.tiles + AppConfig.purikuraTile()) }) }
+            prefs.edit().putBoolean("added:purikura", true).apply()
+        }
+        if (!prefs.getBoolean("added:sugoroku", false)) {
+            update { c -> c.copy(profiles = c.profiles.map { p -> if (p.tiles.any { it.type == TileType.SUGOROKU }) p else p.copy(tiles = p.tiles + AppConfig.sugorokuTile()) }) }
+            prefs.edit().putBoolean("added:sugoroku", true).apply()
+        }
+        if (!prefs.getBoolean("added:touch", false)) {
+            update { c -> c.copy(profiles = c.profiles.map { p -> if (p.tiles.any { it.type == TileType.TOUCH }) p else p.copy(tiles = p.tiles + AppConfig.touchTile()) }) }
+            prefs.edit().putBoolean("added:touch", true).apply()
+        }
+        if (!prefs.getBoolean("added:coding", false)) {
+            update { c -> c.copy(profiles = c.profiles.map { p -> if (p.tiles.any { it.type == TileType.CODING }) p else p.copy(tiles = p.tiles + AppConfig.codingTile()) }) }
+            prefs.edit().putBoolean("added:coding", true).apply()
+        }
+        if (!prefs.getBoolean("added:register", false)) {
+            update { c -> c.copy(profiles = c.profiles.map { p -> if (p.tiles.any { it.type == TileType.REGISTER }) p else p.copy(tiles = p.tiles + AppConfig.registerTile()) }) }
+            prefs.edit().putBoolean("added:register", true).apply()
+        }
+        if (!prefs.getBoolean("added:japan", false)) {
+            update { c -> c.copy(profiles = c.profiles.map { p -> if (p.tiles.any { it.type == TileType.JAPAN }) p else p.copy(tiles = p.tiles + AppConfig.japanTile()) }) }
+            prefs.edit().putBoolean("added:japan", true).apply()
+        }
+        if (!prefs.getBoolean("added:soroban", false)) {
+            update { c ->
+                c.copy(profiles = c.profiles.map { p ->
+                    p.copy(tiles = p.tiles + listOfNotNull(
+                        AppConfig.sorobanTile().takeIf { p.tiles.none { it.type == TileType.SOROBAN } },
+                        AppConfig.hissanTile().takeIf { p.tiles.none { it.type == TileType.HISSAN } },
+                    ))
+                })
+            }
+            prefs.edit().putBoolean("added:soroban", true).apply()
+        }
+    }
+
+    /** いまの子のホームに ふせん をはる（少しずらして、少しかたむける） */
+    fun addSticker(sticker: Sticker) = updateProfile(config.currentProfileId) { p ->
+        val n = p.stickers.size
+        p.copy(stickers = (p.stickers + sticker.copy(
+            x = 0.38f + (n % 4) * 0.12f, y = 0.58f + (n / 4 % 3) * 0.1f,
+            rotation = listOf(-6f, 4f, -2f, 7f, -5f)[n % 5],
+        )).takeLast(12))
+    }
+
+    fun moveSticker(id: String, x: Float, y: Float) = updateProfile(config.currentProfileId) { p ->
+        p.copy(stickers = p.stickers.map { if (it.id == id) it.copy(x = x.coerceIn(0f, 0.95f), y = y.coerceIn(0f, 0.95f)) else it })
+    }
+
+    fun removeSticker(context: Context, id: String) = updateProfile(config.currentProfileId) { p ->
+        p.stickers.firstOrNull { it.id == id }?.image?.let { java.io.File(java.io.File(context.filesDir, "stickers"), it).delete() }
+        p.copy(stickers = p.stickers.filter { it.id != id })
+    }
+
+    fun update(transform: (AppConfig) -> AppConfig) {
+        config = transform(config)
+        prefs.edit().putString(KEY, config.toJson().toString()).apply()
+    }
+
+    fun updateProfile(profileId: String, transform: (Profile) -> Profile) = update { c ->
+        c.copy(profiles = c.profiles.map { if (it.id == profileId) transform(it) else it })
+    }
+
+    fun addTiles(profileId: String, tiles: List<Tile>) =
+        updateProfile(profileId) { it.copy(tiles = it.tiles + tiles) }
+}
