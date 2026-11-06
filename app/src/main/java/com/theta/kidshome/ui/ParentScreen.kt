@@ -277,6 +277,8 @@ private fun SettingsTab(modifier: Modifier) {
 
         }
         4 -> {
+        MigrationSection()
+
         SettingsTransferSection()
         QrSection(config)
 
@@ -300,6 +302,8 @@ private fun SettingsTab(modifier: Modifier) {
 
         }
         5 -> {
+        if (SelfUpdate.state.migrate != null) MigrationSection()
+
         GeminiSection()
 
         UpdateSection(config)
@@ -355,6 +359,7 @@ private fun UpdateSection(config: AppConfig) {
         Text("いまの版：$current", fontSize = 14.sp)
         Text(
             when {
+                st.migrate != null -> "新しい アプリ ${st.migrate.version} が 出ました（上書き できません。「📦 引っ越し」で 移って ください）"
                 st.checking -> "確かめています…"
                 st.progress != null -> "ダウンロード中 ${(st.progress * 100).toInt()}%"
                 st.newer && st.latest != null && st.ready != null -> "新しい版 ${st.latest.version} を ダウンロード ずみ（あとは インストール だけ）"
