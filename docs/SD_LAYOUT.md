@@ -150,9 +150,23 @@ ffmpeg -i "01 さんぽ.m4a" -i cover.jpg -map 0:a -map 1 -c copy -disposition:v
    - はじめて 読む とき は 動画 の 長さ を しらべる ので、本数 が 多い と すこし かかる（2 回目 から は 覚えて いる）。
 4. 見せたく ない フォルダ（カメラ・スクショ など）は おやメニュー「📼 端末の動画・音楽・おはなし」→「フォルダごとに 見せる・かくす」。
 
+### パソコン で 下ごしらえ（はやく 出す）
+
+「📁 フォルダ を えらぶ」方式 は、Android の 目録 を つかわない ので、動画 の 長さ と サムネイル を キッズホーム が 自分 で しらべます（一覧 は すぐ 出て、長さ は あと から 入る）。
+パソコン で 先 に 作って おく と、はじめて でも すぐ そろいます。
+
+```
+python tools\make_kidshome_cache.py E:\KidsHome
+```
+
+- ffmpeg・ffprobe が いる（Windows：`winget install Gyan.FFmpeg`、Mac：`brew install ffmpeg`）
+- `KidsHome/.kidshome/` に `index.json`（長さ）と `thumbs/`（サムネイル）、`.nomedia` が できる。消して も 動く（キッズホーム が 自分 で しらべる だけ）
+- ファイル を 足したら もう いちど。新しい もの・かわった もの だけ 作る
+
 ## 5. 作業 の チェックリスト（AI・人 に 渡す 用）
 
 - [ ] `KidsHome/どうが`・`KidsHome/おんがく`・`KidsHome/おはなし` の 3 つ を 作る（名前 は ひらがな で 正確 に）
+- [ ] コピー が おわったら `python tools/make_kidshome_cache.py <SD の KidsHome>` で 下ごしらえ（なくて も 動く）
 - [ ] その 下 に シリーズ ごと の フォルダ。名前 は 子ども 向け の 読みやすい ことば
 - [ ] ファイル名 の 先頭 に けた を そろえた 番号
 - [ ] 動画 は MP4（H.264 か HEVC＋AAC）。MKV は `-c copy` で MP4 に。10bit・4K・映らない もの だけ 作りなおす（変換）

@@ -11,6 +11,7 @@ import android.os.Build
 import android.provider.MediaStore
 import android.util.LruCache
 import android.util.Size
+import org.json.JSONObject
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -109,69 +110,135 @@ object MediaLibrary {
     private val VIDEO_EXT = setOf("mp4", "m4v", "mkv", "webm", "3gp", "mov", "ts")
     private val AUDIO_EXT = setOf("mp3", "m4a", "aac", "ogg", "oga", "opus", "flac", "wav", "m4b")
 
-    /** えらんだ フォルダ を たどって 動画・音声・アイコン を あつめる */
-    private fun scanTree(c: Context, tree: Uri): Triple<List<MediaEntry>, List<MediaEntry>, kotlin.collections.Map<String, Uri>> {
+    private class Scan(
+        val videos: List<MediaEntry>, val audio: List<MediaEntry>, val icons: kotlin.collections.Map<String, Uri>,
+        /** ファイル の uri → パソコン で 作った サムネイル（.kidshome/thumbs） */
+        val thumbs: kotlin.collections.Map<String, Uri>,
+        /** 長さ が まだ わからない もの（uri と おぼえる key） */
+        val missing: List<Pair<Uri, String>>,
+    )
+
+    /** パソコン で 作った サムネイル（ファイル の uri → 画像 の uri） */
+    @Volatile private var filling = false
+    @Volatile private var pcThumbs: kotlin.collections.Map<String, Uri> = emptyMap()
+
+    private fun durPrefs(c: Context) = c.getSharedPreferences("mediadur", Context.MODE_PRIVATE)
+
+    /**
+     * えらんだ フォルダ を たどって 動画・音声・アイコン を あつめる。
+     * 長さ は .kidshome/index.json（パソコン の tools/make_kidshome_cache.py）→ まえ に しらべた もの → わからない ものは あと で（missing）。
+     */
+    private fun scanTree(c: Context, tree: Uri): Scan {
         val cr = c.contentResolver
         val cols = arrayOf(
             android.provider.DocumentsContract.Document.COLUMN_DOCUMENT_ID, android.provider.DocumentsContract.Document.COLUMN_DISPLAY_NAME,
             android.provider.DocumentsContract.Document.COLUMN_MIME_TYPE, android.provider.DocumentsContract.Document.COLUMN_SIZE,
         )
-        val durPrefs = c.getSharedPreferences("mediadur", Context.MODE_PRIVATE)
-        val durEdit = durPrefs.edit()
-        fun duration(uri: Uri, key: String): Long {
-            durPrefs.getLong(key, -1L).takeIf { it >= 0 }?.let { return it }
-            val d = runCatching {
-                android.media.MediaMetadataRetriever().run {
-                    try { setDataSource(c, uri); extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L } finally { release() }
-                }
-            }.getOrDefault(0L)
-            durEdit.putLong(key, d); return d
+        fun list(docId: String): List<Array<Any?>> {
+            val rows = ArrayList<Array<Any?>>()
+            cr.query(android.provider.DocumentsContract.buildChildDocumentsUriUsingTree(tree, docId), cols, null, null, null)?.use { q ->
+                while (q.moveToNext()) rows += arrayOf(q.getString(0), q.getString(1), q.getString(2), q.getLong(3))
+            }
+            return rows.sortedBy { it[1] as String? }
         }
+        val isDir = { mime: String -> mime == android.provider.DocumentsContract.Document.MIME_TYPE_DIR }
+        val dur = durPrefs(c)
         val videos = ArrayList<MediaEntry>(); val audio = ArrayList<MediaEntry>()
         val icons = HashMap<String, Pair<Int, Uri>>()
+        val thumbs = HashMap<String, Uri>(); val missing = ArrayList<Pair<Uri, String>>()
+        // パソコン で 作った キャッシュ：base（KidsHome の 場所）から の 相対パス → 大きさ・長さ・サムネイル名
+        var cacheBase: String? = null
+        var index: JSONObject? = null
+        val thumbFiles = HashMap<String, Uri>()
+
+        fun readCache(docId: String, base: String) {
+            list(docId).forEach { r ->
+                val id = r[0] as String; val name = (r[1] as String?).orEmpty()
+                when {
+                    name == "index.json" -> runCatching {
+                        index = cr.openInputStream(android.provider.DocumentsContract.buildDocumentUriUsingTree(tree, id))!!
+                            .use { JSONObject(it.bufferedReader().readText()) }.optJSONObject("files")
+                        cacheBase = base
+                    }
+                    name == "thumbs" && isDir((r[2] as String?).orEmpty()) -> list(id).forEach { t ->
+                        thumbFiles[(t[1] as String?).orEmpty()] = android.provider.DocumentsContract.buildDocumentUriUsingTree(tree, t[0] as String)
+                    }
+                }
+            }
+        }
+
         val rootId = android.provider.DocumentsContract.getTreeDocumentId(tree)
         val rootName = cr.query(android.provider.DocumentsContract.buildDocumentUriUsingTree(tree, rootId), arrayOf(cols[1]), null, null, null)
             ?.use { if (it.moveToFirst()) it.getString(0) else null } ?: "KidsHome"
         fun walk(docId: String, path: String, depth: Int) {
             if (depth > 8) return
-            val children = android.provider.DocumentsContract.buildChildDocumentsUriUsingTree(tree, docId)
-            val rows = ArrayList<Array<Any?>>()
-            cr.query(children, cols, null, null, null)?.use { q -> while (q.moveToNext()) rows += arrayOf(q.getString(0), q.getString(1), q.getString(2), q.getLong(3)) }
             val folder = path.trimEnd('/').substringAfterLast('/')
-            rows.sortedBy { it[1] as String }.forEach { r ->
+            list(docId).forEach { r ->
                 val id = r[0] as String; val name = (r[1] as String?).orEmpty(); val mime = (r[2] as String?).orEmpty(); val size = r[3] as Long
+                if (name == ".kidshome" && isDir(mime)) { readCache(id, path); return@forEach }
                 if (name.startsWith(".")) return@forEach
-                if (mime == android.provider.DocumentsContract.Document.MIME_TYPE_DIR) { walk(id, "$path$name/", depth + 1); return@forEach }
+                if (isDir(mime)) { walk(id, "$path$name/", depth + 1); return@forEach }
                 val uri = android.provider.DocumentsContract.buildDocumentUriUsingTree(tree, id)
                 val lower = name.lowercase(); val ext = lower.substringAfterLast('.', "")
                 val rank = ICON_NAMES.indexOf(lower)
                 if (rank >= 0) { val cur = icons[path]; if (cur == null || rank < cur.first) icons[path] = rank to uri; return@forEach }
+                if (ext !in VIDEO_EXT && ext !in AUDIO_EXT) return@forEach
+                // 長さ：パソコン の キャッシュ（大きさ が おなじ とき）→ まえ に しらべた もの → あと で
+                val key = "$id:$size"
+                val rel = cacheBase?.let { b -> (path + name).takeIf { it.startsWith(b) }?.removePrefix(b) }
+                val pc = rel?.let { index?.optJSONObject(it) }?.takeIf { it.optLong("size", -1) == size }
+                pc?.optString("thumb")?.takeIf { it.isNotBlank() }?.let { t -> thumbFiles[t]?.let { thumbs[uri.toString()] = it } }
+                val ms = pc?.optLong("dur", -1)?.takeIf { it >= 0 } ?: dur.getLong(key, -1L).takeIf { it >= 0 }
+                if (ms == null) missing += uri to key
                 val stable = java.util.UUID.nameUUIDFromBytes(id.toByteArray()).mostSignificantBits
                 val title = clean(name.substringBeforeLast('.'))
-                when (ext) {
-                    in VIDEO_EXT -> videos += MediaEntry(
-                        id = stable, uri = uri, kind = MediaKind.VIDEO, title = title, folder = folder.ifEmpty { "どうが" }, album = "", artist = "",
-                        durationMs = duration(uri, "$id:$size"), shelf = shelfOf(path) ?: folder.ifEmpty { "どうが" }, path = path, shelfPath = shelfPathOf(path),
+                if (ext in VIDEO_EXT) videos += MediaEntry(
+                    id = stable, uri = uri, kind = MediaKind.VIDEO, title = title, folder = folder.ifEmpty { "どうが" }, album = "", artist = "",
+                    durationMs = ms ?: 0L, shelf = shelfOf(path) ?: folder.ifEmpty { "どうが" }, path = path, shelfPath = shelfPathOf(path),
+                ) else {
+                    val isBook = ext == "m4b" || isBookFolder(folder) || isBookPath(path)
+                    audio += MediaEntry(
+                        id = stable, uri = uri, kind = if (isBook) MediaKind.BOOK else MediaKind.MUSIC, title = title,
+                        folder = folder.ifEmpty { "おんがく" }, album = folder.ifEmpty { "おんがく" }, artist = "",
+                        durationMs = ms ?: 0L, track = Regex("^(\\d{1,3})").find(name)?.groupValues?.get(1)?.toIntOrNull() ?: 0,
+                        shelf = shelfOf(path) ?: folder.ifEmpty { "おんがく" }, path = path, shelfPath = shelfPathOf(path),
                     )
-                    in AUDIO_EXT -> {
-                        val isBook = ext == "m4b" || isBookFolder(folder) || isBookPath(path)
-                        audio += MediaEntry(
-                            id = stable, uri = uri, kind = if (isBook) MediaKind.BOOK else MediaKind.MUSIC, title = title,
-                            folder = folder.ifEmpty { "おんがく" }, album = folder.ifEmpty { "おんがく" }, artist = "",
-                            durationMs = duration(uri, "$id:$size"), track = Regex("^(\\d{1,3})").find(name)?.groupValues?.get(1)?.toIntOrNull() ?: 0,
-                            shelf = shelfOf(path) ?: folder.ifEmpty { "おんがく" }, path = path, shelfPath = shelfPathOf(path),
-                        )
-                    }
                 }
             }
         }
         walk(rootId, "$rootName/", 0)
-        durEdit.apply()
-        return Triple(
+        return Scan(
             videos.sortedWith(compareBy({ it.shelf }, { it.path })),
             audio.sortedWith(compareBy({ it.shelf }, { it.album }, { it.track }, { it.title })),
-            icons.mapValues { it.value.second },
+            icons.mapValues { it.value.second }, thumbs, missing,
         )
+    }
+
+    /** 長さ が わからない もの を うら で しらべて、わかった ぶん から 一覧 に 入れる */
+    private suspend fun fillDurations(c: Context, missing: List<Pair<Uri, String>>) {
+        val dur = durPrefs(c)
+        val found = HashMap<String, Long>()
+        suspend fun publish() {
+            if (found.isEmpty()) return
+            val f = HashMap(found); found.clear()
+            withContext(Dispatchers.Main) {
+                fun upd(l: List<MediaEntry>) = l.map { e -> f[e.uri.toString()]?.let { e.copy(durationMs = it) } ?: e }
+                videos = upd(videos); music = upd(music); books = upd(books)
+            }
+        }
+        missing.forEachIndexed { i, (uri, key) ->
+            val d = withContext(Dispatchers.IO) {
+                runCatching {
+                    android.media.MediaMetadataRetriever().run {
+                        try { setDataSource(c, uri); extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L } finally { release() }
+                    }
+                }.getOrDefault(0L)
+            }
+            dur.edit().putLong(key, d).apply()
+            found[uri.toString()] = d
+            if (i % 10 == 9) publish()
+        }
+        publish()
     }
 
     /** 5 分に 1 回まで読み直す（新しく入れた動画を拾うため） */
@@ -182,11 +249,13 @@ object MediaLibrary {
         val app = context.applicationContext
         scope.launch {
             val tree = treeUri(app)
+            var missing: List<Pair<Uri, String>> = emptyList()
             if (tree != null) runCatching {
-                val (v, a, ic) = withContext(Dispatchers.IO) { scanTree(app, tree) }
-                icons = ic; videos = v
-                music = a.filter { it.kind == MediaKind.MUSIC }
-                books = a.filter { it.kind == MediaKind.BOOK }
+                val sc = withContext(Dispatchers.IO) { scanTree(app, tree) }
+                icons = sc.icons; pcThumbs = sc.thumbs; videos = sc.videos
+                music = sc.audio.filter { it.kind == MediaKind.MUSIC }
+                books = sc.audio.filter { it.kind == MediaKind.BOOK }
+                missing = sc.missing
             } else runCatching {
                 val v = withContext(Dispatchers.IO) { queryVideos(app) }
                 val a = withContext(Dispatchers.IO) { queryAudio(app) }
@@ -197,6 +266,8 @@ object MediaLibrary {
             }
             loadedAt = System.currentTimeMillis()
             loading = false
+            // 一覧 は もう 出て いる。長さ は うら で
+            if (missing.isNotEmpty() && !filling) { filling = true; runCatching { fillDurations(app, missing) }; filling = false }
         }
     }
 
@@ -314,6 +385,8 @@ object MediaLibrary {
         val key = "$uri@$w"
         thumbs.get(key)?.let { return it }
         if (key in missing) return null
+        // パソコン で 作った サムネイル が あれば それ
+        pcThumbs[uri.toString()]?.let { t -> fileThumb(context, t, w, h)?.let { thumbs.put(key, it); return it } }
         val b = runCatching { context.contentResolver.loadThumbnail(uri, Size(w, h), null) }.getOrNull()
             ?: if (uri.authority != MediaStore.AUTHORITY) fileThumb(context, uri, w, h) else null
         if (b != null) thumbs.put(key, b) else missing += key
