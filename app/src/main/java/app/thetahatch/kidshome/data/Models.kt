@@ -74,6 +74,8 @@ data class AppConfig(
     val showVideos: Boolean = true,
     val showMusic: Boolean = true,
     val showBooks: Boolean = true,
+    /** 動画 の サムネイル を コマ送り で うごかす（.kidshome/frames が ある とき） */
+    val animThumbs: Boolean = true,
     /** 子どもに見せないフォルダ（カメラで撮った動画など） */
     val hiddenFolders: Set<String> = setOf("Camera", "Screenshots", "Screen recordings", "WhatsApp Video", "LINE"),
     /** ピアノの れんしゅう に足した曲 */
@@ -228,6 +230,7 @@ fun AppConfig.toJson(): JSONObject = JSONObject().apply {
     put("showVideos", showVideos)
     put("showMusic", showMusic)
     put("showBooks", showBooks)
+    put("animThumbs", animThumbs)
     put("hiddenFolders", JSONArray(hiddenFolders.toList()))
     put("songs", JSONArray(songs.map { JSONObject().put("title", it.title).put("notes", it.notes) }))
     put("calendarUrls", JSONArray(calendarUrls))
@@ -272,6 +275,7 @@ fun appConfigFromJson(o: JSONObject): AppConfig {
         showVideos = o.optBoolean("showVideos", true),
         showMusic = o.optBoolean("showMusic", true),
         showBooks = o.optBoolean("showBooks", true),
+        animThumbs = o.optBoolean("animThumbs", true),
         hiddenFolders = o.optJSONArray("hiddenFolders")?.let { a -> (0 until a.length()).map { a.getString(it) }.toSet() }
             ?: AppConfig(emptyList(), "").hiddenFolders,
         songs = o.optJSONArray("songs")?.let { a ->

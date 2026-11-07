@@ -5,7 +5,14 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -118,20 +125,58 @@ private fun ShelfPanes(
     }
 }
 
-/** サムネイル（動画のコマ・ジャケット）。読めるまでは えもじ */
+/**
+ * サムネイル（動画のコマ・ジャケット）。読めるまでは えもじ。
+ * play が null で ない あいだ、frames（パソコン で 作った スプライト）が あれば 0.5 びょう ごと に コマ送り（2 しゅう で とまって onDone）。
+ */
 @Composable
-fun MediaThumb(uri: Uri, fallback: String, modifier: Modifier = Modifier, square: Boolean = false) {
+fun MediaThumb(
+    uri: Uri, fallback: String, modifier: Modifier = Modifier, square: Boolean = false,
+    frames: MediaLibrary.Frames? = null, play: Any? = null, onDone: () -> Unit = {},
+) {
     val context = LocalContext.current
     val image by produceState<ImageBitmap?>(null, uri) {
         value = withContext(Dispatchers.IO) {
             MediaLibrary.thumbnail(context, uri, if (square) 300 else 384, if (square) 300 else 216)?.asImageBitmap()
         }
     }
+    val f = frames?.takeIf { play != null }
+    val sheet by produceState<ImageBitmap?>(null, f) {
+        value = f?.let { withContext(Dispatchers.IO) { MediaLibrary.sprite(context, it)?.asImageBitmap() } }
+    }
+    var frame by remember(uri) { mutableIntStateOf(-1) }
+    LaunchedEffect(sheet, play) {
+        val n = f?.n ?: 0
+        if (sheet == null || play == null || n < 2) { frame = -1; return@LaunchedEffect }
+        repeat(n * 2) { frame = it % n; delay(500) }
+        frame = -1
+        onDone()
+    }
     Box(modifier.background(Color(0xFFF2EEF5)), contentAlignment = Alignment.Center) {
         val img = image
-        if (img != null) Image(img, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        val sh = sheet
+        if (sh != null && f != null && frame >= 0) {
+            val fw = sh.width / f.n
+            val painter = remember(sh, frame) { BitmapPainter(sh, IntOffset(frame * fw, 0), IntSize(fw, sh.height)) }
+            Image(painter, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        } else if (img != null) Image(img, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
         else Text(fallback, fontSize = 40.sp)
     }
+}
+
+/** コマ送り を して よい か（おや の 設定・Android の「アニメーション を 減らす」） */
+@Composable
+private fun animThumbsOn(): Boolean {
+    val context = LocalContext.current
+    val scale = remember {
+        runCatching { android.provider.Settings.Global.getFloat(context.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f) }.getOrDefault(1f)
+    }
+    return Store.config.animThumbs && scale > 0f
+}
+
+/** さわった とき（指 を おいた しゅんかん）に 呼ぶ。押す こと 自体 は じゃま しない */
+private fun Modifier.onTouchDown(f: () -> Unit) = pointerInput(Unit) {
+    awaitEachGesture { awaitFirstDown(requireUnconsumed = false); f() }
 }
 
 private fun minutes(ms: Long): String {
@@ -147,7 +192,22 @@ fun VideoLibraryPage(theme: KidTheme, locked: Boolean, onPlay: (List<MediaEntry>
     ShelfPanes(theme, key, (source ?: visibleVideos()).groupBy { it.shelf }, "🎬", square = false, count = { "${it.size} こ" }) { shelf, list ->
         // おなじ シリーズ の なか で フォルダ が わかれて いたら（シーズン1・2 など）見出し を 出す
         val parts = list.groupBy { it.folder }
+        // コマ送り は 1 まい だけ：さわった タイル、または スクロール が とまった とき まんなか に ある タイル
+        val anim = animThumbsOn() && list.any { MediaLibrary.framesOf(it.uri) != null }
+        val grid = rememberLazyGridState()
+        var active by remember(shelf) { mutableStateOf<Pair<Long, Int>?>(null) }
+        var nonce by remember { mutableIntStateOf(0) }
+        if (anim) LaunchedEffect(shelf, grid.isScrollInProgress) {
+            if (grid.isScrollInProgress) { active = null; return@LaunchedEffect }
+            delay(700)
+            val info = grid.layoutInfo
+            val mid = (info.viewportStartOffset + info.viewportEndOffset) / 2
+            info.visibleItemsInfo.filter { (it.key as? Long)?.let { id -> list.firstOrNull { e -> e.id == id }?.let { e -> MediaLibrary.framesOf(e.uri) } } != null }
+                .minByOrNull { kotlin.math.abs(it.offset.y + it.size.height / 2 - mid) }
+                ?.let { active = (it.key as Long) to ++nonce }
+        }
         LazyVerticalGrid(
+            state = grid,
             columns = GridCells.Adaptive(230.dp),
             horizontalArrangement = Arrangement.spacedBy(18.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp),
@@ -170,7 +230,14 @@ fun VideoLibraryPage(theme: KidTheme, locked: Boolean, onPlay: (List<MediaEntry>
                         onClick = { if (locked) onLocked() else onPlay(list, i) },
                     ) {
                         Box {
-                            MediaThumb(e.uri, "🎬", Modifier.fillMaxWidth().aspectRatio(16f / 9f).alpha(if (locked) 0.35f else 1f))
+                            MediaThumb(
+                                e.uri, "🎬",
+                                Modifier.fillMaxWidth().aspectRatio(16f / 9f).alpha(if (locked) 0.35f else 1f)
+                                    .then(if (anim) Modifier.onTouchDown { active = e.id to ++nonce } else Modifier),
+                                frames = if (anim) MediaLibrary.framesOf(e.uri) else null,
+                                play = active?.takeIf { it.first == e.id },
+                                onDone = { if (active?.first == e.id) active = null },
+                            )
                             if (locked) Text("🔒", fontSize = 44.sp, modifier = Modifier.align(Alignment.Center))
                             else Text("▶️", fontSize = 36.sp, modifier = Modifier.align(Alignment.Center).alpha(0.85f))
                         }

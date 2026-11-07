@@ -475,6 +475,7 @@ fun MediaSection(config: AppConfig) {
                 Triple("📼 ビデオ のタブ", config.showVideos) { v: Boolean -> Store.update { it.copy(showVideos = v) } },
                 Triple("🎵 おんがく のタブ", config.showMusic) { v: Boolean -> Store.update { it.copy(showMusic = v) } },
                 Triple("🎧 おはなし のタブ（オーディオブック）", config.showBooks) { v: Boolean -> Store.update { it.copy(showBooks = v) } },
+                Triple("🎞 サムネイル を うごかす（パソコン で コマ を 作った とき）", config.animThumbs) { v: Boolean -> Store.update { it.copy(animThumbs = v) } },
             ).forEach { (label, on, set) ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(label, modifier = Modifier.weight(1f))

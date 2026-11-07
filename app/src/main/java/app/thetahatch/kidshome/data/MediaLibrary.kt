@@ -114,6 +114,8 @@ object MediaLibrary {
         val videos: List<MediaEntry>, val audio: List<MediaEntry>, val icons: kotlin.collections.Map<String, Uri>,
         /** ファイル の uri → パソコン で 作った サムネイル（.kidshome/thumbs） */
         val thumbs: kotlin.collections.Map<String, Uri>,
+        /** ファイル の uri → パソコン で 作った コマ（.kidshome/frames） */
+        val frames: kotlin.collections.Map<String, Frames>,
         /** 長さ が まだ わからない もの（uri と おぼえる key） */
         val missing: List<Pair<Uri, String>>,
     )
@@ -121,6 +123,13 @@ object MediaLibrary {
     /** パソコン で 作った サムネイル（ファイル の uri → 画像 の uri） */
     @Volatile private var filling = false
     @Volatile private var pcThumbs: kotlin.collections.Map<String, Uri> = emptyMap()
+    @Volatile private var pcFrames: kotlin.collections.Map<String, Frames> = emptyMap()
+
+    /** パソコン で 作った コマ送り 用 の スプライト（よこ 1 列 に n コマ、1 コマ w×h、at は 各 コマ の 時刻 ms） */
+    class Frames(val uri: Uri, val n: Int, val w: Int, val h: Int, val at: List<Long>)
+
+    /** その 動画 の コマ（なければ null） */
+    fun framesOf(uri: Uri): Frames? = pcFrames[uri.toString()]
 
     private fun durPrefs(c: Context) = c.getSharedPreferences("mediadur", Context.MODE_PRIVATE)
 
@@ -150,6 +159,8 @@ object MediaLibrary {
         var cacheBase: String? = null
         var index: JSONObject? = null
         val thumbFiles = HashMap<String, Uri>()
+        val frameFiles = HashMap<String, Uri>()
+        val frames = HashMap<String, Frames>()
 
         fun readCache(docId: String, base: String) {
             list(docId).forEach { r ->
@@ -162,6 +173,9 @@ object MediaLibrary {
                     }
                     name == "thumbs" && isDir((r[2] as String?).orEmpty()) -> list(id).forEach { t ->
                         thumbFiles[(t[1] as String?).orEmpty()] = android.provider.DocumentsContract.buildDocumentUriUsingTree(tree, t[0] as String)
+                    }
+                    name == "frames" && isDir((r[2] as String?).orEmpty()) -> list(id).forEach { t ->
+                        frameFiles[(t[1] as String?).orEmpty()] = android.provider.DocumentsContract.buildDocumentUriUsingTree(tree, t[0] as String)
                     }
                 }
             }
@@ -188,6 +202,11 @@ object MediaLibrary {
                 val rel = cacheBase?.let { b -> (path + name).takeIf { it.startsWith(b) }?.removePrefix(b) }
                 val pc = rel?.let { index?.optJSONObject(it) }?.takeIf { it.optLong("size", -1) == size }
                 pc?.optString("thumb")?.takeIf { it.isNotBlank() }?.let { t -> thumbFiles[t]?.let { thumbs[uri.toString()] = it } }
+                pc?.optString("frames")?.takeIf { it.isNotBlank() }?.let { f -> frameFiles[f] }?.let { fu ->
+                    val n = pc.optInt("frameN"); val fw = pc.optInt("frameW"); val fh = pc.optInt("frameH")
+                    val at = pc.optJSONArray("frameAt")?.let { a -> List(a.length()) { a.optLong(it) } }.orEmpty()
+                    if (n in 2..64 && fw > 0 && fh > 0) frames[uri.toString()] = Frames(fu, n, fw, fh, at)
+                }
                 val ms = pc?.optLong("dur", -1)?.takeIf { it >= 0 } ?: dur.getLong(key, -1L).takeIf { it >= 0 }
                 if (ms == null) missing += uri to key
                 val stable = java.util.UUID.nameUUIDFromBytes(id.toByteArray()).mostSignificantBits
@@ -210,7 +229,7 @@ object MediaLibrary {
         return Scan(
             videos.sortedWith(compareBy({ it.shelf }, { it.path })),
             audio.sortedWith(compareBy({ it.shelf }, { it.album }, { it.track }, { it.title })),
-            icons.mapValues { it.value.second }, thumbs, missing,
+            icons.mapValues { it.value.second }, thumbs, frames, missing,
         )
     }
 
@@ -252,7 +271,7 @@ object MediaLibrary {
             var missing: List<Pair<Uri, String>> = emptyList()
             if (tree != null) runCatching {
                 val sc = withContext(Dispatchers.IO) { scanTree(app, tree) }
-                icons = sc.icons; pcThumbs = sc.thumbs; videos = sc.videos
+                icons = sc.icons; pcThumbs = sc.thumbs; pcFrames = sc.frames; videos = sc.videos
                 music = sc.audio.filter { it.kind == MediaKind.MUSIC }
                 books = sc.audio.filter { it.kind == MediaKind.BOOK }
                 missing = sc.missing
@@ -379,6 +398,21 @@ object MediaLibrary {
         override fun sizeOf(key: String, value: Bitmap) = value.byteCount
     }
     private val missing = HashSet<String>()
+
+    private val sprites = object : LruCache<String, Bitmap>(8 * 1024 * 1024) {
+        override fun sizeOf(key: String, value: Bitmap) = value.byteCount
+    }
+
+    /** コマ送り の スプライト 画像（1 枚 まるごと。主スレッドで呼ばない） */
+    fun sprite(context: Context, f: Frames): Bitmap? {
+        val key = f.uri.toString()
+        sprites.get(key)?.let { return it }
+        val b = runCatching {
+            context.contentResolver.openInputStream(f.uri)?.use { BitmapFactory.decodeStream(it) }
+        }.getOrNull() ?: return null
+        sprites.put(key, b)
+        return b
+    }
 
     /** 動画のコマ・音楽のジャケット。無ければ null（主スレッドで呼ばない） */
     fun thumbnail(context: Context, uri: Uri, w: Int = 384, h: Int = 216): Bitmap? {

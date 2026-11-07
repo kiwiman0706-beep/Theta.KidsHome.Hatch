@@ -47,7 +47,7 @@ SD カード（ルート）
 │        ├─ folder.jpg
 │        └─ 速読英単語/               ← 右 の 1 まい
 │           └─ 01 ….mp3
-└─ Android/data/com.theta.kidshome/files/dict/   ← 📚 じしょ（ここ だけ 場所 が ちがう。くわしく は 3.）
+└─ Android/data/app.thetahatch.kidshome/files/dict/   ← 📚 じしょ（ここ だけ 場所 が ちがう。くわしく は 3.）
    ├─ kokugo.sqlite                   ← 1 冊（なかま）ごと に 1 ファイル。何こ でも
    ├─ hyakka.sqlite
    └─ hyakka.sqlite-media/            ← 大きい 図・動画 を DB の 外 に 出した とき だけ
@@ -115,7 +115,7 @@ ffmpeg -i "01 さんぽ.m4a" -i cover.jpg -map 0:a -map 1 -c copy -disposition:v
 ## 3. 辞書（じしょ・ひゃっかじてん）
 
 ### 置き場所
-- **`SD/Android/data/com.theta.kidshome/files/dict/`**（アプリ専用 の フォルダ）。本体 の `…/files/dict/` も 読む（SD が 先）。
+- **`SD/Android/data/app.thetahatch.kidshome/files/dict/`**（アプリ専用 の フォルダ）。本体 の `…/files/dict/` も 読む（SD が 先）。
   - フォルダ が なければ、キッズホーム を 一度 ひらいて おやメニュー「📖 じしょ・ひゃっかじてん」を 見る と できます。パソコン で 先 に 作って も かまいません（名前 を 正確 に）。
   - **キッズホーム を アンインストール する と この フォルダ は 消えます**。元 の `.sqlite` は パソコン（NAS）に 残して おいて ください（アップデート では 消えません）。
   - 動画・音楽 と ちがって、辞書 は ふつう の フォルダ（`KidsHome/` の 下）では 読めません（Android の 制限）。
@@ -161,6 +161,10 @@ python tools\make_kidshome_cache.py E:\KidsHome
 
 - ffmpeg・ffprobe が いる（Windows：`winget install Gyan.FFmpeg`、Mac：`brew install ffmpeg`）
 - `KidsHome/.kidshome/` に `index.json`（長さ）と `thumbs/`（サムネイル）、`.nomedia` が できる。消して も 動く（キッズホーム が 自分 で しらべる だけ）
+- 動画 は **コマ送り 用 の コマ** も 作る：`frames/`（1 本 1 枚。はじめ と おわり の 5% を のぞいた 8 コマ を 192×108 で よこ に ならべた JPEG、1 本 30〜50KB）。
+  一覧 で スクロール が とまった とき まんなか の タイル、または 指 で さわった タイル が 0.5 びょう ごと に コマ送り（2 しゅう で とまる。うごく の は 1 まい だけ）。
+  おやメニュー「🎞 サムネイル を うごかす」で 切れる。Android の「アニメーション を 減らす」の とき も うごかない。
+  コマ数 は `--frames 12` の よう に かえられる（`--frames 0` で 作らない。前 に 作った コマ も けす）
 - ファイル を 足したら もう いちど。新しい もの・かわった もの だけ 作る
 
 ## 5. 作業 の チェックリスト（AI・人 に 渡す 用）
@@ -173,7 +177,7 @@ python tools\make_kidshome_cache.py E:\KidsHome
 - [ ] 音楽・おはなし は MP3/M4A/M4B。アルバム = フォルダ。ジャケット は `cover.jpg` を 置く か 埋め込む
 - [ ] シリーズ の フォルダ に アイコン `folder.jpg`（正方形、512×512 くらい。なくても よい）
 - [ ] 使えない 文字 が ない か
-- [ ] 辞書 `.sqlite` は `Android/data/com.theta.kidshome/files/dict/` へ（元 は パソコン に 残す）
+- [ ] 辞書 `.sqlite` は `Android/data/app.thetahatch.kidshome/files/dict/` へ（元 は パソコン に 残す）
 - [ ] 最後 に 一覧（フォルダ・ファイル数・合計サイズ）を 出して 確認
 
 ## 6. 今後 の 予定（おぼえがき）
@@ -183,5 +187,5 @@ python tools\make_kidshome_cache.py E:\KidsHome
 - **NAS と 同期**：Wi-Fi に つながって いる とき、Tailscale 経由 で 家 の NAS（Synology）と SD の `KidsHome/` を 同期 する。
   - 最終的 に は NAS 側 が 正（NAS に 入れれば タブレット に 入る）。
   - この 文書 の フォルダ構成 を そのまま NAS の 共有フォルダ にも 使う 前提（NAS 側 も `KidsHome/どうが・おんがく・おはなし`）。
-  - 辞書（`Android/data/com.theta.kidshome/files/dict/`）も 同期 対象 に する か は 実装時 に 決める。
+  - 辞書（`Android/data/app.thetahatch.kidshome/files/dict/`）も 同期 対象 に する か は 実装時 に 決める。
   - モバイル回線・車 の 中 では 同期 しない（Wi-Fi のみ・充電中 のみ など）。
