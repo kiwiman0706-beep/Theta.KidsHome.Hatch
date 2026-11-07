@@ -431,6 +431,11 @@ fun MediaSection(config: AppConfig) {
     var granted by remember { mutableStateOf(MediaLibrary.hasPermission(context)) }
     var images by remember { mutableStateOf(MediaLibrary.hasImagePermission(context)) }
     var calendar by remember { mutableStateOf(Events.hasPermission(context)) }
+    // 📁 フォルダ を えらぶ（ファミリーリンク で メディア の 権限 が 出せない タブレット でも 読める）
+    var tree by remember { mutableStateOf(MediaLibrary.treeUri(context)) }
+    val pickTree = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        if (uri != null) { runCatching { MediaLibrary.setTree(context, uri) }; tree = MediaLibrary.treeUri(context) }
+    }
     val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         granted = MediaLibrary.hasPermission(context)
         images = MediaLibrary.hasImagePermission(context)
@@ -447,10 +452,19 @@ fun MediaSection(config: AppConfig) {
             fontSize = 14.sp,
         )
         Spacer(Modifier.height(8.dp))
-        if (!granted) {
+        Text(
+            "📁 SD の「KidsHome」フォルダ を えらぶ と、その 中 を 直接 読みます（メディア の 権限 が いらない ので、ファミリーリンク の タブレット でも 読める。フォルダ の アイコン も）。",
+            fontSize = 13.sp,
+        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Button(onClick = { pickTree.launch(null) }) { Text(if (tree == null) "📁 SD の KidsHome フォルダ を えらぶ" else "📁 フォルダ を えらびなおす") }
+            if (tree != null) TextButton(onClick = { MediaLibrary.setTree(context, null); tree = null }) { Text("はずす") }
+        }
+        tree?.let { Text("読んで いる フォルダ：" + Uri.decode(it.lastPathSegment.orEmpty()).substringAfter(':'), fontSize = 13.sp) }
+        if (!granted && tree == null) {
             Button(onClick = { ask.launch(MediaLibrary.permissions + MediaLibrary.imagePermission) }) { Text("動画と音楽へのアクセスを許可") }
         } else {
-            if (!images) OutlinedButton(onClick = { ask.launch(arrayOf(MediaLibrary.imagePermission)) }) {
+            if (!images && tree == null) OutlinedButton(onClick = { ask.launch(arrayOf(MediaLibrary.imagePermission)) }) {
                 Text("🖼 フォルダ の アイコン（folder.jpg など）も 読む ← 写真 の 許可")
             }
             Text(

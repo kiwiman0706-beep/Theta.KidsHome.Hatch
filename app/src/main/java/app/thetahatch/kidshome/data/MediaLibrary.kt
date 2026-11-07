@@ -5,6 +5,7 @@ import android.content.ContentUris
 import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
@@ -86,14 +87,107 @@ object MediaLibrary {
 
     fun iconFor(path: String): Uri? = icons[path]
 
+    // ---------------------------------------------------------------- 📁 えらんだ フォルダ（ファミリーリンク でも 読める）
+
+    private fun mediaPrefs(c: Context) = c.getSharedPreferences("media", Context.MODE_PRIVATE)
+
+    /** 親モード で えらんだ SD の フォルダ（KidsHome か SD の いちばん うえ）。メディア の 権限 が いらない */
+    fun treeUri(c: Context): Uri? = mediaPrefs(c).getString("tree", null)?.let(Uri::parse)
+        ?.takeIf { u -> c.contentResolver.persistedUriPermissions.any { it.uri == u && it.isReadPermission } }
+
+    fun setTree(c: Context, uri: Uri?) {
+        val old = mediaPrefs(c).getString("tree", null)?.let(Uri::parse)
+        if (old != null && old != uri) runCatching { c.contentResolver.releasePersistableUriPermission(old, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+        if (uri != null) c.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        mediaPrefs(c).edit().putString("tree", uri?.toString()).apply()
+        refresh(c, force = true)
+    }
+
+    /** 読める か（フォルダ を えらんだ か、メディア の 権限 が ある か） */
+    fun canRead(c: Context) = treeUri(c) != null || hasPermission(c)
+
+    private val VIDEO_EXT = setOf("mp4", "m4v", "mkv", "webm", "3gp", "mov", "ts")
+    private val AUDIO_EXT = setOf("mp3", "m4a", "aac", "ogg", "oga", "opus", "flac", "wav", "m4b")
+
+    /** えらんだ フォルダ を たどって 動画・音声・アイコン を あつめる */
+    private fun scanTree(c: Context, tree: Uri): Triple<List<MediaEntry>, List<MediaEntry>, kotlin.collections.Map<String, Uri>> {
+        val cr = c.contentResolver
+        val cols = arrayOf(
+            android.provider.DocumentsContract.Document.COLUMN_DOCUMENT_ID, android.provider.DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+            android.provider.DocumentsContract.Document.COLUMN_MIME_TYPE, android.provider.DocumentsContract.Document.COLUMN_SIZE,
+        )
+        val durPrefs = c.getSharedPreferences("mediadur", Context.MODE_PRIVATE)
+        val durEdit = durPrefs.edit()
+        fun duration(uri: Uri, key: String): Long {
+            durPrefs.getLong(key, -1L).takeIf { it >= 0 }?.let { return it }
+            val d = runCatching {
+                android.media.MediaMetadataRetriever().run {
+                    try { setDataSource(c, uri); extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L } finally { release() }
+                }
+            }.getOrDefault(0L)
+            durEdit.putLong(key, d); return d
+        }
+        val videos = ArrayList<MediaEntry>(); val audio = ArrayList<MediaEntry>()
+        val icons = HashMap<String, Pair<Int, Uri>>()
+        val rootId = android.provider.DocumentsContract.getTreeDocumentId(tree)
+        val rootName = cr.query(android.provider.DocumentsContract.buildDocumentUriUsingTree(tree, rootId), arrayOf(cols[1]), null, null, null)
+            ?.use { if (it.moveToFirst()) it.getString(0) else null } ?: "KidsHome"
+        fun walk(docId: String, path: String, depth: Int) {
+            if (depth > 8) return
+            val children = android.provider.DocumentsContract.buildChildDocumentsUriUsingTree(tree, docId)
+            val rows = ArrayList<Array<Any?>>()
+            cr.query(children, cols, null, null, null)?.use { q -> while (q.moveToNext()) rows += arrayOf(q.getString(0), q.getString(1), q.getString(2), q.getLong(3)) }
+            val folder = path.trimEnd('/').substringAfterLast('/')
+            rows.sortedBy { it[1] as String }.forEach { r ->
+                val id = r[0] as String; val name = (r[1] as String?).orEmpty(); val mime = (r[2] as String?).orEmpty(); val size = r[3] as Long
+                if (name.startsWith(".")) return@forEach
+                if (mime == android.provider.DocumentsContract.Document.MIME_TYPE_DIR) { walk(id, "$path$name/", depth + 1); return@forEach }
+                val uri = android.provider.DocumentsContract.buildDocumentUriUsingTree(tree, id)
+                val lower = name.lowercase(); val ext = lower.substringAfterLast('.', "")
+                val rank = ICON_NAMES.indexOf(lower)
+                if (rank >= 0) { val cur = icons[path]; if (cur == null || rank < cur.first) icons[path] = rank to uri; return@forEach }
+                val stable = java.util.UUID.nameUUIDFromBytes(id.toByteArray()).mostSignificantBits
+                val title = clean(name.substringBeforeLast('.'))
+                when (ext) {
+                    in VIDEO_EXT -> videos += MediaEntry(
+                        id = stable, uri = uri, kind = MediaKind.VIDEO, title = title, folder = folder.ifEmpty { "どうが" }, album = "", artist = "",
+                        durationMs = duration(uri, "$id:$size"), shelf = shelfOf(path) ?: folder.ifEmpty { "どうが" }, path = path, shelfPath = shelfPathOf(path),
+                    )
+                    in AUDIO_EXT -> {
+                        val isBook = ext == "m4b" || isBookFolder(folder) || isBookPath(path)
+                        audio += MediaEntry(
+                            id = stable, uri = uri, kind = if (isBook) MediaKind.BOOK else MediaKind.MUSIC, title = title,
+                            folder = folder.ifEmpty { "おんがく" }, album = folder.ifEmpty { "おんがく" }, artist = "",
+                            durationMs = duration(uri, "$id:$size"), track = Regex("^(\\d{1,3})").find(name)?.groupValues?.get(1)?.toIntOrNull() ?: 0,
+                            shelf = shelfOf(path) ?: folder.ifEmpty { "おんがく" }, path = path, shelfPath = shelfPathOf(path),
+                        )
+                    }
+                }
+            }
+        }
+        walk(rootId, "$rootName/", 0)
+        durEdit.apply()
+        return Triple(
+            videos.sortedWith(compareBy({ it.shelf }, { it.path })),
+            audio.sortedWith(compareBy({ it.shelf }, { it.album }, { it.track }, { it.title })),
+            icons.mapValues { it.value.second },
+        )
+    }
+
     /** 5 分に 1 回まで読み直す（新しく入れた動画を拾うため） */
     fun refresh(context: Context, force: Boolean = false) {
-        if (loading || !hasPermission(context)) return
+        if (loading || !canRead(context)) return
         if (!force && System.currentTimeMillis() - loadedAt < 5 * 60_000) return
         loading = true
         val app = context.applicationContext
         scope.launch {
-            runCatching {
+            val tree = treeUri(app)
+            if (tree != null) runCatching {
+                val (v, a, ic) = withContext(Dispatchers.IO) { scanTree(app, tree) }
+                icons = ic; videos = v
+                music = a.filter { it.kind == MediaKind.MUSIC }
+                books = a.filter { it.kind == MediaKind.BOOK }
+            } else runCatching {
                 val v = withContext(Dispatchers.IO) { queryVideos(app) }
                 val a = withContext(Dispatchers.IO) { queryAudio(app) }
                 icons = if (hasImagePermission(app)) withContext(Dispatchers.IO) { runCatching { queryIcons(app) }.getOrDefault(emptyMap()) } else emptyMap()
@@ -221,10 +315,31 @@ object MediaLibrary {
         thumbs.get(key)?.let { return it }
         if (key in missing) return null
         val b = runCatching { context.contentResolver.loadThumbnail(uri, Size(w, h), null) }.getOrNull()
+            ?: if (uri.authority != MediaStore.AUTHORITY) fileThumb(context, uri, w, h) else null
         if (b != null) thumbs.put(key, b) else missing += key
         return b
     }
 }
+
+/** えらんだ フォルダ の ファイル（document の uri）の サムネイル：画像 は ちぢめて、動画 は 1 コマ、音声 は 埋め込み ジャケット */
+private fun fileThumb(context: Context, uri: Uri, w: Int, h: Int): Bitmap? = runCatching {
+    val name = uri.lastPathSegment.orEmpty().lowercase()
+    if (name.endsWith(".jpg") || name.endsWith(".jpeg") || name.endsWith(".png") || name.endsWith(".webp")) {
+        return@runCatching android.graphics.ImageDecoder.decodeBitmap(android.graphics.ImageDecoder.createSource(context.contentResolver, uri)) { d, info, _ ->
+            val s = maxOf(info.size.width / w.toFloat(), info.size.height / h.toFloat(), 1f)
+            d.setTargetSize((info.size.width / s).toInt().coerceAtLeast(1), (info.size.height / s).toInt().coerceAtLeast(1))
+            d.allocator = android.graphics.ImageDecoder.ALLOCATOR_SOFTWARE
+        }
+    }
+    android.media.MediaMetadataRetriever().run {
+        try {
+            setDataSource(context, uri)
+            embeddedPicture?.let { bytes ->
+                BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.let { Bitmap.createScaledBitmap(it, w, (w * it.height / it.width.coerceAtLeast(1)).coerceAtLeast(1), true) }
+            } ?: (if (Build.VERSION.SDK_INT >= 27) getScaledFrameAtTime(3_000_000, android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC, w, h) else getFrameAtTime(3_000_000))
+        } finally { release() }
+    }
+}.getOrNull()
 
 /** 続きから再生するための、再生位置の記録 */
 object Positions {
