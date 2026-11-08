@@ -5,8 +5,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.runtime.mutableIntStateOf
@@ -127,12 +125,12 @@ private fun ShelfPanes(
 
 /**
  * サムネイル（動画のコマ・ジャケット）。読めるまでは えもじ。
- * play が null で ない あいだ、frames（パソコン で 作った スプライト）が あれば 0.5 びょう ごと に コマ送り（2 しゅう で とまって onDone）。
+ * play が true の あいだ、frames（パソコン で 作った スプライト）が あれば 0.5 びょう ごと に コマ送り を くりかえす。
  */
 @Composable
 fun MediaThumb(
     uri: Uri, fallback: String, modifier: Modifier = Modifier, square: Boolean = false,
-    frames: MediaLibrary.Frames? = null, play: Any? = null, onDone: () -> Unit = {},
+    frames: MediaLibrary.Frames? = null, play: Boolean = false,
 ) {
     val context = LocalContext.current
     val image by produceState<ImageBitmap?>(null, uri) {
@@ -140,17 +138,17 @@ fun MediaThumb(
             MediaLibrary.thumbnail(context, uri, if (square) 300 else 384, if (square) 300 else 216)?.asImageBitmap()
         }
     }
-    val f = frames?.takeIf { play != null }
+    val f = frames?.takeIf { play }
     val sheet by produceState<ImageBitmap?>(null, f) {
         value = f?.let { withContext(Dispatchers.IO) { MediaLibrary.sprite(context, it)?.asImageBitmap() } }
     }
     var frame by remember(uri) { mutableIntStateOf(-1) }
     LaunchedEffect(sheet, play) {
         val n = f?.n ?: 0
-        if (sheet == null || play == null || n < 2) { frame = -1; return@LaunchedEffect }
-        repeat(n * 2) { frame = it % n; delay(500) }
-        frame = -1
-        onDone()
+        if (sheet == null || !play || n < 2) { frame = -1; return@LaunchedEffect }
+        delay((uri.hashCode() and 0x7fffffff) % 500L)  // みんな いっせい に かわらない よう に すこし ずらす
+        var i = 0
+        while (true) { frame = i; i = (i + 1) % n; delay(500) }
     }
     Box(modifier.background(Color(0xFFF2EEF5)), contentAlignment = Alignment.Center) {
         val img = image
@@ -174,11 +172,6 @@ private fun animThumbsOn(): Boolean {
     return Store.config.animThumbs && scale > 0f
 }
 
-/** さわった とき（指 を おいた しゅんかん）に 呼ぶ。押す こと 自体 は じゃま しない */
-private fun Modifier.onTouchDown(f: () -> Unit) = pointerInput(Unit) {
-    awaitEachGesture { awaitFirstDown(requireUnconsumed = false); f() }
-}
-
 private fun minutes(ms: Long): String {
     val m = (ms / 60_000).toInt()
     return if (m >= 60) "${m / 60}じかん${m % 60}ふん" else "${m}ふん"
@@ -192,20 +185,10 @@ fun VideoLibraryPage(theme: KidTheme, locked: Boolean, onPlay: (List<MediaEntry>
     ShelfPanes(theme, key, (source ?: visibleVideos()).groupBy { it.shelf }, "🎬", square = false, count = { "${it.size} こ" }) { shelf, list ->
         // おなじ シリーズ の なか で フォルダ が わかれて いたら（シーズン1・2 など）見出し を 出す
         val parts = list.groupBy { it.folder }
-        // コマ送り は 1 まい だけ：さわった タイル、または スクロール が とまった とき まんなか に ある タイル
-        val anim = animThumbsOn() && list.any { MediaLibrary.framesOf(it.uri) != null }
+        // 画面 に 見えて いる タイル は みんな コマ送り（見えない もの は 作られない ので うごかない）。スクロール 中 は とめて かるく
+        val anim = animThumbsOn()
         val grid = rememberLazyGridState()
-        var active by remember(shelf) { mutableStateOf<Pair<Long, Int>?>(null) }
-        var nonce by remember { mutableIntStateOf(0) }
-        if (anim) LaunchedEffect(shelf, grid.isScrollInProgress) {
-            if (grid.isScrollInProgress) { active = null; return@LaunchedEffect }
-            delay(700)
-            val info = grid.layoutInfo
-            val mid = (info.viewportStartOffset + info.viewportEndOffset) / 2
-            info.visibleItemsInfo.filter { (it.key as? Long)?.let { id -> list.firstOrNull { e -> e.id == id }?.let { e -> MediaLibrary.framesOf(e.uri) } } != null }
-                .minByOrNull { kotlin.math.abs(it.offset.y + it.size.height / 2 - mid) }
-                ?.let { active = (it.key as Long) to ++nonce }
-        }
+        val play = anim && !grid.isScrollInProgress
         LazyVerticalGrid(
             state = grid,
             columns = GridCells.Adaptive(230.dp),
@@ -232,11 +215,9 @@ fun VideoLibraryPage(theme: KidTheme, locked: Boolean, onPlay: (List<MediaEntry>
                         Box {
                             MediaThumb(
                                 e.uri, "🎬",
-                                Modifier.fillMaxWidth().aspectRatio(16f / 9f).alpha(if (locked) 0.35f else 1f)
-                                    .then(if (anim) Modifier.onTouchDown { active = e.id to ++nonce } else Modifier),
-                                frames = if (anim) MediaLibrary.framesOf(e.uri) else null,
-                                play = active?.takeIf { it.first == e.id },
-                                onDone = { if (active?.first == e.id) active = null },
+                                Modifier.fillMaxWidth().aspectRatio(16f / 9f).alpha(if (locked) 0.35f else 1f),
+                                frames = if (anim && !locked) MediaLibrary.framesOf(e.uri) else null,
+                                play = play,
                             )
                             if (locked) Text("🔒", fontSize = 44.sp, modifier = Modifier.align(Alignment.Center))
                             else Text("▶️", fontSize = 36.sp, modifier = Modifier.align(Alignment.Center).alpha(0.85f))

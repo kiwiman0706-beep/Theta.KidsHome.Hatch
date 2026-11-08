@@ -408,7 +408,7 @@ object MediaLibrary {
     }
     private val missing = HashSet<String>()
 
-    private val sprites = object : LruCache<String, Bitmap>(8 * 1024 * 1024) {
+    private val sprites = object : LruCache<String, Bitmap>(16 * 1024 * 1024) {
         override fun sizeOf(key: String, value: Bitmap) = value.byteCount
     }
 
