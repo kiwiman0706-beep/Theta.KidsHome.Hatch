@@ -83,6 +83,10 @@ object MediaLibrary {
     var icons by mutableStateOf<kotlin.collections.Map<String, Uri>>(emptyMap())
         private set
 
+    /** フォルダ 方式 で 読まなかった ファイル（拡張子 → 数）。おやメニュー で 「なぜ 出ない か」を 見る 用 */
+    var skipped by mutableStateOf<kotlin.collections.Map<String, Int>>(emptyMap())
+        private set
+
     /** アイコン に する ファイル名（上 ほど 優先） */
     val ICON_NAMES = listOf("folder.png", "folder.jpg", "folder.jpeg", "folder.webp", "icon.png", "icon.jpg", "icon.jpeg", "icon.webp", "cover.png", "cover.jpg", "cover.jpeg", "cover.webp")
 
@@ -107,7 +111,10 @@ object MediaLibrary {
     /** 読める か（フォルダ を えらんだ か、メディア の 権限 が ある か） */
     fun canRead(c: Context) = treeUri(c) != null || hasPermission(c)
 
-    private val VIDEO_EXT = setOf("mp4", "m4v", "mkv", "webm", "3gp", "mov", "ts")
+    // avi・mpg・flv などは アプリ で 再生 できる。wmv・asf は VLC で（「VLC で みる」）
+    private val VIDEO_EXT = setOf("mp4", "m4v", "mkv", "webm", "3gp", "3g2", "mov", "ts", "m2ts", "mts", "avi", "mpg", "mpeg", "vob", "flv", "f4v", "wmv", "asf")
+    /** かぞえ ない もの（字幕・説明・画像 など） */
+    private val QUIET_EXT = setOf("", "jpg", "jpeg", "png", "webp", "gif", "bmp", "txt", "nfo", "srt", "ass", "vtt", "sub", "idx", "json", "xml", "ini", "db", "lrc", "cue", "log", "url", "pdf")
     private val AUDIO_EXT = setOf("mp3", "m4a", "aac", "ogg", "oga", "opus", "flac", "wav", "m4b")
 
     private class Scan(
@@ -118,6 +125,7 @@ object MediaLibrary {
         val frames: kotlin.collections.Map<String, Frames>,
         /** 長さ が まだ わからない もの（uri と おぼえる key） */
         val missing: List<Pair<Uri, String>>,
+        val skipped: kotlin.collections.Map<String, Int>,
     )
 
     /** パソコン で 作った サムネイル（ファイル の uri → 画像 の uri） */
@@ -161,6 +169,7 @@ object MediaLibrary {
         val thumbFiles = HashMap<String, Uri>()
         val frameFiles = HashMap<String, Uri>()
         val frames = HashMap<String, Frames>()
+        val skip = HashMap<String, Int>()
 
         fun readCache(docId: String, base: String) {
             list(docId).forEach { r ->
@@ -196,7 +205,7 @@ object MediaLibrary {
                 val lower = name.lowercase(); val ext = lower.substringAfterLast('.', "")
                 val rank = ICON_NAMES.indexOf(lower)
                 if (rank >= 0) { val cur = icons[path]; if (cur == null || rank < cur.first) icons[path] = rank to uri; return@forEach }
-                if (ext !in VIDEO_EXT && ext !in AUDIO_EXT) return@forEach
+                if (ext !in VIDEO_EXT && ext !in AUDIO_EXT) { if (ext !in QUIET_EXT && ext.length <= 5) skip[ext] = (skip[ext] ?: 0) + 1; return@forEach }
                 // 長さ：パソコン の キャッシュ（大きさ が おなじ とき）→ まえ に しらべた もの → あと で
                 val key = "$id:$size"
                 val rel = cacheBase?.let { b -> (path + name).takeIf { it.startsWith(b) }?.removePrefix(b) }
@@ -229,7 +238,7 @@ object MediaLibrary {
         return Scan(
             videos.sortedWith(compareBy({ it.shelf }, { it.path })),
             audio.sortedWith(compareBy({ it.shelf }, { it.album }, { it.track }, { it.title })),
-            icons.mapValues { it.value.second }, thumbs, frames, missing,
+            icons.mapValues { it.value.second }, thumbs, frames, missing, skip,
         )
     }
 
@@ -271,7 +280,7 @@ object MediaLibrary {
             var missing: List<Pair<Uri, String>> = emptyList()
             if (tree != null) runCatching {
                 val sc = withContext(Dispatchers.IO) { scanTree(app, tree) }
-                icons = sc.icons; pcThumbs = sc.thumbs; pcFrames = sc.frames; videos = sc.videos
+                icons = sc.icons; pcThumbs = sc.thumbs; pcFrames = sc.frames; skipped = sc.skipped; videos = sc.videos
                 music = sc.audio.filter { it.kind == MediaKind.MUSIC }
                 books = sc.audio.filter { it.kind == MediaKind.BOOK }
                 missing = sc.missing

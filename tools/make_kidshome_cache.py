@@ -24,7 +24,7 @@ import shutil
 import subprocess
 import sys
 
-VIDEO = {".mp4", ".m4v", ".mkv", ".webm", ".3gp", ".mov", ".ts"}
+VIDEO = {".mp4", ".m4v", ".mkv", ".webm", ".3gp", ".3g2", ".mov", ".ts", ".m2ts", ".mts", ".avi", ".mpg", ".mpeg", ".vob", ".flv", ".f4v", ".wmv", ".asf"}
 AUDIO = {".mp3", ".m4a", ".aac", ".ogg", ".oga", ".opus", ".flac", ".wav", ".m4b"}
 WIDTH = 384
 FW, FH = 192, 108  # コマ 1 つ の 大きさ

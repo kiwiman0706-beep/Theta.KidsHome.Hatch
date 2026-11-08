@@ -468,9 +468,21 @@ fun MediaSection(config: AppConfig) {
                 Text("🖼 フォルダ の アイコン（folder.jpg など）も 読む ← 写真 の 許可")
             }
             Text(
-                "見つかったもの：動画 ${MediaLibrary.videos.size}・音楽 ${MediaLibrary.music.size}・おはなし ${MediaLibrary.books.size}",
+                "見つかったもの：🎬 動画 ${MediaLibrary.videos.size}・🎵 音楽 ${MediaLibrary.music.size}・🎧 おはなし ${MediaLibrary.books.size}" +
+                    "（${if (tree != null) "📁 フォルダ から" else "📱 メディア の 権限 で"}）",
                 fontSize = 14.sp, fontWeight = FontWeight.Bold,
             )
+            if (tree == null) Text(
+                "メディア の 権限 で 読む とき は、Android が SD を しらべおわった もの だけ 出ます（入れた ばかり だと 足りない ことが ある）。全部 出ない とき は 「📁 SD の KidsHome フォルダ を えらぶ」を。",
+                fontSize = 12.sp, color = Color.Gray,
+            )
+            MediaLibrary.skipped.takeIf { it.isNotEmpty() }?.let { sk ->
+                Text(
+                    "読まなかった ファイル：" + sk.entries.sortedByDescending { it.value }.take(8).joinToString("・") { ".${it.key} ${it.value}" } +
+                        "（動画・音声 では ない 形 なので 出ません。mp4 に すると 出ます）",
+                    fontSize = 12.sp, color = Color(0xFFB0004D),
+                )
+            }
             listOf(
                 Triple("📼 ビデオ のタブ", config.showVideos) { v: Boolean -> Store.update { it.copy(showVideos = v) } },
                 Triple("🎵 おんがく のタブ", config.showMusic) { v: Boolean -> Store.update { it.copy(showMusic = v) } },
@@ -493,7 +505,14 @@ fun MediaSection(config: AppConfig) {
                         androidx.compose.material3.FilterChip(
                             selected = !hidden,
                             onClick = { Store.update { it.copy(hiddenFolders = if (hidden) it.hiddenFolders - folder else it.hiddenFolders + folder) } },
-                            label = { Text("${if (hidden) "🙈" else "👀"} $folder（${list.size}）") },
+                            label = {
+                                // なに が いくつ か（🎬 動画・🎵 音楽・🎧 おはなし）。動画 タブ に 出る の は 🎬 だけ
+                                val kinds = list.groupingBy { it.kind }.eachCount()
+                                val what = listOf(
+                                    app.thetahatch.kidshome.data.MediaKind.VIDEO to "🎬", app.thetahatch.kidshome.data.MediaKind.MUSIC to "🎵", app.thetahatch.kidshome.data.MediaKind.BOOK to "🎧",
+                                ).mapNotNull { (k, e) -> kinds[k]?.let { "$e$it" } }.joinToString(" ")
+                                Text("${if (hidden) "🙈" else "👀"} $folder（$what）")
+                            },
                         )
                     }
                 }
