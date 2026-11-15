@@ -1,0 +1,30 @@
+name: drive-map
+
+# 🚗 いま どこ？ の 地図 データ（近畿 の 高速道路・IC）を OpenStreetMap から 作りなおして、この ブランチ に コミット する
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Natural Earth（県 の 形）
+        run: curl -sSfL -o "$RUNNER_TEMP/ne.geojson" https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_1_states_provinces.geojson
+      - name: 作る
+        run: python3 tools/build_drive_map.py "$RUNNER_TEMP/ne.geojson"
+      - name: コミット
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/src/main/assets/drive/kinki.json
+          if git diff --cached --quiet; then echo "かわり なし"; exit 0; fi
+          git commit -m "ドライブ マップ の データ を 作りなおし（OpenStreetMap）"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
