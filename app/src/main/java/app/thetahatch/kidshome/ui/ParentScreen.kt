@@ -261,6 +261,8 @@ private fun SettingsTab(modifier: Modifier) {
 
         YuruPicSection()
 
+        DriveSection()
+
         ShopLabelSection()
 
         }
@@ -574,6 +576,9 @@ private fun ProfileEditor(profile: Profile, canDelete: Boolean, onDelete: () -> 
         if (profile.tiles.none { it.type == TileType.REGISTER }) {
             OutlinedButton(onClick = { Store.addTiles(profile.id, listOf(AppConfig.registerTile())) }) { Text("🛒 おみせやさん を追加") }
         }
+        if (profile.tiles.none { it.type == TileType.DRIVE }) {
+            OutlinedButton(onClick = { Store.addTiles(profile.id, listOf(AppConfig.driveTile())) }) { Text("🚗 いま どこ？（ドライブ マップ）を追加") }
+        }
         if (profile.tiles.none { it.type == TileType.JAPAN }) {
             OutlinedButton(onClick = { Store.addTiles(profile.id, listOf(AppConfig.japanTile())) }) { Text("🗾 にっぽん パズル を追加") }
         }
@@ -695,6 +700,7 @@ private fun TileRow(tile: Tile, onUp: (() -> Unit)?, onDown: (() -> Unit)?, onEd
                     TileType.SOROBAN -> add("そろばん（内蔵）")
                     TileType.HISSAN -> add("ひっさん でんたく（内蔵）")
                     TileType.JAPAN -> add("にっぽん パズル（内蔵）")
+                    TileType.DRIVE -> add("ドライブ マップ（内蔵）")
                     TileType.REGISTER -> add("おみせやさん（内蔵）")
                     TileType.CODING -> add("うごかして ゴール（プログラミング、内蔵）")
                     TileType.TOUCH -> add("タッチ で あそぼ（内蔵）")

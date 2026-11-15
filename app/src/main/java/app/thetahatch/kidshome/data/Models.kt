@@ -5,7 +5,7 @@ import org.json.JSONObject
 import java.util.UUID
 
 /** CALL：Google Meet などの通話リンク（どうがロック中も押せる） */
-enum class TileType { APP, VIDEO, DRAWING, CALL, INSTRUMENT, EDUPAD, WORDPRO, PUZZLE, TYPING, MOJI, KUKU, MAP, TASU, DICT, SOROBAN, HISSAN, JAPAN, REGISTER, CODING, TOUCH, SUGOROKU, PURIKURA }
+enum class TileType { APP, VIDEO, DRAWING, CALL, INSTRUMENT, EDUPAD, WORDPRO, PUZZLE, TYPING, MOJI, KUKU, MAP, TASU, DICT, SOROBAN, HISSAN, JAPAN, REGISTER, CODING, TOUCH, SUGOROKU, PURIKURA, DRIVE }
 
 /** ホーム画面に並ぶ1つのボタン */
 data class Tile(
@@ -117,6 +117,7 @@ data class AppConfig(
         fun codingTile() = Tile(type = TileType.CODING, label = "うごかして ゴール", emoji = "🤖")
         fun registerTile() = Tile(type = TileType.REGISTER, label = "おみせやさん", emoji = "🛒")
         fun japanTile() = Tile(type = TileType.JAPAN, label = "にっぽん パズル", emoji = "🗾")
+        fun driveTile() = Tile(type = TileType.DRIVE, label = "いま どこ？", emoji = "🚗")
         fun hissanTile() = Tile(type = TileType.HISSAN, label = "ひっさん でんたく", emoji = "🔢")
         fun kukuTile() = Tile(type = TileType.KUKU, label = "くくの ひょう", emoji = "✖️")
 

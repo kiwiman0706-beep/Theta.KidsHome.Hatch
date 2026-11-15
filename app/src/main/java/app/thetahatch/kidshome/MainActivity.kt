@@ -34,7 +34,7 @@ import app.thetahatch.kidshome.ui.HomeScreen
 import app.thetahatch.kidshome.ui.ParentScreen
 import app.thetahatch.kidshome.update.SelfUpdate
 
-private enum class Screen { HOME, DRAWING, PARENT, PLAYER, INSTRUMENT, EDUPAD, WORDPRO, PUZZLE, TYPING, MOJI, KUKU, MAP, TASU, DICT, SOROBAN, HISSAN, JAPAN, REGISTER, CODING, TOUCH, SUGOROKU, PURIKURA }
+private enum class Screen { HOME, DRAWING, PARENT, PLAYER, INSTRUMENT, EDUPAD, WORDPRO, PUZZLE, TYPING, MOJI, KUKU, MAP, TASU, DICT, SOROBAN, HISSAN, JAPAN, REGISTER, CODING, TOUCH, SUGOROKU, PURIKURA, DRIVE }
 
 class MainActivity : ComponentActivity() {
     private var screen by mutableStateOf(Screen.HOME)
@@ -105,6 +105,7 @@ class MainActivity : ComponentActivity() {
                             onOpenSoroban = { screen = Screen.SOROBAN },
                             onOpenHissan = { screen = Screen.HISSAN },
                             onOpenJapan = { screen = Screen.JAPAN },
+                            onOpenDrive = { screen = Screen.DRIVE },
                             onOpenRegister = { screen = Screen.REGISTER },
                             onOpenCoding = { screen = Screen.CODING },
                             onOpenTouch = { screen = Screen.TOUCH },
@@ -129,6 +130,7 @@ class MainActivity : ComponentActivity() {
                     Screen.SOROBAN -> app.thetahatch.kidshome.ui.SorobanScreen(onBack = { screen = Screen.HOME })
                     Screen.HISSAN -> app.thetahatch.kidshome.ui.HissanScreen(onBack = { screen = Screen.HOME })
                     Screen.JAPAN -> app.thetahatch.kidshome.ui.JapanPuzzleScreen(onBack = { screen = Screen.HOME })
+                    Screen.DRIVE -> app.thetahatch.kidshome.ui.DriveScreen(onBack = { screen = Screen.HOME })
                     Screen.REGISTER -> app.thetahatch.kidshome.ui.RegisterScreen(onBack = { screen = Screen.HOME })
                     Screen.CODING -> app.thetahatch.kidshome.ui.CodingScreen(onBack = { screen = Screen.HOME })
                     Screen.TOUCH -> app.thetahatch.kidshome.ui.TouchPlayScreen(onBack = { screen = Screen.HOME })

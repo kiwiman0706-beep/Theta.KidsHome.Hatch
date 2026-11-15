@@ -126,6 +126,7 @@ fun HomeScreen(
     onOpenSoroban: () -> Unit = {},
     onOpenHissan: () -> Unit = {},
     onOpenJapan: () -> Unit = {},
+    onOpenDrive: () -> Unit = {},
     onOpenRegister: () -> Unit = {},
     onOpenCoding: () -> Unit = {},
     onOpenTouch: () -> Unit = {},
@@ -174,7 +175,7 @@ fun HomeScreen(
             KidTab("builtin:play", TabKind.CATEGORY, "🧩", "あそぶ", tiles = bt(TileType.TOUCH, TileType.SUGOROKU, TileType.PURIKURA, TileType.PUZZLE, TileType.REGISTER, TileType.CODING, TileType.DRAWING, TileType.INSTRUMENT)),
             KidTab("builtin:math", TabKind.CATEGORY, "🔢", "さんすう", tiles = bt(TileType.KUKU, TileType.TASU, TileType.SOROBAN, TileType.HISSAN, TileType.EDUPAD)),
             KidTab("builtin:lang", TabKind.CATEGORY, "✏️", "こくご", tiles = bt(TileType.MOJI, TileType.TYPING, TileType.WORDPRO)),
-            KidTab("builtin:look", TabKind.CATEGORY, "🔍", "しらべる", tiles = bt(TileType.DICT, TileType.MAP, TileType.JAPAN)),
+            KidTab("builtin:look", TabKind.CATEGORY, "🔍", "しらべる", tiles = bt(TileType.DICT, TileType.MAP, TileType.DRIVE, TileType.JAPAN)),
         ).filter { it.tiles.isNotEmpty() }
     }
     val tabs = remember(profile, config.widgetIds, config.appCategory, config.categories, installed, media, builtinTabs) {
@@ -224,7 +225,7 @@ fun HomeScreen(
         Shelf("book", "🎧", "おはなし", emptyList()) { open(listOf("local:book")) }.takeIf { tabs.any { it.key == "local:book" } },
         Shelf("math", "🔢", "さんすう", builtins(TileType.KUKU, TileType.TASU, TileType.SOROBAN, TileType.HISSAN, TileType.EDUPAD)),
         Shelf("lang", "✏️", "こくご", builtins(TileType.MOJI, TileType.TYPING, TileType.WORDPRO)),
-        Shelf("look", "🔍", "しらべる", builtins(TileType.DICT, TileType.MAP, TileType.JAPAN)),
+        Shelf("look", "🔍", "しらべる", builtins(TileType.DICT, TileType.MAP, TileType.DRIVE, TileType.JAPAN)),
     ).filter { it.open != null || it.tiles.isNotEmpty() }
     // おもちゃばこ：あそぶ もの と、仕分けた アプリ
     val toys = listOf(Shelf("play", "🧩", "あそぶ", builtins(TileType.TOUCH, TileType.SUGOROKU, TileType.PURIKURA, TileType.PUZZLE, TileType.REGISTER, TileType.CODING))) +
@@ -251,6 +252,7 @@ fun HomeScreen(
             tile.type == TileType.SOROBAN -> onOpenSoroban()
             tile.type == TileType.HISSAN -> onOpenHissan()
             tile.type == TileType.JAPAN -> onOpenJapan()
+            tile.type == TileType.DRIVE -> onOpenDrive()
             tile.type == TileType.REGISTER -> onOpenRegister()
             tile.type == TileType.CODING -> onOpenCoding()
             tile.type == TileType.TOUCH -> onOpenTouch()
@@ -836,6 +838,7 @@ private fun TileWindow(tile: Tile, theme: KidTheme, index: Int, locked: Boolean,
         tile.type == TileType.SOROBAN -> "そろばん"
         tile.type == TileType.HISSAN -> "ひっさん"
         tile.type == TileType.JAPAN -> "にっぽん"
+        tile.type == TileType.DRIVE -> "ドライブ"
         tile.type == TileType.REGISTER -> "おみせ"
         tile.type == TileType.CODING -> "プログラミング"
         tile.type == TileType.TOUCH -> "タッチ"

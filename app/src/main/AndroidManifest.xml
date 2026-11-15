@@ -14,6 +14,8 @@
     <uses-permission android:name="android.permission.SET_WALLPAPER" />
     <!-- 天気：おおよその位置（任意。地名で選ぶこともできる） -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- 🚗 いま どこ？（ドライブ マップ）で 高速道路 の どこ を 走って いる か -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <!-- ウィジェットを置く（実際の割り当ては確認画面で許可する） -->
     <uses-permission android:name="android.permission.BIND_APPWIDGET" tools:ignore="ProtectedPermissions" />
     <!-- おうちのひとからの呼びかけ：常駐して待ち受け、動画を見ていてもホームを前に出す -->

@@ -28,7 +28,7 @@ object Migration {
         "chat" to setOf("device", "since", "unread"),
     )
     /** filesDir の 中 で 入れる もの */
-    val FILES = listOf("drawings", "stickers", "stamps", "moji", "kin", "japan", "chat", "shop_items.json", "shopitems", "nurie", "yuru")
+    val FILES = listOf("drawings", "stickers", "stamps", "moji", "kin", "japan", "chat", "shop_items.json", "shopitems", "nurie", "yuru", "drive")
 
     private fun prefNames(c: Context): List<String> =
         File(c.applicationInfo.dataDir, "shared_prefs").listFiles()?.filter { it.extension == "xml" }?.map { it.nameWithoutExtension }

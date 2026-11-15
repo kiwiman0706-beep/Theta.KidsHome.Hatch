@@ -122,6 +122,10 @@ object Store {
             update { c -> c.copy(profiles = c.profiles.map { p -> if (p.tiles.any { it.type == TileType.REGISTER }) p else p.copy(tiles = p.tiles + AppConfig.registerTile()) }) }
             prefs.edit().putBoolean("added:register", true).apply()
         }
+        if (!prefs.getBoolean("added:drive", false)) {
+            update { c -> c.copy(profiles = c.profiles.map { p -> if (p.tiles.any { it.type == TileType.DRIVE }) p else p.copy(tiles = p.tiles + AppConfig.driveTile()) }) }
+            prefs.edit().putBoolean("added:drive", true).apply()
+        }
         if (!prefs.getBoolean("added:japan", false)) {
             update { c -> c.copy(profiles = c.profiles.map { p -> if (p.tiles.any { it.type == TileType.JAPAN }) p else p.copy(tiles = p.tiles + AppConfig.japanTile()) }) }
             prefs.edit().putBoolean("added:japan", true).apply()

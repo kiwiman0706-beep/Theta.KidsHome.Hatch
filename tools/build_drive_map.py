@@ -45,12 +45,12 @@ def query():
 );
 out tags geom;
 node["highway"="motorway_junction"]{b};
-out tags;
+out body;
 (
   node["highway"~"^(services|rest_area)$"]{b};
   way["highway"~"^(services|rest_area)$"]{b};
 );
-out tags center;
+out center;
 """
 
 
@@ -200,7 +200,7 @@ def build_points(elements, routes):
         name = (tags.get("name") or "").strip()
         if not name:
             continue
-        if el["type"] == "node":
+        if "lat" in el:
             lat, lon = el["lat"], el["lon"]
         elif "center" in el:
             lat, lon = el["center"]["lat"], el["center"]["lon"]
