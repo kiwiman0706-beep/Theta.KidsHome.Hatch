@@ -294,7 +294,9 @@ fun DriveScreen(onBack: () -> Unit) {
             // IC・JCT・SA・PA
             if (scale > 3) d.points.forEach { p ->
                 val big = p.name in landmarkAt
-                val show = when (p.kind) { "ic" -> scale > 5 || big; "jct" -> scale > 5; else -> scale > 14 }
+                // 阪神高速 など まち の 高速 だけ の 出入口 は たくさん ある ので、もっと 大きく した とき だけ
+                val city = p.routes.isNotEmpty() && p.routes.all { d.routes[it].city }
+                val show = when (p.kind) { "ic" -> scale > (if (city) 9 else 5) || big; "jct" -> scale > 5; else -> scale > 14 }
                 if (!show) return@forEach
                 val X = sx(p.lon); val Y = sy(p.lat)
                 if (X < -50 || Y < -50 || X > size.width + 50 || Y > size.height + 50) return@forEach
@@ -304,7 +306,7 @@ fun DriveScreen(onBack: () -> Unit) {
                     "ic" -> { drawCircle(Color.White, 6.dp.toPx(), Offset(X, Y)); drawCircle(c, 6.dp.toPx(), Offset(X, Y), style = Stroke(3.dp.toPx())) }
                     else -> label("🅿️", X, Y + 5.dp.toPx(), 12f, Color.Black)
                 }
-                val labelOn = when (p.kind) { "ic" -> scale > 9; "jct" -> scale > 20; else -> scale > 20 }
+                val labelOn = when (p.kind) { "ic" -> scale > (if (city) 30 else 9); "jct" -> scale > 20; else -> scale > 20 }
                 if (labelOn || p == where?.next) label(p.name, X, Y - 10.dp.toPx(), if (p == where?.next) 16f else 12f, if (p == where?.next) Color(0xFFD50000) else Color(0xFF333333))
             }
             // めじるし（写真）

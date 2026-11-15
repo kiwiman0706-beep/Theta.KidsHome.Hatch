@@ -1,0 +1,10 @@
+🚗 いま どこ？（ドライブ マップ）の 高速道路・IC・JCT・SA・PA の データ
+
+© OpenStreetMap contributors
+https://www.openstreetmap.org/copyright
+
+Open Database License (ODbL) 1.0
+https://opendatacommons.org/licenses/odbl/1-0/
+
+データ は Overpass API で とり、tools/build_drive_map.py で 間引いて 模式図 用 に した もの（app/src/main/assets/drive/kinki.json）。
+この ファイル（加工した データベース）も ODbL で 公開 します。
