@@ -192,7 +192,7 @@ object DriveMap {
         }
     }
 
-    /** a から b まで の みち（高速道路 だけ）。阪神高速 など は すこし とおく 数える（ふつう は さける ので）。のりかえ も 2km ぶん */
+    /** a から b まで の みち（高速道路 だけ、阪神高速 も おなじ）。のりかえ は 2km ぶん たす */
     fun trip(d: Data, a: Int, b: Int): Trip? {
         if (a == b) return Trip(a, b, emptyList(), 0.0)
         val dist = HashMap<Int, Double>().apply { put(a, 0.0) }
@@ -205,7 +205,7 @@ object DriveMap {
             if (dd > (dist[u] ?: Double.MAX_VALUE)) continue
             for (e in d.adj[u].orEmpty()) {
                 val v = if (e.a == u) e.b else e.a
-                val w = e.km * (if (e.route >= 0 && d.routes[e.route].city) 1.4 else 1.0) + (if (e.route < 0) 2.0 else 0.0)
+                val w = e.km + (if (e.route < 0) 2.0 else 0.0)
                 val nd = dd + w
                 if (nd < (dist[v] ?: Double.MAX_VALUE)) { dist[v] = nd; prev[v] = e; q += nd to v }
             }

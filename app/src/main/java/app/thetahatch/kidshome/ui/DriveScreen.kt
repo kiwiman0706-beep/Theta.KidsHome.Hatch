@@ -84,6 +84,12 @@ private object Trail {
     }
 }
 
+/** いつも の はんい（南・西・北・東）：大阪・兵庫 の 南 と 淡路島（洲本 の ホテル ニュー アワジ）まで */
+private val HOME_BOX = doubleArrayOf(34.28, 134.80, 34.98, 135.72)
+
+/** 路線 の ふだ 用 の みじかい 名前：「阪神高速3号神戸線」→「3号神戸線」、「中国自動車道」→「中国道」 */
+private fun shortName(n: String) = n.removePrefix("阪神高速").removePrefix("道路").replace("高速道路", "").replace("自動車道", "道").ifBlank { n }
+
 private val ROUTE_COLORS = listOf(
     Color(0xFF2E7D32), Color(0xFFE65100), Color(0xFF1565C0), Color(0xFFC2185B), Color(0xFF6A1B9A),
     Color(0xFF00838F), Color(0xFFAD1457), Color(0xFF558B2F), Color(0xFF4527A0), Color(0xFFEF6C00),
@@ -181,14 +187,22 @@ fun DriveScreen(onBack: () -> Unit) {
         cx = (kinki[0] + kinki[2]) / 2; cy = (kinki[1] + kinki[3]) / 2
         scale = minOf(canvas.width / (kinki[2] - kinki[0]), canvas.height / (kinki[3] - kinki[1])) * 0.95f
     }
-    LaunchedEffect(canvas) { if (cx.isNaN()) fitAll() }
-    // ついて いく：はじめて 場所 が わかったら 50km くらい の ひろさ に
-    var zoomedIn by remember { mutableStateOf(false) }
+    // いつも の はんい：大阪・兵庫（神戸・三田・宝塚）〜 淡路島 の 洲本 まで
+    fun fitHome() {
+        if (canvas == IntSize.Zero) return
+        val x0 = lx(HOME_BOX[1]); val x1 = lx(HOME_BOX[3]); val y0 = ly(HOME_BOX[2]); val y1 = ly(HOME_BOX[0])
+        cx = (x0 + x1) / 2; cy = (y0 + y1) / 2
+        scale = minOf(canvas.width / (x1 - x0), canvas.height / (y1 - y0))
+    }
+    LaunchedEffect(canvas) { if (cx.isNaN()) fitHome() }
+    // ついて いく：大きさ は そのまま、車 が 画面 の はし に 近づいたら まんなか へ
     LaunchedEffect(fix, follow, canvas) {
         val f = fix ?: return@LaunchedEffect
-        if (!follow || canvas == IntSize.Zero) return@LaunchedEffect
-        cx = lx(f.longitude); cy = ly(f.latitude)
-        if (!zoomedIn) { scale = canvas.width / 60f; zoomedIn = true }
+        if (!follow || canvas == IntSize.Zero || cx.isNaN()) return@LaunchedEffect
+        val X = canvas.width / 2f + (lx(f.longitude) - cx) * scale
+        val Y = canvas.height / 2f + (ly(f.latitude) - cy) * scale
+        val mx = canvas.width * 0.18f; val my = canvas.height * 0.22f
+        if (X < mx || X > canvas.width - mx || Y < my || Y > canvas.height - my) { cx = lx(f.longitude); cy = ly(f.latitude) }
     }
 
     // 路線 と 県 の 線（km の 座標 で 1 回 だけ 作る）
@@ -207,7 +221,7 @@ fun DriveScreen(onBack: () -> Unit) {
     val routePaths = remember(d) {
         var c = 0
         d.routes.map { r ->
-            val color = if (r.city) Color(0xFF8E7CC3) else ROUTE_COLORS[c++ % ROUTE_COLORS.size]
+            val color = ROUTE_COLORS[c++ % ROUTE_COLORS.size]
             Triple(r, color, Path().apply {
                 r.lines.forEach { f ->
                     moveTo(lx(f[1].toDouble()), ly(f[0].toDouble()))
@@ -235,7 +249,7 @@ fun DriveScreen(onBack: () -> Unit) {
     val schemaPaths = remember(d) {
         var c = 0
         d.routes.map { r ->
-            val color = if (r.city) Color(0xFF8E7CC3) else ROUTE_COLORS[c++ % ROUTE_COLORS.size]
+            val color = ROUTE_COLORS[c++ % ROUTE_COLORS.size]
             Triple(r, color, Path())
         }.also { list ->
             // つながり（IC と IC の あいだ）ごと に 折れ線。IC の ない 短い 路線 は 本物 の 形 の まま
@@ -252,6 +266,18 @@ fun DriveScreen(onBack: () -> Unit) {
                 }
             }
         }
+    }
+
+    // 路線 の 名前 の ふだ を おく 場所 の こうほ（本物 の 形 用、模式図 用）
+    val routeTags = remember(d) {
+        d.routes.indices.associateWith { ri ->
+            val r = d.routes[ri]
+            val real = r.lines.sortedByDescending { it.size }.map { f -> val m = (f.size / 4) * 2; lx(f[m + 1].toDouble()) to ly(f[m].toDouble()) }
+            val sch = d.edges.filter { it.route == ri }.sortedByDescending { it.km }.map { e ->
+                val b = DriveMap.bend(nodeX(e.a), nodeY(e.a), nodeX(e.b), nodeY(e.b)); ((b[2] + b[4]) / 2) to ((b[3] + b[5]) / 2)
+            }
+            real to sch
+        }.toList()
     }
 
     // 🏁 いく ところ：高速 だけ で いちばん 近そう な みち を ぬる
@@ -331,14 +357,12 @@ fun DriveScreen(onBack: () -> Unit) {
                 prefPaths.forEach { (p, path) ->
                     drawPath(path, Color.White, style = Stroke(width = (if (p.kinki) 3.dp else 1.5.dp).toPx() * px, join = StrokeJoin.Round))
                 }
-                // まち の 高速（阪神高速 など）は ほそく、そのうえ に ふつう の 高速
                 // 🏁 いく みち（下 に ふとく 黄色）
                 tripPath?.let { drawPath(it, Color(0xEEFFD600), style = Stroke(width = 16.dp.toPx() * px, cap = StrokeCap.Round, join = StrokeJoin.Round)) }
-                (if (schema) schemaPaths else routePaths).sortedBy { !it.first.city }.forEach { (r, color, path) ->
-                    val wd = (if (r.city) 2.5.dp else 5.dp).toPx() * px
-                    if (!r.city) drawPath(path, Color.White, style = Stroke(width = wd + 3.dp.toPx() * px, cap = StrokeCap.Round, join = StrokeJoin.Round))
-                    drawPath(path, color, style = Stroke(width = wd, cap = StrokeCap.Round, join = StrokeJoin.Round))
-                }
+                val lines = if (schema) schemaPaths else routePaths
+                val wd = 5.dp.toPx() * px
+                lines.forEach { (_, _, path) -> drawPath(path, Color.White, style = Stroke(width = wd + 3.dp.toPx() * px, cap = StrokeCap.Round, join = StrokeJoin.Round)) }
+                lines.forEach { (_, color, path) -> drawPath(path, color, style = Stroke(width = wd, cap = StrokeCap.Round, join = StrokeJoin.Round)) }
                 // きた みち（本物 の 形 の とき だけ）
                 if (!schema && Trail.pts.size > 1) {
                     val trail = Path().apply {
@@ -351,34 +375,74 @@ fun DriveScreen(onBack: () -> Unit) {
             val nc = drawContext.canvas.nativeCanvas
             val fill = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { textAlign = android.graphics.Paint.Align.CENTER; typeface = android.graphics.Typeface.DEFAULT_BOLD }
             val edge = android.graphics.Paint(fill).apply { style = android.graphics.Paint.Style.STROKE; color = android.graphics.Color.WHITE; strokeWidth = 4.dp.toPx() }
-            fun label(text: String, x: Float, y: Float, sizeDp: Float, color: Color) {
-                fill.textSize = sizeDp.dp.toPx(); edge.textSize = fill.textSize; fill.color = color.toArgb()
+            // 字 は かさならない よう に：だいじ な もの から 置いて、もう 置いた 字 と かさなる もの は 出さない
+            val taken = ArrayList<android.graphics.RectF>()
+            fun label(text: String, x: Float, y: Float, sizeDp: Float, color: Color, force: Boolean = true): Boolean {
+                fill.textSize = sizeDp.dp.toPx(); edge.textSize = fill.textSize
+                val tw = fill.measureText(text)
+                val r = android.graphics.RectF(x - tw / 2 - 2, y - fill.textSize, x + tw / 2 + 2, y + fill.textSize * 0.25f)
+                if (!force && taken.any { android.graphics.RectF.intersects(it, r) }) return false
+                taken += r
+                fill.color = color.toArgb()
                 nc.drawText(text, x, y, edge); nc.drawText(text, x, y, fill)
+                return true
             }
-            // 県 の 名前（ちいさい とき だけ。大きく する と じゃま）
-            if (scale < 14) prefNames.forEach { (p, x, y) ->
-                if (p != null) {
-                    val X = w + (x.toFloat() - cx) * scale; val Y = h + (y.toFloat() - cy) * scale
-                    label(p.name, X, Y, 18f, Color(0x99555555)); label(p.kana, X, Y + 16.dp.toPx(), 11f, Color(0x99555555))
-                }
+            // めじるし の 写真 の ところ は あけて おく
+            Landmarks.list.forEach { l ->
+                val X = sx(l.lon); val Y = sy(l.lat); val r = 30.dp.toPx()
+                taken += android.graphics.RectF(X - r, Y - r * 2 - 40.dp.toPx(), X + r, Y)
             }
-            // IC・JCT・SA・PA
-            if (scale > 3) d.points.forEach { p ->
-                val big = p.name in landmarkAt
-                // 阪神高速 など まち の 高速 だけ の 出入口 は たくさん ある ので、もっと 大きく した とき だけ
-                val city = p.routes.isNotEmpty() && p.routes.all { d.routes[it].city }
-                val show = when (p.kind) { "ic" -> scale > (if (city) 9 else 5) || big; "jct" -> scale > 5; else -> scale > 14 }
-                if (!show) return@forEach
+            // IC・JCT・SA・PA の 点
+            val shown = ArrayList<DriveMap.Point>()
+            if (scale > 5) d.points.forEach { p ->
+                if (p.kind != "ic" && p.kind != "jct" && scale < 14) return@forEach
                 val X = sx(p.lon); val Y = sy(p.lat)
                 if (X < -50 || Y < -50 || X > size.width + 50 || Y > size.height + 50) return@forEach
                 val c = p.routes.firstOrNull()?.let { routeColor[d.routes[it]] } ?: Color.Gray
                 when (p.kind) {
                     "jct" -> { drawCircle(Color.White, 4.dp.toPx(), Offset(X, Y)); drawCircle(Color.DarkGray, 4.dp.toPx(), Offset(X, Y), style = Stroke(2.dp.toPx())) }
                     "ic" -> { drawCircle(Color.White, 6.dp.toPx(), Offset(X, Y)); drawCircle(c, 6.dp.toPx(), Offset(X, Y), style = Stroke(3.dp.toPx())) }
-                    else -> label("🅿️", X, Y + 5.dp.toPx(), 12f, Color.Black)
+                    else -> label("🅿️", X, Y + 5.dp.toPx(), 12f, Color.Black, force = false)
                 }
-                val labelOn = when (p.kind) { "ic" -> scale > (if (city) 30 else 9); "jct" -> scale > 20; else -> scale > 20 }
-                if (labelOn || p == where?.next) label(p.name, X, Y - 10.dp.toPx(), if (p == where?.next) 16f else 12f, if (p == where?.next) Color(0xFFD50000) else Color(0xFF333333))
+                shown += p
+            }
+            // 名前：つぎ の IC → めじるし の IC → IC → JCT → SA・PA の じゅん
+            where?.next?.let { n -> label(n.name, sx(n.lon), sy(n.lat) - 10.dp.toPx(), 16f, Color(0xFFD50000)) }
+            if (scale > 8) shown.sortedBy { p ->
+                when { p.name in landmarkAt -> 0; p.kind == "ic" -> 1; p.kind == "jct" -> 2; else -> 3 }
+            }.forEach { p ->
+                if (p == where?.next) return@forEach
+                if (p.kind != "ic" && scale < 16) return@forEach
+                label(p.name, sx(p.lon), sy(p.lat) - 10.dp.toPx(), 12f, Color(0xFF333333), force = false)
+            }
+            // 路線 の 名前 の ふだ（あいて いる ところ に、1 路線 3 まい まで）
+            if (scale > 6) routeTags.forEach { (ri, spots) ->
+                val r = d.routes[ri]
+                val color = routeColor[r] ?: Color.Gray
+                var n = 0
+                for ((x, y) in (if (schema) spots.second else spots.first)) {
+                    if (n >= 3) break
+                    val X = w + (x - cx) * scale; val Y = h + (y - cy) * scale
+                    if (X < 30 || Y < 30 || X > size.width - 30 || Y > size.height - 30) continue
+                    val name = shortName(r.name)
+                    fill.textSize = 12.dp.toPx()
+                    val tw = fill.measureText(name)
+                    val rect = android.graphics.RectF(X - tw / 2 - 6.dp.toPx(), Y - 9.dp.toPx(), X + tw / 2 + 6.dp.toPx(), Y + 9.dp.toPx())
+                    if (taken.any { android.graphics.RectF.intersects(it, rect) }) continue
+                    taken += android.graphics.RectF(rect.left - 40.dp.toPx(), rect.top - 20.dp.toPx(), rect.right + 40.dp.toPx(), rect.bottom + 20.dp.toPx())
+                    val bg = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { this.color = color.toArgb() }
+                    nc.drawRoundRect(rect, 6.dp.toPx(), 6.dp.toPx(), bg)
+                    fill.color = android.graphics.Color.WHITE
+                    nc.drawText(name, X, Y + 4.dp.toPx(), fill)
+                    n++
+                }
+            }
+            // 県 の 名前（うすく、あいて いる ところ だけ）
+            if (scale < 30) prefNames.forEach { (p, x, y) ->
+                if (p != null) {
+                    val X = w + (x.toFloat() - cx) * scale; val Y = h + (y.toFloat() - cy) * scale
+                    if (label(p.name, X, Y, 18f, Color(0x99555555), force = false)) label(p.kana, X, Y + 16.dp.toPx(), 11f, Color(0x99555555), force = false)
+                }
             }
             // めじるし（写真）
             Landmarks.list.forEach { l ->
@@ -504,8 +568,9 @@ fun DriveScreen(onBack: () -> Unit) {
 
         // 右下：じぶん・ぜんぶ
         Column(Modifier.align(Alignment.BottomEnd).padding(16.dp, 16.dp, 16.dp, 30.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            RetroIconButton("🚗", theme, selected = follow) { follow = true; fix?.let { cx = lx(it.longitude); cy = ly(it.latitude); if (scale < 8) scale = canvas.width / 60f } }
-            RetroIconButton("🗺️", theme) { follow = false; fitAll() }
+            RetroIconButton("🚗", theme, selected = follow) { follow = true; fix?.let { cx = lx(it.longitude); cy = ly(it.latitude); if (scale < 8) fitHome(); cx = lx(it.longitude); cy = ly(it.latitude) } }
+            RetroIconButton("🗺️", theme) { follow = false; fitHome() }
+            RetroIconButton("🌐", theme) { follow = false; fitAll() }
             RetroIconButton(if (schema) "📐" else "🌏", theme, selected = schema) { schema = !schema; drivePrefs.edit().putBoolean("schema", schema).apply() }
         }
     }
