@@ -20,6 +20,7 @@ import os
 import re
 import sys
 import time
+import unicodedata
 import urllib.parse
 import urllib.request
 
@@ -109,8 +110,16 @@ def seg_dist(p, a, b):
     return math.hypot(px - ax - t * dx, py - ay - t * dy)
 
 
+def norm(name):
+    """全角 → 半角、（上り）（下り）・第一 第二・出入口 を とる（おなじ 場所 を 1 つ に する ため）"""
+    n = unicodedata.normalize("NFKC", name).strip()
+    n = re.sub(r"\s*\((上り|下り|内回り|外回り|東行き|西行き|北行き|南行き)\)\s*$", "", n)
+    n = re.sub(r"(第[一二三四]|出入口|出口|入口)$", "", n)
+    return n.strip()
+
+
 def route_key(tags):
-    name = (tags.get("name") or "").strip()
+    name = norm(tags.get("name") or "")
     ref = (tags.get("ref") or "").strip()
     if tags.get("highway") == "trunk" and not ROAD_NAME.search(name):
         return None
@@ -123,6 +132,8 @@ def route_key(tags):
 def kind_of(name, hw):
     if re.search(r"JCT|ジャンクション", name):
         return "jct"
+    if re.search(r"スマートIC|IC", name):
+        return "ic"
     if re.search(r"SA$|サービスエリア", name):
         return "sa"
     if re.search(r"PA$|パーキングエリア", name):
@@ -197,7 +208,7 @@ def build_points(elements, routes):
         hw = tags.get("highway")
         if hw not in ("motorway_junction", "services", "rest_area"):
             continue
-        name = (tags.get("name") or "").strip()
+        name = norm(tags.get("name") or "")
         if not name:
             continue
         if "lat" in el:
