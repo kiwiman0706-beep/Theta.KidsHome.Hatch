@@ -227,6 +227,75 @@ fun DriveScreen(onBack: () -> Unit) {
     }
     val landmarkAt = remember(Landmarks.list) { Landmarks.list.groupBy { it.point } }
 
+    // 📐 模式図（IC と IC の あいだ を たて・よこ・ななめ だけ で つなぐ。SA の 案内図 の よう に）か、🗺️ 本物 の 形 か
+    val drivePrefs = remember { context.getSharedPreferences("drive", android.content.Context.MODE_PRIVATE) }
+    var schema by remember { mutableStateOf(drivePrefs.getBoolean("schema", true)) }
+    fun nodeX(i: Int) = lx(d.points[i].lon)
+    fun nodeY(i: Int) = ly(d.points[i].lat)
+    val schemaPaths = remember(d) {
+        var c = 0
+        d.routes.map { r ->
+            val color = if (r.city) Color(0xFF8E7CC3) else ROUTE_COLORS[c++ % ROUTE_COLORS.size]
+            Triple(r, color, Path())
+        }.also { list ->
+            // つながり（IC と IC の あいだ）ごと に 折れ線。IC の ない 短い 路線 は 本物 の 形 の まま
+            d.edges.filter { it.route >= 0 }.forEach { e ->
+                val b = DriveMap.bend(nodeX(e.a), nodeY(e.a), nodeX(e.b), nodeY(e.b))
+                list[e.route].third.apply { moveTo(b[0], b[1]); lineTo(b[2], b[3]); lineTo(b[4], b[5]); lineTo(b[6], b[7]) }
+            }
+            val has = d.edges.filter { it.route >= 0 }.map { it.route }.toSet()
+            list.forEachIndexed { i, (r, _, path) ->
+                if (i !in has) r.lines.forEach { f ->
+                    path.moveTo(lx(f[1].toDouble()), ly(f[0].toDouble()))
+                    var k = 2
+                    while (k < f.size) { path.lineTo(lx(f[k + 1].toDouble()), ly(f[k].toDouble())); k += 2 }
+                }
+            }
+        }
+    }
+
+    // 🏁 いく ところ：高速 だけ で いちばん 近そう な みち を ぬる
+    remember { app.thetahatch.kidshome.data.Atlas.init(context) }
+    var dest by remember { mutableStateOf<Int?>(null) }
+    var destName by remember { mutableStateOf("") }
+    val start = remember(d, where, fix) {
+        val f = fix
+        if (f != null) DriveMap.startPoint(d, where, f.latitude, f.longitude)
+        else app.thetahatch.kidshome.data.Atlas.home?.let { DriveMap.startPoint(d, null, it.lat, it.lon) }  // GPS が まだ なら おうち から
+    }
+    val trip = remember(d, start, dest) { val a = start; val b = dest; if (a != null && b != null) DriveMap.trip(d, a, b) else null }
+    val tripPath = remember(trip, schema) {
+        val t = trip ?: return@remember null
+        Path().apply {
+            var cur = t.from
+            moveTo(nodeX(cur), nodeY(cur))
+            t.edges.forEach { e ->
+                val next = if (e.a == cur) e.b else e.a
+                if (schema || e.route < 0 || e.line < 0) {
+                    val b = DriveMap.bend(nodeX(cur), nodeY(cur), nodeX(next), nodeY(next))
+                    if (schema && e.route >= 0) { lineTo(b[2], b[3]); lineTo(b[4], b[5]) }
+                    lineTo(nodeX(next), nodeY(next))
+                } else {
+                    val f = DriveMap.cut(d.routes[e.route].lines[e.line], e.ka, e.kb)
+                    val pts = (0 until f.size / 2).map { lx(f[it * 2 + 1].toDouble()) to ly(f[it * 2].toDouble()) }
+                    // cut は 線 の むき なので、いま の 点 に 近い ほう から
+                    val ord = if (pts.isNotEmpty() && hypot(pts.first().first - nodeX(cur), pts.first().second - nodeY(cur)) > hypot(pts.last().first - nodeX(cur), pts.last().second - nodeY(cur))) pts.reversed() else pts
+                    ord.forEach { lineTo(it.first, it.second) }
+                    lineTo(nodeX(next), nodeY(next))
+                }
+                cur = next
+            }
+        }
+    }
+    // 模式図 の とき は 車 を 路線 の 上 に のせる
+    val carSpot = remember(d, fix, schema) {
+        val f = fix ?: return@remember null
+        if (!schema) return@remember null
+        val sp = DriveMap.spot(d, f.latitude, f.longitude) ?: return@remember null
+        val sq = d.routes[sp.route].seqs[sp.seq]
+        DriveMap.along(DriveMap.bend(nodeX(sq.pts[sp.k]), nodeY(sq.pts[sp.k]), nodeX(sq.pts[sp.k + 1]), nodeY(sq.pts[sp.k + 1])), sp.t)
+    }
+
     Box(Modifier.fillMaxSize().background(Color(0xFFBFE3F5))) {
         Canvas(
             Modifier.fillMaxSize()
@@ -257,19 +326,21 @@ fun DriveScreen(onBack: () -> Unit) {
             val px = 1f / scale
             withTransform({ translate(w - cx * scale, h - cy * scale); scale(scale, scale, Offset.Zero) }) {
                 prefPaths.forEach { (p, path) ->
-                    drawPath(path, if (p.kinki) PREF_COLORS[p.code] ?: Color(0xFFF5F5F5) else Color(0xFFEDEDED))
+                    drawPath(path, if (p.kinki) PREF_COLORS[p.code] ?: Color(0xFFF5F5F5) else Color(0xFFEDEDED), alpha = if (schema) 0.55f else 1f)
                 }
                 prefPaths.forEach { (p, path) ->
                     drawPath(path, Color.White, style = Stroke(width = (if (p.kinki) 3.dp else 1.5.dp).toPx() * px, join = StrokeJoin.Round))
                 }
                 // まち の 高速（阪神高速 など）は ほそく、そのうえ に ふつう の 高速
-                routePaths.sortedBy { !it.first.city }.forEach { (r, color, path) ->
+                // 🏁 いく みち（下 に ふとく 黄色）
+                tripPath?.let { drawPath(it, Color(0xEEFFD600), style = Stroke(width = 16.dp.toPx() * px, cap = StrokeCap.Round, join = StrokeJoin.Round)) }
+                (if (schema) schemaPaths else routePaths).sortedBy { !it.first.city }.forEach { (r, color, path) ->
                     val wd = (if (r.city) 2.5.dp else 5.dp).toPx() * px
                     if (!r.city) drawPath(path, Color.White, style = Stroke(width = wd + 3.dp.toPx() * px, cap = StrokeCap.Round, join = StrokeJoin.Round))
                     drawPath(path, color, style = Stroke(width = wd, cap = StrokeCap.Round, join = StrokeJoin.Round))
                 }
-                // きた みち
-                if (Trail.pts.size > 1) {
+                // きた みち（本物 の 形 の とき だけ）
+                if (!schema && Trail.pts.size > 1) {
                     val trail = Path().apply {
                         moveTo(lx(Trail.pts[0].second), ly(Trail.pts[0].first))
                         Trail.pts.drop(1).forEach { lineTo(lx(it.second), ly(it.first)) }
@@ -327,9 +398,15 @@ fun DriveScreen(onBack: () -> Unit) {
                 drawCircle(Color(0xFFFF6F00), r + 3.dp.toPx(), c, style = Stroke(3.dp.toPx()))
                 label(l.name, c.x, c.y - r - 8.dp.toPx(), 14f, Color(0xFF4E342E))
             }
+            // 🏁
+            dest?.let { i ->
+                val p = d.points[i]
+                label("🏁", sx(p.lon) + 14.dp.toPx(), sy(p.lat) - 4.dp.toPx(), 30f, Color.Black)
+            }
             // いま いる ところ
             fix?.let { f ->
-                val X = sx(f.longitude); val Y = sy(f.latitude)
+                val X = carSpot?.let { w + (it.first - cx) * scale } ?: sx(f.longitude)
+                val Y = carSpot?.let { h + (it.second - cy) * scale } ?: sy(f.latitude)
                 drawCircle(Color(0x332962FF), 24.dp.toPx(), Offset(X, Y))
                 heading?.let { hd ->
                     rotate(hd, Offset(X, Y)) {
@@ -375,6 +452,21 @@ fun DriveScreen(onBack: () -> Unit) {
                                 else if (w?.nearest != null) Text("🔎 いちばん ちかい IC：${w.nearest.name}（${km(w.nearestKm)}）", fontSize = 16.sp)
                             }
                         }
+                        if (dest != null) {
+                            val t = trip
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    when {
+                                        t != null -> "🏁 $destName まで だいたい ${km(t.km)}（高速）"
+                                        start == null -> "🏁 $destName：いま の 場所 が わかると みち を 出す よ"
+                                        else -> "🏁 $destName：高速 で いける みち が 見つからない"
+                                    },
+                                    fontSize = 17.sp, modifier = Modifier.weight(1f, fill = false),
+                                )
+                                androidx.compose.material3.TextButton(onClick = { dest = null }) { Text("✖") }
+                            }
+                            t?.let { Text(it.steps(d).joinToString(" → "), fontSize = 15.sp, color = Color(0xFF6D4C41)) }
+                        }
                     }
                 }
             }
@@ -393,12 +485,19 @@ fun DriveScreen(onBack: () -> Unit) {
 
         // さわった もの
         when (val p = picked) {
-            is Landmark -> LandmarkCard(p, photos[p.id], "${p.point} が いちばん ちかい", Modifier.align(Alignment.BottomCenter).padding(16.dp)) { picked = null }
+            is Landmark -> Column(Modifier.align(Alignment.BottomCenter).padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                LandmarkCard(p, photos[p.id], "${p.point} が いちばん ちかい", Modifier) { picked = null }
+                Button(onClick = {
+                    dest = d.points.indices.minByOrNull { DriveMap.distKm(p.lat, p.lon, d.points[it].lat, d.points[it].lon) + (if (d.points[it].name == p.point) 0.0 else 0.5) }
+                    destName = p.name; picked = null
+                }, modifier = Modifier.padding(top = 8.dp)) { Text("🏁 ここ へ いく みち", fontSize = 18.sp) }
+            }
             is DriveMap.Point -> RetroWindow(theme, Modifier.align(Alignment.BottomCenter).padding(16.dp), title = when (p.kind) { "jct" -> "🔀 ジャンクション"; "sa" -> "🅿️ サービスエリア"; "pa" -> "🅿️ パーキングエリア"; else -> "🚪 インターチェンジ" }, onClick = { picked = null }) {
                 Column(Modifier.padding(14.dp)) {
                     DotText(p.name, theme, 24, theme.outline)
                     Text(p.routes.joinToString("・") { d.routes[it].name }, fontSize = 14.sp)
                     fix?.let { Text("ここ から ${km(DriveMap.distKm(it.latitude, it.longitude, p.lat, p.lon))}（まっすぐ）", fontSize = 14.sp) }
+                    Button(onClick = { dest = d.points.indexOf(p); destName = p.name; picked = null }, modifier = Modifier.padding(top = 6.dp)) { Text("🏁 ここ へ いく みち") }
                 }
             }
         }
@@ -407,6 +506,7 @@ fun DriveScreen(onBack: () -> Unit) {
         Column(Modifier.align(Alignment.BottomEnd).padding(16.dp, 16.dp, 16.dp, 30.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             RetroIconButton("🚗", theme, selected = follow) { follow = true; fix?.let { cx = lx(it.longitude); cy = ly(it.latitude); if (scale < 8) scale = canvas.width / 60f } }
             RetroIconButton("🗺️", theme) { follow = false; fitAll() }
+            RetroIconButton(if (schema) "📐" else "🌏", theme, selected = schema) { schema = !schema; drivePrefs.edit().putBoolean("schema", schema).apply() }
         }
     }
 }

@@ -306,16 +306,30 @@ def build_graph(routes, points):
             for (a1, i1), (a2, i2) in zip(seq, seq[1:]):
                 add(i1, i2, a2 - a1, ri, li, a1, a2)
         r["seqs"] = seqs
-        # 線 が とぎれて いる ところ：はし の 点 を おなじ 路線 の いちばん 近い 点 と つなぐ
-        ends = [(sq["pts"][0], k) for k, sq in enumerate(seqs)] + [(sq["pts"][-2], k) for k, sq in enumerate(seqs)]
-        for e, k in ends:
-            pe = xy(points[e]["lat"], points[e]["lon"])
-            cand = [(math.hypot(*(a - b for a, b in zip(pe, xy(points[o]["lat"], points[o]["lon"])))), o)
-                    for k2, sq in enumerate(seqs) if k2 != k for o in sq["pts"][0::2]]
-            if cand:
-                d, o = min(cand)
-                if d < 25:
-                    add(e, o, d * 1.3, ri)
+        # 線 が とぎれて いる ところ：はし の 点 を おなじ 路線 の 近い 点 と つなぐ。
+        # まだ つながって いない 切れはし どうし だけ（近い じゅん に。二重 に つながない）
+        group = list(range(len(seqs)))
+
+        def root(k):
+            while group[k] != k:
+                group[k] = group[group[k]]
+                k = group[k]
+            return k
+        cand = []
+        for k, sq in enumerate(seqs):
+            for e in (sq["pts"][0], sq["pts"][-2]):
+                pe = xy(points[e]["lat"], points[e]["lon"])
+                for k2, sq2 in enumerate(seqs):
+                    if k2 == k:
+                        continue
+                    for o in sq2["pts"][0::2]:
+                        d = math.hypot(*(a - b for a, b in zip(pe, xy(points[o]["lat"], points[o]["lon"]))))
+                        if d < 25:
+                            cand.append((d, e, o, k, k2))
+        for d, e, o, k, k2 in sorted(cand):
+            if root(k) != root(k2):
+                group[root(k)] = root(k2)
+                add(e, o, d * 1.3, ri)
     # のりかえ：ちがう 路線 の 点 が 1km いない に あれば つなぐ（JCT は もともと 両方 の 路線 に 入って いる）
     pos = [xy(p["lat"], p["lon"]) for p in points]
     for a in range(len(points)):
