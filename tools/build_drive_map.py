@@ -211,6 +211,9 @@ def build_points(elements, routes):
         name = norm(tags.get("name") or "")
         if not name:
             continue
+        # SA・PA で ない 休憩所（道の駅・トラックステーション など）は 出さない
+        if hw != "motorway_junction" and not re.search(r"SA|PA|サービスエリア|パーキングエリア", name):
+            continue
         if "lat" in el:
             lat, lon = el["lat"], el["lon"]
         elif "center" in el:
@@ -246,6 +249,81 @@ def build_points(elements, routes):
             continue  # 高速 に のって いない もの（一般道 の 出口 など）
         out.append({"name": g["name"], "kind": g["kind"], "lat": round(g["lat"], 5), "lon": round(g["lon"], 5), "routes": near})
     return out
+
+
+def project(line, p):
+    """線（lat,lon,…）の 上 で p に いちばん 近い ところ：(きょり km, はじめ から の km)"""
+    pts = [xy(line[k], line[k + 1]) for k in range(0, len(line), 2)]
+    best, arc, run = 1e9, 0.0, 0.0
+    for k in range(1, len(pts)):
+        (ax, ay), (bx, by) = pts[k - 1], pts[k]
+        dx, dy = bx - ax, by - ay
+        l = math.hypot(dx, dy)
+        t = 0 if l == 0 else max(0, min(1, ((p[0] - ax) * dx + (p[1] - ay) * dy) / (l * l)))
+        d = math.hypot(p[0] - ax - t * dx, p[1] - ay - t * dy)
+        if d < best:
+            best, arc = d, run + t * l
+        run += l
+    return best, arc
+
+
+def line_km(line):
+    pts = [xy(line[k], line[k + 1]) for k in range(0, len(line), 2)]
+    return sum(math.hypot(pts[k][0] - pts[k - 1][0], pts[k][1] - pts[k - 1][1]) for k in range(1, len(pts)))
+
+
+def build_graph(routes, points):
+    """
+    路線 ごと の IC の ならび（seqs：模式図 と 道 さがし 用）と、つながり（edges）。
+    seqs：[{"line": 線 の 番号, "pts": [点 の 番号, はじめ から の km, …]}]（上り・下り で 2 本 ある とき は 長い ほう だけ）
+    edges：[a, b, km, 路線（-1 は のりかえ・つなぎ）, 線, a の km, b の km]
+    """
+    edges, seen = [], set()
+
+    def add(a, b, km, r=-1, li=-1, ka=0.0, kb=0.0):
+        key = (min(a, b), max(a, b), r)
+        if a == b or key in seen:
+            return
+        seen.add(key)
+        edges.append([a, b, round(km, 2), r, li, round(ka, 2), round(kb, 2)])
+
+    for ri, r in enumerate(routes):
+        mine = [i for i, p in enumerate(points) if ri in p["routes"]]
+        used, seqs = set(), []
+        for li in sorted(range(len(r["lines"])), key=lambda i: -line_km(r["lines"][i])):
+            seq = []
+            for i in mine:
+                if i in used:
+                    continue
+                d, arc = project(r["lines"][li], xy(points[i]["lat"], points[i]["lon"]))
+                if d < 0.8:
+                    seq.append((arc, i))
+            if len(seq) < 2:
+                continue
+            seq.sort()
+            used.update(i for _, i in seq)
+            seqs.append({"line": li, "pts": [v for arc, i in seq for v in (i, round(arc, 2))]})
+            for (a1, i1), (a2, i2) in zip(seq, seq[1:]):
+                add(i1, i2, a2 - a1, ri, li, a1, a2)
+        r["seqs"] = seqs
+        # 線 が とぎれて いる ところ：はし の 点 を おなじ 路線 の いちばん 近い 点 と つなぐ
+        ends = [(sq["pts"][0], k) for k, sq in enumerate(seqs)] + [(sq["pts"][-2], k) for k, sq in enumerate(seqs)]
+        for e, k in ends:
+            pe = xy(points[e]["lat"], points[e]["lon"])
+            cand = [(math.hypot(*(a - b for a, b in zip(pe, xy(points[o]["lat"], points[o]["lon"])))), o)
+                    for k2, sq in enumerate(seqs) if k2 != k for o in sq["pts"][0::2]]
+            if cand:
+                d, o = min(cand)
+                if d < 25:
+                    add(e, o, d * 1.3, ri)
+    # のりかえ：ちがう 路線 の 点 が 1km いない に あれば つなぐ（JCT は もともと 両方 の 路線 に 入って いる）
+    pos = [xy(p["lat"], p["lon"]) for p in points]
+    for a in range(len(points)):
+        for b in range(a + 1, len(points)):
+            d = math.hypot(pos[a][0] - pos[b][0], pos[a][1] - pos[b][1])
+            if d < 1.0 and set(points[a]["routes"]) != set(points[b]["routes"]):
+                add(a, b, d + 0.3)
+    return edges
 
 
 def build_prefs(ne_path):
@@ -288,11 +366,12 @@ def main():
     els = osm.get("elements", [])
     routes = build_routes(els)
     points = build_points(els, routes)
+    edges = build_graph(routes, points)
     for r in routes:
         del r["km"]
     data = {
         "bbox": list(BBOX), "attribution": "高速道路：© OpenStreetMap contributors（ODbL）／県 の 形：Natural Earth",
-        "made": time.strftime("%Y-%m-%d"), "routes": routes, "points": points, "prefs": prefs,
+        "made": time.strftime("%Y-%m-%d"), "routes": routes, "points": points, "edges": edges, "prefs": prefs,
     }
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     with open(OUT, "w", encoding="utf-8") as f:
