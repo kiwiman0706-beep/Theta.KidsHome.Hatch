@@ -164,9 +164,9 @@ fun HomeScreen(
     val installed = remember(config.appCategory, config.categories) { Launcher.listApps(context) }
     val media = buildList {
         if (profile.hasTimetable) add(KidTab("timetable", TabKind.TIMETABLE, "📒", "じかんわり"))
-        if (config.showVideos && visibleVideos().isNotEmpty()) add(KidTab("local:video", TabKind.LOCAL_VIDEO, "📼", "ビデオ"))
-        if (config.showMusic && visibleMusic().isNotEmpty()) add(KidTab("local:music", TabKind.MUSIC, "🎵", "おんがく"))
-        if (config.showBooks && visibleBooks().isNotEmpty()) add(KidTab("local:book", TabKind.BOOKS, "🎧", "おはなし"))
+        if (config.showVideos && (visibleVideos().isNotEmpty() || app.thetahatch.kidshome.data.MediaLibrary.had(context, app.thetahatch.kidshome.data.MediaKind.VIDEO))) add(KidTab("local:video", TabKind.LOCAL_VIDEO, "📼", "ビデオ"))
+        if (config.showMusic && (visibleMusic().isNotEmpty() || app.thetahatch.kidshome.data.MediaLibrary.had(context, app.thetahatch.kidshome.data.MediaKind.MUSIC))) add(KidTab("local:music", TabKind.MUSIC, "🎵", "おんがく"))
+        if (config.showBooks && (visibleBooks().isNotEmpty() || app.thetahatch.kidshome.data.MediaLibrary.had(context, app.thetahatch.kidshome.data.MediaKind.BOOK))) add(KidTab("local:book", TabKind.BOOKS, "🎧", "おはなし"))
     }
     // 内蔵 アプリ の なかま（へや の ほんだな・おもちゃばこ と おなじ）を タブ にも
     val builtinTabs = remember(profile.tiles) {

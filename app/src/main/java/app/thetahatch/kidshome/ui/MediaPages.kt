@@ -65,6 +65,7 @@ import app.thetahatch.kidshome.data.Store
 import app.thetahatch.kidshome.media.AudioPlayer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /** 子どもに見せる動画（かくしたフォルダを除く） */
@@ -79,6 +80,43 @@ fun visibleBooks(): List<MediaEntry> = MediaLibrary.books.filter { it.shown() }
  */
 @Composable
 private fun ShelfPanes(
+    theme: KidTheme,
+    key: String,
+    shelves: Map<String, List<MediaEntry>>,
+    fallback: String,
+    square: Boolean,
+    count: (List<MediaEntry>) -> String,
+    content: @Composable (name: String, list: List<MediaEntry>) -> Unit,
+) {
+    Column(Modifier.fillMaxSize()) {
+        SdBanner(theme)
+        Box(Modifier.weight(1f)) { ShelfPanesInner(theme, key, shelves, fallback, square, count, content) }
+    }
+}
+
+/** SD が 見えない とき の おしらせ（一覧 は まえ の まま。もどったら 自動 で 読みなおす） */
+@Composable
+fun SdBanner(theme: KidTheme) {
+    val context = LocalContext.current
+    val st = app.thetahatch.kidshome.data.SdWatch.state
+    if (MediaLibrary.treeUri(context) == null || st == app.thetahatch.kidshome.data.SdWatch.State.OK || st == app.thetahatch.kidshome.data.SdWatch.State.UNKNOWN) return
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    Row(
+        Modifier.fillMaxWidth().padding(bottom = 10.dp).clip(RoundedCornerShape(14.dp)).background(Color(0xFFFFF3E0))
+            .border(2.dp, Color(0xFFFF9800), RoundedCornerShape(14.dp)).padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text("💾", fontSize = 34.sp)
+        Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
+            Text("SD カード が 見えない よ。さがして いる よ…", fontFamily = DotFont, fontSize = 18.sp, color = theme.outline)
+            Text("おうち の ひと に いって ね（${app.thetahatch.kidshome.data.SdWatch.reason}）", fontSize = 12.sp, color = Color(0xFF8D6E63))
+        }
+        androidx.compose.material3.OutlinedButton(onClick = { scope.launch { app.thetahatch.kidshome.data.SdWatch.check(context, rescan = true) } }) { Text("🔄 もう いちど") }
+    }
+}
+
+@Composable
+private fun ShelfPanesInner(
     theme: KidTheme,
     key: String,
     shelves: Map<String, List<MediaEntry>>,

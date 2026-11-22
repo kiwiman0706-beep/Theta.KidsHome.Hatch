@@ -461,6 +461,7 @@ fun MediaSection(config: AppConfig) {
             if (tree != null) TextButton(onClick = { MediaLibrary.setTree(context, null); tree = null }) { Text("はずす") }
         }
         tree?.let { Text("読んで いる フォルダ：" + Uri.decode(it.lastPathSegment.orEmpty()).substringAfter(':'), fontSize = 13.sp) }
+        if (tree != null) SdStatus()
         if (!granted && tree == null) {
             Button(onClick = { ask.launch(MediaLibrary.permissions + MediaLibrary.imagePermission) }) { Text("動画と音楽へのアクセスを許可") }
         } else {
@@ -803,5 +804,43 @@ fun GeminiSection() {
             TextButton(onClick = { shown = !shown }) { Text(if (shown) "かくす" else "見る") }
             TextButton(onClick = { model = app.thetahatch.kidshome.data.Gemini.DEFAULT_MODEL }) { Text("モデルを はじめに戻す") }
         }
+    }
+}
+
+
+/** 💾 SD の ようす と、見えなく なった とき の 記録（原因 さがし 用） */
+@Composable
+private fun SdStatus() {
+    val context = LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val sd = app.thetahatch.kidshome.data.SdWatch
+    var open by remember { mutableStateOf(false) }
+    val ok = sd.state == app.thetahatch.kidshome.data.SdWatch.State.OK
+    Text(
+        when (sd.state) {
+            app.thetahatch.kidshome.data.SdWatch.State.OK -> "💾 SD：✅ 読めて います"
+            app.thetahatch.kidshome.data.SdWatch.State.UNKNOWN -> "💾 SD：しらべ ちゅう"
+            else -> "💾 SD：⚠️ ${sd.reason}"
+        },
+        fontSize = 14.sp, fontWeight = FontWeight.Bold, color = if (ok) Color(0xFF2E7D32) else Color(0xFFD84315),
+    )
+    if (!ok && sd.state != app.thetahatch.kidshome.data.SdWatch.State.UNKNOWN) Text(
+        "一覧 は まえ の まま 出して、SD が もどったら 自動 で 読みなおします（Android の 知らせ と 30 びょう ごと の たしかめ）。",
+        fontSize = 12.sp, color = Color.Gray,
+    )
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        OutlinedButton(onClick = { scope.launch { sd.check(context, rescan = true) } }) { Text("🔄 SD を さがしなおす") }
+        TextButton(onClick = { open = !open }) { Text(if (open) "記録 を とじる" else "📋 記録（${sd.log.size}）") }
+    }
+    if (open) {
+        if (sd.log.isEmpty()) Text("まだ なにも おきて いません", fontSize = 12.sp, color = Color.Gray)
+        sd.log.take(20).forEach { Text(it, fontSize = 12.sp) }
+        Text(
+            "よみかた：「いきなり ぬけた」が 多い → カード の 接触（さしなおす・端子 を ふく・べつ の カード）。" +
+                "「Android が はずした」→ 設定 の ストレージ で マウント、省電力。「許可 が きえた」→ フォルダ を えらびなおす。" +
+                "「フォルダ が 見つからない」→ フォルダ名 が かわった／べつ の SD。",
+            fontSize = 11.sp, color = Color.Gray,
+        )
+        if (sd.log.isNotEmpty()) TextButton(onClick = { sd.clearLog(context) }) { Text("記録 を けす") }
     }
 }

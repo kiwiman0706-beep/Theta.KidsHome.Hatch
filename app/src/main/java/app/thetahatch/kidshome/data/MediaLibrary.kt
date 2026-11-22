@@ -269,6 +269,12 @@ object MediaLibrary {
         publish()
     }
 
+    fun isEmpty() = videos.isEmpty() && music.isEmpty() && books.isEmpty()
+
+    /** SD が 見えない あいだ も タブ を のこす ため：まえ に 読めた とき に あった か */
+    fun had(c: Context, kind: MediaKind) = treeUri(c) != null && SdWatch.state != SdWatch.State.OK && SdWatch.state != SdWatch.State.UNKNOWN &&
+        mediaPrefs(c).getBoolean(when (kind) { MediaKind.VIDEO -> "hadVideos"; MediaKind.MUSIC -> "hadMusic"; else -> "hadBooks" }, false)
+
     /** 5 分に 1 回まで読み直す（新しく入れた動画を拾うため） */
     fun refresh(context: Context, force: Boolean = false) {
         if (loading || !canRead(context)) return
@@ -279,12 +285,24 @@ object MediaLibrary {
             val tree = treeUri(app)
             var missing: List<Pair<Uri, String>> = emptyList()
             if (tree != null) runCatching {
+                // SD が 見えない とき は まえ の 一覧 を のこして「さがし ちゅう」（SdWatch が もどったら 読みなおす）
+                val (st, why) = withContext(Dispatchers.IO) { SdWatch.probe(app, tree) }
+                SdWatch.set(app, st, why)
+                if (st != SdWatch.State.OK) { loading = false; return@launch }
                 val sc = withContext(Dispatchers.IO) { scanTree(app, tree) }
+                if (sc.videos.isEmpty() && sc.audio.isEmpty() && !isEmpty()) {
+                    // 読んで いる とちゅう で 見えなく なった かも：もう いちど たしかめる
+                    val (st2, why2) = withContext(Dispatchers.IO) { SdWatch.probe(app, tree) }
+                    SdWatch.set(app, st2, why2)
+                    if (st2 != SdWatch.State.OK) { loading = false; return@launch }
+                    SdWatch.note(app, "ℹ️ SD は 見える が、動画・音楽 が 1 つ も ない")
+                }
                 icons = sc.icons; pcThumbs = sc.thumbs; pcFrames = sc.frames; skipped = sc.skipped; videos = sc.videos
                 music = sc.audio.filter { it.kind == MediaKind.MUSIC }
                 books = sc.audio.filter { it.kind == MediaKind.BOOK }
                 missing = sc.missing
-            } else runCatching {
+                mediaPrefs(app).edit().putBoolean("hadVideos", videos.isNotEmpty()).putBoolean("hadMusic", music.isNotEmpty()).putBoolean("hadBooks", books.isNotEmpty()).apply()
+            }.onFailure { SdWatch.note(app, "❌ 読みこみ エラー：${it.javaClass.simpleName} ${it.message.orEmpty().take(80)}") } else runCatching {
                 val v = withContext(Dispatchers.IO) { queryVideos(app) }
                 val a = withContext(Dispatchers.IO) { queryAudio(app) }
                 icons = if (hasImagePermission(app)) withContext(Dispatchers.IO) { runCatching { queryIcons(app) }.getOrDefault(emptyMap()) } else emptyMap()

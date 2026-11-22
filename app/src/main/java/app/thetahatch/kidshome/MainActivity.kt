@@ -184,6 +184,7 @@ class MainActivity : ComponentActivity() {
         Weather.refresh(this)
         Remote.sync(this)
         app.thetahatch.kidshome.data.SheetSync.sync(this)
+        app.thetahatch.kidshome.data.SdWatch.start(this)
         app.thetahatch.kidshome.data.MediaLibrary.refresh(this)
         app.thetahatch.kidshome.data.Events.refresh(this)
     }
