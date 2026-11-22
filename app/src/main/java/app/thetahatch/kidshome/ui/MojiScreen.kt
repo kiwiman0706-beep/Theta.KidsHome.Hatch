@@ -41,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
@@ -73,9 +74,10 @@ fun MojiScreen(onBack: () -> Unit) {
     var index by remember(set) { mutableIntStateOf(chars.indexOfFirst { it !in written }.coerceAtLeast(0)) }
     val ch = chars.getOrElse(index) { chars.first() }
     val strokes = remember(ch) { mutableStateListOf<MojiStroke>().apply { written[ch]?.let { addAll(it) } } }
-    val current = remember { mutableStateListOf<FloatArray>() }
     var penMode by remember { mutableStateOf(context.getSharedPreferences("drawing", 0).getBoolean("pen", false)) }
     var cheer by remember { mutableStateOf<String?>(null) }
+    val padPrefs = remember { context.getSharedPreferences("moji", 0) }
+    var padScale by remember { mutableStateOf(padPrefs.getFloat("padScale", 1f)) }
 
     fun save() {
         if (strokes.isEmpty()) return
@@ -143,42 +145,20 @@ fun MojiScreen(onBack: () -> Unit) {
                 // おてほん（書き順）・よみ・ことば・いみ（なぞらず よこ に）
                 KanjiSide(theme, ch)
                 Box(
-                    Modifier.fillMaxHeight().aspectRatio(1f).clip(RoundedCornerShape(16.dp)).background(Color.White)
-                        .border(4.dp, theme.outline, RoundedCornerShape(16.dp))
-                        .pointerInput(ch, penMode) {
-                            awaitEachGesture {
-                                val down = awaitFirstDown()
-                                val stylus = down.type == PointerType.Stylus || down.type == PointerType.Eraser
-                                if (penMode && !stylus) return@awaitEachGesture
-                                down.consume()
-                                val sz = size.width.toFloat()
-                                fun pt(o: Offset, pr: Float) = floatArrayOf((o.x / sz).coerceIn(0f, 1f), (o.y / sz).coerceIn(0f, 1f), if (stylus) pr.coerceIn(0f, 1f) else 0.5f)
-                                current.clear()
-                                current += pt(down.position, down.pressure)
-                                while (true) {
-                                    val ev = awaitPointerEvent()
-                                    val c = ev.changes.firstOrNull { it.id == down.id } ?: break
-                                    if (!c.pressed) break
-                                    c.historical.forEach { h -> current += pt(h.position, c.pressure) }
-                                    current += pt(c.position, c.pressure)
-                                    c.consume()
-                                }
-                                strokes += current.toList()
-                                current.clear()
-                                cheer = null
-                            }
-                        },
+                    Modifier.fillMaxHeight(padScale).aspectRatio(1f).clip(RoundedCornerShape(16.dp)).background(Color.White)
+                        .border(4.dp, theme.outline, RoundedCornerShape(16.dp)),
                 ) {
-                    Canvas(Modifier.fillMaxSize()) {
-                        // 田 の 点線
-                        val dash = PathEffect.dashPathEffect(floatArrayOf(14f, 12f))
-                        val lc = theme.outline.copy(alpha = 0.25f)
-                        drawLine(lc, Offset(size.width / 2, 0f), Offset(size.width / 2, size.height), 3f, pathEffect = dash)
-                        drawLine(lc, Offset(0f, size.height / 2), Offset(size.width, size.height / 2), 3f, pathEffect = dash)
-                        drawIntoCanvas { cv ->
-                            Moji.draw(cv.nativeCanvas, strokes.toList() + listOfNotNull(current.toList().takeIf { it.isNotEmpty() }), 0f, 0f, size.width, android.graphics.Color.rgb(30, 30, 40))
-                        }
-                    }
+                    val grid = theme.outline.copy(alpha = 0.25f).toArgb()
+                    androidx.compose.ui.viewinterop.AndroidView(
+                        factory = { MojiPadView(it) },
+                        update = { v ->
+                            v.penOnly = penMode
+                            v.gridColor = grid
+                            v.strokes = strokes.toList()
+                            v.onStroke = { st -> strokes += st; cheer = null }
+                        },
+                        modifier = Modifier.fillMaxSize(),
+                    )
                 }
                 }
                 Spacer(Modifier.height(10.dp))
@@ -190,6 +170,9 @@ fun MojiScreen(onBack: () -> Unit) {
                         penMode = !penMode
                         context.getSharedPreferences("drawing", 0).edit().putBoolean("pen", penMode).apply()
                     }
+                    // 書く ところ の 大きさ（おぼえる）
+                    RetroIconButton("🔍➖", theme) { padScale = (padScale - 0.1f).coerceAtLeast(0.4f); padPrefs.edit().putFloat("padScale", padScale).apply() }
+                    RetroIconButton("🔍➕", theme) { padScale = (padScale + 0.1f).coerceAtMost(1f); padPrefs.edit().putFloat("padScale", padScale).apply() }
                     RetroButton("⭐ できた！", theme, theme.titleBars[2], fontSize = 22) { save() }
                     RetroIconButton("➡️", theme) { index = (index + 1) % chars.size }
                 }

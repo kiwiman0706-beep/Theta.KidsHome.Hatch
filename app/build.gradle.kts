@@ -15,8 +15,8 @@ android {
         applicationId = "app.thetahatch.kidshome"
         minSdk = 29
         targetSdk = 35
-        versionCode = 109
-        versionName = "1.0.9"
+        versionCode = 110
+        versionName = "1.0.10"
     }
 
     signingConfigs {
@@ -57,6 +57,7 @@ android.sourceSets.getByName("main").java.srcDir(if (tepraJar.exists()) "src/tep
 dependencies {
     if (tepraJar.exists()) implementation(files(tepraJar))
     val composeBom = platform("androidx.compose:compose-bom:2024.12.01")
+    implementation("androidx.input:input-motionprediction:1.0.1")  // もじ れんしゅう：ペン の 先 を 予測 して おくれ を へらす
     implementation(composeBom)
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.activity:activity-compose:1.9.3")
