@@ -825,7 +825,7 @@ private fun SdStatus() {
         fontSize = 14.sp, fontWeight = FontWeight.Bold, color = if (ok) Color(0xFF2E7D32) else Color(0xFFD84315),
     )
     if (!ok && sd.state != app.thetahatch.kidshome.data.SdWatch.State.UNKNOWN) Text(
-        "一覧 は まえ の まま 出して、SD が もどったら 自動 で 読みなおします（Android の 知らせ と 30 びょう ごと の たしかめ）。",
+        "一覧 は まえ の まま 出して、SD が もどったら 自動 で 読みなおします（Android の 知らせ と、見えない あいだ 30 びょう ごと の たしかめ）。",
         fontSize = 12.sp, color = Color.Gray,
     )
     Row(verticalAlignment = Alignment.CenterVertically) {

@@ -275,10 +275,13 @@ object MediaLibrary {
     fun had(c: Context, kind: MediaKind) = treeUri(c) != null && SdWatch.state != SdWatch.State.OK && SdWatch.state != SdWatch.State.UNKNOWN &&
         mediaPrefs(c).getBoolean(when (kind) { MediaKind.VIDEO -> "hadVideos"; MediaKind.MUSIC -> "hadMusic"; else -> "hadBooks" }, false)
 
-    /** 5 分に 1 回まで読み直す（新しく入れた動画を拾うため） */
+    /**
+     * フォルダ を 読みなおす：ホーム に もどる たび で なく 30 分 に 1 回 まで（SD に なるべく さわらない）。
+     * 新しく 入れた もの を すぐ 出したい とき は おやメニュー の「読み直す」。
+     */
     fun refresh(context: Context, force: Boolean = false) {
         if (loading || !canRead(context)) return
-        if (!force && System.currentTimeMillis() - loadedAt < 5 * 60_000) return
+        if (!force && System.currentTimeMillis() - loadedAt < 30 * 60_000) return
         loading = true
         val app = context.applicationContext
         scope.launch {
@@ -430,13 +433,32 @@ object MediaLibrary {
         override fun sizeOf(key: String, value: Bitmap) = value.byteCount
     }
 
+    // ---- 端末 の 中 の キャッシュ（SD を なんども 読まない ため。アプリ の cache フォルダ、いっぱい に なれば Android が けす）
+    private fun diskFile(context: Context, kind: String, key: String): java.io.File {
+        val h = java.security.MessageDigest.getInstance("SHA-1").digest(key.toByteArray()).joinToString("") { "%02x".format(it) }.take(24)
+        return java.io.File(context.cacheDir, "$kind/$h.jpg")
+    }
+
+    private fun diskGet(context: Context, kind: String, key: String): Bitmap? =
+        diskFile(context, kind, key).takeIf { it.exists() }?.let { runCatching { BitmapFactory.decodeFile(it.path) }.getOrNull() }
+
+    private fun diskPut(context: Context, kind: String, key: String, b: Bitmap) {
+        runCatching {
+            val f = diskFile(context, kind, key)
+            f.parentFile?.mkdirs()
+            val tmp = java.io.File(f.path + ".tmp")
+            tmp.outputStream().use { b.compress(Bitmap.CompressFormat.JPEG, 85, it) }
+            tmp.renameTo(f)
+        }
+    }
+
     /** コマ送り の スプライト 画像（1 枚 まるごと。主スレッドで呼ばない） */
     fun sprite(context: Context, f: Frames): Bitmap? {
         val key = f.uri.toString()
         sprites.get(key)?.let { return it }
-        val b = runCatching {
+        val b = diskGet(context, "sprites", key) ?: runCatching {
             context.contentResolver.openInputStream(f.uri)?.use { BitmapFactory.decodeStream(it) }
-        }.getOrNull() ?: return null
+        }.getOrNull()?.also { diskPut(context, "sprites", key, it) } ?: return null
         sprites.put(key, b)
         return b
     }
@@ -446,11 +468,13 @@ object MediaLibrary {
         val key = "$uri@$w"
         thumbs.get(key)?.let { return it }
         if (key in missing) return null
+        // 端末 の 中 に おいた もの（2 回目 から は SD を 読まない）
+        diskGet(context, "thumbs", key)?.let { thumbs.put(key, it); return it }
         // パソコン で 作った サムネイル が あれば それ
-        pcThumbs[uri.toString()]?.let { t -> fileThumb(context, t, w, h)?.let { thumbs.put(key, it); return it } }
+        pcThumbs[uri.toString()]?.let { t -> fileThumb(context, t, w, h)?.let { thumbs.put(key, it); diskPut(context, "thumbs", key, it); return it } }
         val b = runCatching { context.contentResolver.loadThumbnail(uri, Size(w, h), null) }.getOrNull()
             ?: if (uri.authority != MediaStore.AUTHORITY) fileThumb(context, uri, w, h) else null
-        if (b != null) thumbs.put(key, b) else missing += key
+        if (b != null) { thumbs.put(key, b); if (uri.authority != MediaStore.AUTHORITY) diskPut(context, "thumbs", key, b) } else missing += key
         return b
     }
 }

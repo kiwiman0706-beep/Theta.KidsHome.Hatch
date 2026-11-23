@@ -25,7 +25,7 @@ import java.util.Locale
 /**
  * SD カード の みはり。
  * - 見えなく なったら 一覧 は 消さず に「さがし ちゅう」に して、もどったら 自動 で 読みなおす
- *   （Android の 知らせ（MEDIA_MOUNTED など）と、30 びょう ごと の たしかめ）
+ *   （Android の 知らせ（MEDIA_MOUNTED など）と、見えない あいだ は 30 びょう ごと の たしかめ）
  * - なにが おきた か を 時刻 つき で のこす（おやメニュー で 見る）
  */
 object SdWatch {
@@ -81,10 +81,10 @@ object SdWatch {
         runCatching {
             androidx.core.content.ContextCompat.registerReceiver(app, receiver, f, androidx.core.content.ContextCompat.RECEIVER_EXPORTED)
         }
-        // 30 びょう ごと に たしかめる（知らせ が こない こと も ある ので）
+        // たしかめ：見えない あいだ は 30 びょう ごと、読めて いる とき は 5 ふん ごと（SD に なるべく さわらない）
         scope.launch {
             while (true) {
-                delay(30_000)
+                delay(if (state == State.OK) 5 * 60_000L else 30_000L)
                 runCatching { check(app, rescan = false) }
             }
         }
